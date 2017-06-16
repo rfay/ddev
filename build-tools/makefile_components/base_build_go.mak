@@ -38,7 +38,7 @@ linux darwin windows: $(GOFILES)
 	@rm -f VERSION.txt
 	@mkdir -p bin/$@ $(GOTMP)/{std/$@,bin,src/$(PKG)}
 
-	@docker run -t --rm -u $(shell id -u):$(shell id -g)                    \
+	docker run -t --rm -u $(shell id -u):$(shell id -g)                    \
 	    -v $$(pwd)/$(GOTMP):/go                                                 \
 	    -v $$(pwd):/go/src/$(PKG)                                          \
 	    -v $$(pwd)/bin/$@:/go/bin                                     \

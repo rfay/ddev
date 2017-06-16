@@ -1,0 +1,35 @@
+version: "{build}"
+image: Visual Studio 2017
+
+# Source Config
+clone_folder: c:\gopath\src\github.com\drud\ddev
+
+# Build host
+
+environment:
+  GOPATH: c:\gopath
+  GOVERSION: 1.8.3
+
+init:
+  - git config --global core.autocrlf input
+
+# Build
+
+install:
+  # Install the specific Go version.
+  - rmdir c:\go /s /q
+  - curl -fsS -o golang.msi https://storage.googleapis.com/golang/go%GOVERSION%.windows-amd64.msi
+  - msiexec /i golang.msi /q
+  - docker version
+  - docker-compose version
+  - go version
+  - choco install gnuwin32-make.portable
+  - make --version
+
+build_script:
+  - make windows
+
+deploy: false
+
+test_script:
+  - make test
