@@ -72,6 +72,7 @@ test: testpkg testcmd
 
 testcmd: build setup
 	CGO_ENABLED=0
+	set DDEV_BINARY_FULLPATH=$(DDEV_BINARY_FULLPATH)
 	go test -p 1 -timeout 20m -v -installsuffix static -ldflags "$(LDFLAGS)" ./cmd/... $(TESTARGS)
 
 testpkg:
@@ -83,6 +84,7 @@ setup:
 	@mkdir -p bin/darwin bin/linux
 	@mkdir -p .go/src/$(PKG) .go/pkg .go/bin .go/std/linux
 	@if [ ! -L $(PWD)/bin/darwin/ddev ] ; then ln -s $(PWD)/bin/darwin/darwin_amd64/ddev $(PWD)/bin/darwin/ddev; fi
+	@echo DDEV_BINARY_FULLPATH=$(DDEV_BINARY_FULLPATH)
 
 # Required static analysis targets used in circleci - these cause fail if they don't work
 staticrequired: gofmt govet golint errcheck staticcheck codecoroner

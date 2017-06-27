@@ -16,12 +16,14 @@ init:
 # Build
 
 install:
+  - curl -fsS -o docker.msi https://download.docker.com/win/stable/InstallDocker.msi
+  - msiexec /i docker.msi /q
+  - docker version
+  - docker-compose version
   # Install the specific Go version.
   - rmdir c:\go /s /q
   - curl -fsS -o golang.msi https://storage.googleapis.com/golang/go%GOVERSION%.windows-amd64.msi
   - msiexec /i golang.msi /q
-  - docker version
-  - docker-compose version
   - go version
   - choco install -y gnuwin32-make.portable
   - PATH=C:\Program Files (x86)\GnuWin32\Bin;%PATH%
