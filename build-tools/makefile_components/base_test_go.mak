@@ -17,4 +17,4 @@ test: build
 	    -e CGO_ENABLED=0	\
 	    -w /go/src/$(PKG)                                                  \
 	    $(BUILD_IMAGE)                                                     \
-        go test -v -installsuffix static -ldflags '$(LDFLAGS)' $(SRC_AND_UNDER)
+        go test -v -installsuffix static -ldflags " $(LDFLAGS) " $(SRC_AND_UNDER)

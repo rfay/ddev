@@ -25,11 +25,19 @@ GOMETALINTER_ARGS ?= --vendored-linters --disable=gocyclo --disable=gotype --dis
 
 
 COMMIT := $(shell git describe --tags --always --dirty)
-BUILDINFO = $(shell echo Built $$(date) $$USER@$$(hostname) $(BUILD_IMAGE) )
+
+ifeq ($(shell uname -s),windows32)
+    DATE = $(shell date /t) $(shell time /t)
+else
+    DATE = $(shell date)
+endif
+WHOAMI = $(shell whoami)
+HOSTNAME = $(shell hostname)
+BUILDINFO = $(shell echo Built $(DATE) $(WHOAMI)@$(HOSTNAME) $(BUILD_IMAGE))
 
 VERSION_VARIABLES += VERSION COMMIT BUILDINFO
 
-VERSION_LDFLAGS := $(foreach v,$(VERSION_VARIABLES),-X "$(PKG)/pkg/version.$(v)=$($(v))")
+VERSION_LDFLAGS := $(foreach v,$(VERSION_VARIABLES),-X \"$(PKG)/pkg/version.$(v)=$($(v))\")
 
 LDFLAGS := -extldflags -static $(VERSION_LDFLAGS)
 
@@ -38,16 +46,16 @@ build: linux darwin
 linux darwin windows: $(GOFILES)
 	@echo "building $@ from $(SRC_AND_UNDER)"
 	docker run -t --rm -u $(shell id -u):$(shell id -g)                    \
-	    -v $(PWD)/$(GOTMP):/go                                                 \
-	    -v $(PWD):/go/src/$(PKG)                                          \
-	    -v $(PWD)/bin/$@:/go/bin                                     \
-	    -v $(PWD)/bin/$@:/go/bin/$@                      \
-	    -v $(PWD)/$(GOTMP)/std/$@:/usr/local/go/pkg/$@_amd64_static  \
+	    -v "$(PWD)/$(GOTMP):/go"                                                 \
+	    -v "$(PWD):/go/src/$(PKG)"                                          \
+	    -v "$(PWD)/bin/$@:/go/bin"                                     \
+	    -v "$(PWD)/bin/$@:/go/bin/$@"                      \
+	    -v "$(PWD)/$(GOTMP)/std/$@:/usr/local/go/pkg/$@_amd64_static"  \
 	    -e CGO_ENABLED=0                  \
 	    -e GOOS=$@						  \
 	    -w /go/src/$(PKG)                 \
 	    $(BUILD_IMAGE)                    \
-        go install -installsuffix static -ldflags ' $(LDFLAGS) ' $(SRC_AND_UNDER)
+        go install -installsuffix static -ldflags " $(LDFLAGS) " $(SRC_AND_UNDER)
 	@touch $@
 	@echo $(VERSION) >VERSION.txt
 
