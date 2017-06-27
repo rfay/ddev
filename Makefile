@@ -61,21 +61,31 @@ include build-tools/makefile_components/base_build_go.mak
 .PHONY: test testcmd testpkg build setup staticrequired
 
 TESTOS = $(shell uname -s | tr '[:upper:]' '[:lower:]')
-DDEV_BINARY_FULLPATH=$(shell pwd)/bin/$(TESTOS)/ddev
+DDEV_BINARY_FULLPATH=$(PWD)/bin/$(TESTOS)/ddev
+ifeq ($(TESTOS),windows)
+    DDEV_BINARY_FULLPATH=$(DDEV_BINARY_FULLPATH).exe
+endif
+
 
 # Override test section with tests specific to ddev
 test: testpkg testcmd
 
 testcmd: build setup
-	PATH=$$PWD/bin/$(TESTOS):$$PATH CGO_ENABLED=0 DDEV_BINARY_FULLPATH=$(DDEV_BINARY_FULLPATH) go test -p 1 -timeout 20m -v -installsuffix static -ldflags '$(LDFLAGS)' ./cmd/... $(TESTARGS)
+	PATH=$(PWD)/bin/$(TESTOS):$$PATH
+	CGO_ENABLED=0
+	DDEV_BINARY_FULLPATH=$(DDEV_BINARY_FULLPATH)
+	go test -p 1 -timeout 20m -v -installsuffix static -ldflags '$(LDFLAGS)' ./cmd/... $(TESTARGS)
 
 testpkg:
-	PATH=$$PWD/bin/$(TESTOS):$$PATH CGO_ENABLED=0 DDEV_BINARY_FULLPATH=$(DDEV_BINARY_FULLPATH) DRUD_DEBUG=true go test  -timeout 20m -v -installsuffix static -ldflags '$(LDFLAGS)' ./pkg/... $(TESTARGS)
+	set CGO_ENABLED=0
+	set DDEV_BINARY_FULLPATH=$(DDEV_BINARY_FULLPATH)
+	set DRUD_DEBUG=true
+	go test  -timeout 20m -v -installsuffix static -ldflags '$(LDFLAGS)' ./pkg/... $(TESTARGS)
 
 setup:
 	@mkdir -p bin/darwin bin/linux
 	@mkdir -p .go/src/$(PKG) .go/pkg .go/bin .go/std/linux
-	@if [ ! -L $$PWD/bin/darwin/ddev ] ; then ln -s $$PWD/bin/darwin/darwin_amd64/ddev $$PWD/bin/darwin/ddev; fi
+	@if [ ! -L $(PWD)/bin/darwin/ddev ] ; then ln -s $(PWD)/bin/darwin/darwin_amd64/ddev $(PWD)/bin/darwin/ddev; fi
 
 # Required static analysis targets used in circleci - these cause fail if they don't work
 staticrequired: gofmt govet golint errcheck staticcheck codecoroner

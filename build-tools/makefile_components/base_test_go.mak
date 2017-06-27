@@ -10,10 +10,10 @@ test: build
 	@mkdir -p bin/linux
 	@mkdir -p $(GOTMP)/{src/$(PKG),pkg,bin,std/linux}
 	docker run -t --rm  -u $(shell id -u):$(shell id -g)                 \
-	    -v $$(pwd)/$(GOTMP):/go                                                 \
-	    -v $$(pwd):/go/src/$(PKG)                                          \
-	    -v $$(pwd)/bin/linux:/go/bin                                     \
-	    -v $$(pwd)/$(GOTMP)/std/linux:/usr/local/go/pkg/linux_amd64_static  \
+	    -v $(PWD)/$(GOTMP):/go                                                 \
+	    -v $(PWD):/go/src/$(PKG)                                          \
+	    -v $(PWD)/bin/linux:/go/bin                                     \
+	    -v $(PWD)/$(GOTMP)/std/linux:/usr/local/go/pkg/linux_amd64_static  \
 	    -e CGO_ENABLED=0	\
 	    -w /go/src/$(PKG)                                                  \
 	    $(BUILD_IMAGE)                                                     \
