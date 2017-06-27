@@ -23,7 +23,9 @@ install:
   - docker version
   - docker-compose version
   - go version
-  - choco install gnuwin32-make.portable
+  - choco install -y gnuwin32-make.portable
+  - PATH=C:\Program Files (x86)\GnuWin32\Bin;%PATH%
+  - choco install -y gnuwin32-coreutils.install
   - make --version
 
 build_script:
