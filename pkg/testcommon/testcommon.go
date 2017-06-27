@@ -106,8 +106,7 @@ func (site *TestSite) Cleanup() {
 
 // CleanupDir removes a directory specified by string.
 func CleanupDir(dir string) {
-	err := os.RemoveAll(dir)
-	util.CheckErr(err)
+	_ = os.RemoveAll(dir)
 }
 
 // OsTempDir gets os.TempDir() (usually provided by $TMPDIR) but expands any symlinks found within it.

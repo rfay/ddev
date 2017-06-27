@@ -31,12 +31,10 @@ func TestCopyDir(t *testing.T) {
 	err = fileutil.CopyDir(sourceDir, targetDir)
 	assert.Error(err)
 	assert.Contains(err.Error(), "destination already exists")
-	err = os.RemoveAll(subdir)
-	assert.NoError(err)
+	_ = os.RemoveAll(subdir)
 
 	// copy a directory and validate that we find files elsewhere
-	err = os.RemoveAll(targetDir)
-	assert.NoError(err)
+	_ = os.RemoveAll(targetDir)
 
 	file, err := os.Create(filepath.Join(sourceDir, "touch1.txt"))
 	assert.NoError(err)
@@ -50,10 +48,8 @@ func TestCopyDir(t *testing.T) {
 	assert.True(fileutil.FileExists(filepath.Join(targetDir, "touch1.txt")))
 	assert.True(fileutil.FileExists(filepath.Join(targetDir, "touch2.txt")))
 
-	err = os.RemoveAll(sourceDir)
-	assert.NoError(err)
-	err = os.RemoveAll(targetDir)
-	assert.NoError(err)
+	_ = os.RemoveAll(sourceDir)
+	_ = os.RemoveAll(targetDir)
 
 }
 
@@ -72,8 +68,7 @@ func TestCopyFile(t *testing.T) {
 	if err != nil {
 		assert.False(file.IsDir())
 	}
-	err = os.RemoveAll(tmpTargetDir)
-	assert.NoError(err)
+	_ = os.RemoveAll(tmpTargetDir)
 }
 
 // TestPurgeDirectory tests removal of directory contents without removing

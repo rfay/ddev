@@ -27,8 +27,7 @@ func TestWriteDrupalConfig(t *testing.T) {
 	err = os.Chmod(file.Name(), 0666)
 	assert.NoError(t, err)
 
-	err = os.RemoveAll(dir)
-	assert.NoError(t, err)
+	_ = os.RemoveAll(dir)
 }
 
 func TestWriteDrushConfig(t *testing.T) {
@@ -46,8 +45,7 @@ func TestWriteDrushConfig(t *testing.T) {
 	err = os.Chmod(file.Name(), 0666)
 	assert.NoError(t, err)
 
-	err = os.RemoveAll(dir)
-	assert.NoError(t, err)
+	_ = os.RemoveAll(dir)
 }
 
 func TestWriteWordpressConfig(t *testing.T) {
@@ -65,6 +63,5 @@ func TestWriteWordpressConfig(t *testing.T) {
 	err = os.Chmod(file.Name(), 0666)
 	assert.NoError(t, err)
 
-	err = os.RemoveAll(dir)
-	assert.NoError(t, err)
+	_ = os.RemoveAll(dir)
 }

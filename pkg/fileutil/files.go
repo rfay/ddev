@@ -136,10 +136,7 @@ func PurgeDirectory(path string) error {
 		if err != nil {
 			return err
 		}
-		err = os.RemoveAll(filepath.Join(path, file))
-		if err != nil {
-			return err
-		}
+		_ = os.RemoveAll(filepath.Join(path, file))
 	}
 	return nil
 }

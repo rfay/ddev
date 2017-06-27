@@ -39,8 +39,7 @@ func TestUnarchive(t *testing.T) {
 		assert.NoError(err)
 		assert.True(err == nil && !finfo.IsDir())
 
-		err = os.RemoveAll(exDir)
-		assert.NoError(err)
+		_ = os.RemoveAll(exDir)
 
 		// Now do the unarchive with an extraction root
 		exDir = testcommon.CreateTmpDir("testfile" + suffix + "2")
@@ -53,8 +52,7 @@ func TestUnarchive(t *testing.T) {
 		assert.NoError(err)
 		assert.True(err == nil && !finfo.IsDir())
 
-		err = os.RemoveAll(exDir)
-		assert.NoError(err)
+		_ = os.RemoveAll(exDir)
 	}
 
 }

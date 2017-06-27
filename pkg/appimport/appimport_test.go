@@ -72,6 +72,5 @@ func TestValidateAsset(t *testing.T) {
 	assert.Error(err)
 	assert.Contains(err.Error(), "provided path is not a directory or archive")
 
-	err = os.RemoveAll(filepath.Dir(testArchivePath))
-	util.CheckErr(err)
+	_ = os.RemoveAll(filepath.Dir(testArchivePath))
 }
