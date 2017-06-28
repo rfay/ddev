@@ -10,7 +10,7 @@ GOTMP=.gotmp
 
 SHELL := /bin/bash
 
-PWD ?= $(shell pwd)
+PWD ?= $(shell pwd | sed 's/\\/\//g')
 
 GOFILES = $(shell find $(SRC_DIRS) -name "*.go")
 
@@ -46,11 +46,11 @@ build: linux darwin
 linux darwin windows: $(GOFILES)
 	@echo "building $@ from $(SRC_AND_UNDER)"
 	docker run -t --rm -u $(shell id -u):$(shell id -g)                    \
-	    -v "$(PWD)/$(GOTMP):/go"                                                 \
-	    -v "$(PWD):/go/src/$(PKG)"                                          \
-	    -v "$(PWD)/bin/$@:/go/bin"                                     \
-	    -v "$(PWD)/bin/$@:/go/bin/$@"                      \
-	    -v "$(PWD)/$(GOTMP)/std/$@:/usr/local/go/pkg/$@_amd64_static"  \
+	    -v "$(PWD)"/$(GOTMP):/go                                                 \
+	    -v "$(PWD)":/go/src/$(PKG)                                        \
+	    -v "$(PWD)"/bin/$@:/go/bin                                     \
+	    -v "$(PWD)"/bin/$@:/go/bin/$@                  \
+	    -v "$(PWD)"/$(GOTMP)/std/$@:/usr/local/go/pkg/$@_amd64_static  \
 	    -e CGO_ENABLED=0                  \
 	    -e GOOS=$@						  \
 	    -w /go/src/$(PKG)                 \
