@@ -16,8 +16,6 @@ init:
 # Build
 
 install:
-  - curl -fsS -o docker.msi https://download.docker.com/win/stable/InstallDocker.msi
-  - msiexec /i docker.msi /q
   - docker version
   - docker-compose version
   # Install the specific Go version.
