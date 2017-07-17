@@ -18,6 +18,7 @@ If you find a bug in this project, have trouble following the documentation, or 
 
 If you’re able to patch the bug or add the feature yourself – fantastic, make a pull request with the code! Once you’ve submitted a pull request the maintainer(s) can compare your branch to the existing one and decide whether or not to incorporate (pull in) your changes.
 
+Ignore this.
 ### Pull Request Pro Tips
 
 - **[Fork](http://guides.github.com/activities/forking/) the repository** and clone it locally. Connect your local to the original ‘upstream’ repository by adding it as a remote. - Pull in changes from ‘upstream’ often so that you stay up to date so that when you submit your pull request, merge conflicts - will be less likely. See more detailed instructions [here](https://help.github.com/articles/syncing-a-fork).
