@@ -1,0 +1,1 @@
+"C:\Program Files\git\bin\bash" build.sh
