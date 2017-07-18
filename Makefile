@@ -89,3 +89,5 @@ setup:
 # Required static analysis targets used in circleci - these cause fail if they don't work
 staticrequired: gofmt govet golint errcheck staticcheck codecoroner
 
+newtarget: 
+	@echo "This is a target in the PR, yup"
