@@ -8,7 +8,7 @@ BUILD=$(date "+%Y%m%d%H%M%S")
 export GOPATH=~/tmp/ddevbuild_$BUILD
 DRUDSRC=$GOPATH/src/github.com/drud
 
-echo "Building in $DRUDSRC/ddev"
+echo "Building on $(hostname) for OS=$(go env GOOS) in $DRUDSRC/ddev"
 
 export GOTEST_SHORT=1
 
