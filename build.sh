@@ -1,6 +1,8 @@
 #!/bin/bash
 
-export GOPATH=$(mktemp -d)
+BUILD=$(date "+%Y%m%d%H%M%S")
+export GOPATH=~/tmp/ddevbuild_$BUILD
+
 export GOTEST_SHORT=1
 
 echo "Warning: deleting all docker containers"
