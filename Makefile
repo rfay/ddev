@@ -68,7 +68,7 @@ ifeq ($(BUILD_OS),windows)
     DDEV_BINARY_FULLPATH=$(shell pwd)/bin/$(BUILD_OS)/$(BUILD_OS)_$(BUILD_ARCH)/ddev.exe
 endif
 
-ifeq ($BUILD_OS),darwin)
+ifeq ($(BUILD_OS)),darwin)
     DDEV_BINARY_FULLPATH=$(shell pwd)/bin/$(BUILD_OS)/$(BUILD_OS)_$(BUILD_ARCH)/ddev
 endif
 
