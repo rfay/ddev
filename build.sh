@@ -24,3 +24,4 @@ make testcmd
 RV=$?
 echo "build.sh completed with status=$RV"
 exit $?
+
