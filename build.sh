@@ -1,6 +1,7 @@
 #!/bin/bash
 
 export GOPATH=$(mktemp -d)
+export GOTEST_SHORT=1
 
 echo "Warning: deleting all docker containers"
 docker rm -f $(docker ps -aq)
