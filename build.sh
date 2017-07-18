@@ -20,7 +20,7 @@ echo "Warning: deleting all docker containers"
 docker rm -f $(docker ps -aq) 2>/dev/null || true
 
 
-make testcmd
+make testcmdish
 RV=$?
 echo "build.sh completed with status=$RV"
 exit $RV
