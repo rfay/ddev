@@ -21,4 +21,3 @@ cd $DRUDSRC/ddev
 
 #make print-BUILD_OS print-DDEV_BINARY_FULLPATH
 time make testcmd
-
