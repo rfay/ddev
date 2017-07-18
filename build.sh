@@ -13,4 +13,4 @@ mkdir -p $DRUDSRC
 ln -s $PWD $DRUDSRC/ddev 
 cd $DRUDSRC/ddev
 
-make clean testcmd
+make print-BUILD_OS
