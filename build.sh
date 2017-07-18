@@ -13,4 +13,4 @@ mkdir -p $DRUDSRC
 ln -s $PWD $DRUDSRC/ddev 
 cd $DRUDSRC/ddev
 
-make print-BUILD_OS
+make print-BUILD_OS print-DDEV_BINARY_FULLPATH
