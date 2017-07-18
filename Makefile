@@ -77,7 +77,6 @@ endif
 test: testpkg testcmd
 
 testcmd: $(BUILD_OS) setup
-	@echo "BUILD_OS=$(BUILD_OS)
 	CGO_ENABLED=0 DDEV_BINARY_FULLPATH=$(DDEV_BINARY_FULLPATH) go test -p 1 -timeout 20m -v -installsuffix static -ldflags '$(LDFLAGS)' ./cmd/... $(TESTARGS)
 
 testpkg:
