@@ -4,7 +4,7 @@ export GOPATH=$(mktemp -d)
 export GOTEST_SHORT=1
 
 echo "Warning: deleting all docker containers"
-docker rm -f $(docker ps -aq)
+docker rm -f $(docker ps -aq) 2>/dev/null || true
 
 DRUDSRC=$GOPATH/src/github.com/drud
 mkdir -p $DRUDSRC
