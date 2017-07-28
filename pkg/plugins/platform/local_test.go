@@ -10,8 +10,6 @@ import (
 
 	"strings"
 
-	"runtime"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/drud/ddev/pkg/ddevapp"
 	"github.com/drud/ddev/pkg/dockerutil"
@@ -75,7 +73,7 @@ func TestMain(m *testing.M) {
 	for i := range TestSites {
 		err := TestSites[i].Prepare()
 		if err != nil {
-			log.Fatalf("Prepare() failed on TestSite.Prepare(%d) site=%s, err=%v", i, TestSites[i].Name, err)
+			log.Fatalf("Prepare() failed on TestSite.Prepare() site=%s, err=%v", TestSites[i].Name, err)
 		}
 
 		switchDir := TestSites[i].Chdir()
@@ -253,7 +251,7 @@ func TestLocalImportDB(t *testing.T) {
 			assert.NoError(err)
 
 			err = app.ImportDB(cachedArchive, "data.sql")
-			assert.NoError(err)
+			assert.NoError(err, "Failed to find data.sql at root of tarball %s", cachedArchive)
 		}
 
 		runTime()
@@ -276,32 +274,23 @@ func TestLocalImportFiles(t *testing.T) {
 		assert.NoError(err)
 
 		if site.FilesTarballURL != "" {
-			filePath := filepath.Join(testcommon.CreateTmpDir("local-tarball-files"), "files.tar.gz")
-			err := util.DownloadFile(filePath, site.FilesTarballURL, false)
+			_, tarballPath, err := testcommon.GetCachedArchive(site.Name, "local-tarballs-files", "", site.FilesTarballURL)
 			assert.NoError(err)
-			err = app.ImportFiles(filePath, "")
-			assert.NoError(err)
-			err = os.Remove(filePath)
+			err = app.ImportFiles(tarballPath, "")
 			assert.NoError(err)
 		}
 
 		if site.FilesZipballURL != "" {
-			filePath := filepath.Join(testcommon.CreateTmpDir("local-zipball-files"), "files.zip")
-			err := util.DownloadFile(filePath, site.FilesZipballURL, false)
+			_, zipballPath, err := testcommon.GetCachedArchive(site.Name, "local-zipballs-files", "", site.FilesZipballURL)
 			assert.NoError(err)
-			err = app.ImportFiles(filePath, "")
-			assert.NoError(err)
-			err = os.Remove(filePath)
+			err = app.ImportFiles(zipballPath, "")
 			assert.NoError(err)
 		}
 
 		if site.FullSiteTarballURL != "" {
-			siteTarPath := filepath.Join(testcommon.CreateTmpDir("local-site-tar"), "site.tar.gz")
-			err = util.DownloadFile(siteTarPath, site.FullSiteTarballURL, false)
+			_, siteTarPath, err := testcommon.GetCachedArchive(site.Name, "local-site-tar", "", site.FullSiteTarballURL)
 			assert.NoError(err)
 			err = app.ImportFiles(siteTarPath, "docroot/sites/default/files")
-			assert.NoError(err)
-			err = os.Remove(siteTarPath)
 			assert.NoError(err)
 		}
 
@@ -360,9 +349,6 @@ func TestLocalExec(t *testing.T) {
 func TestLocalLogs(t *testing.T) {
 	assert := assert.New(t)
 
-	if runtime.GOOS == "windows" {
-		t.Skipf("Skipping TestLocalLogs since pipes are not supported on Windows")
-	}
 	app, err := platform.GetPluginApp("local")
 	assert.NoError(err)
 
@@ -390,7 +376,6 @@ func TestLocalLogs(t *testing.T) {
 		assert.NoError(err)
 		out = stdout()
 		assert.Contains(out, "MySQL init process done. Ready for start up.")
-		assert.False(strings.Contains(out, "Database initialized"))
 
 		runTime()
 		switchDir()
@@ -558,7 +543,7 @@ func TestGetAppsEmpty(t *testing.T) {
 	}
 
 	apps := platform.GetApps()
-	assert.Equal(len(apps["local"]), 0)
+	assert.Equal(len(apps["local"]), 0, "Expected to find no apps but found %d apps=%v", len(apps["local"]), apps["local"])
 }
 
 // TestRouterNotRunning ensures the router is shut down after all sites are stopped.
@@ -568,7 +553,7 @@ func TestRouterNotRunning(t *testing.T) {
 	assert.NoError(err)
 
 	for _, container := range containers {
-		assert.NotEqual(dockerutil.ContainerName(container), "ddev-router", "Failed to find ddev-router container running")
+		assert.NotEqual(dockerutil.ContainerName(container), "ddev-router", "ddev-router was not supposed to be running but it was")
 	}
 }
 
