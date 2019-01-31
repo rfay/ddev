@@ -211,13 +211,13 @@ jobs:
               echo "GITHUB_TOKEN provided, pushing release $CIRCLE_TAG"
               set -x
               /home/circleci/ghr \
-              -draft \
+              -prerelease \
               -r $CIRCLE_PROJECT_REPONAME \
               -u $CIRCLE_PROJECT_USERNAME \
+              -b "$(cat ./.github/RELEASE_NOTES_TEMPLATE.md)" \
               -t $GITHUB_TOKEN \
               $RELEASE_TAG $ARTIFACTS
               set +x
-              # -b "$(cat ./.github/RELEASE_NOTES_TEMPLATE.md)" \
             else
               echo "GITHUB_TOKEN not provided, not pushing release $CIRCLE_TAG"
             fi
