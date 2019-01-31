@@ -197,7 +197,7 @@ jobs:
         command: |
           if [ ! -z "${GITHUB_TOKEN}" ]; then
             version=$(make version)
-            version=${version#*:}  # Remove the VERSION: in front of make version
+            version="${version#*:}"  # Remove the VERSION: in front of make version
             echo "GITHUB_TOKEN provided, pushing release $RELEASE_TAG"
             /home/circleci/ghr \
             -prerelease \
