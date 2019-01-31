@@ -171,7 +171,7 @@ jobs:
 
     - run:
         command: ./.circleci/circle_vm_setup.sh
-        name: TAG BUILD Circle VM setup - tools, docker, golang
+        name: RELEASE BUILD Circle VM setup - tools, docker, golang
 
     # Now build using the regular ddev-only technique - this results in a fully clean set of executables.
     - run:
@@ -203,7 +203,7 @@ jobs:
             -u $CIRCLE_PROJECT_USERNAME \
             -b "$(cat ./.github/RELEASE_NOTES_TEMPLATE.md)" \
             -t $GITHUB_TOKEN \
-            $RELEASE_TAG $ARTIFACTS
+            $(make version) $ARTIFACTS
           else
             echo "GITHUB_TOKEN not provided, not pushing release $CIRCLE_TAG"
           fi
