@@ -206,14 +206,16 @@ jobs:
 
       - run:
           command: |
-            /home/circleci/ghr \
-            -draft \
-            -r $GITHUB_REPOSITORY \
-            -u $GITHUB_USERNAME \
-            -t $GITHUB_TOKEN \
-            -n $CIRCLE_TAG \
-            -b "$(cat ./.github/RELEASE_NOTES_TEMPLATE.md)" \
-            $CIRCLE_TAG $ARTIFACTS
+            if [ ! -z "${GITHUB_TOKEN}" ]; then 
+              /home/circleci/ghr \
+              -draft \
+              -r $GITHUB_REPOSITORY \
+              -u $GITHUB_USERNAME \
+              -t $GITHUB_TOKEN \
+              -n $CIRCLE_TAG \
+              -b "$(cat ./.github/RELEASE_NOTES_TEMPLATE.md)" \
+              $CIRCLE_TAG $ARTIFACTS;
+            fi
           name: Upload artifacts to GitHub release page
 
 
