@@ -6,10 +6,20 @@
 # trigger_build.sh $circle_token $project_optional $branch_optional
 
 CIRCLE_TOKEN=$1
-JOB=${2:-nightly_build}
+CIRCLE_JOB=${2:-nightly_build}
 PROJECT=${3:-drud/ddev}
 BRANCH=${4:-master}
+GITHUB_TOKEN=${5:-}
 
-trigger_build_url=https://circleci.com/api/v1.1/project/github/$PROJECT/tree/$BRANCH?circle-token=$CIRCLE_TOKEN
+set -x
 
-curl --data "build_parameters[CIRCLE_JOB]=$JOB" $trigger_build_url
+trigger_build_url=https://circleci.com/api/v1.1/project/github/$PROJECT/tree/$BRANCH?circle-token=${CIRCLE_TOKEN}
+
+BUILD_PARAMS="\"CIRCLE_JOB\": \"${CIRCLE_JOB}\", \"GITHUB_TOKEN\":\"${GITHUB_TOKEN}\""
+echo $BUILD_PARAMS
+
+curl \
+  --header "Content-Type: application/json" \
+  --data "{\"build_parameters\": {${BUILD_PARAMS}}}" \
+  --request POST \
+    $trigger_build_url

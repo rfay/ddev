@@ -207,6 +207,7 @@ jobs:
       - run:
           command: |
             if [ ! -z "${GITHUB_TOKEN}" ]; then
+              echo "GITHUB_TOKEN provided, pushing release $CIRCLE_TAG"
               /home/circleci/ghr \
               -draft \
               -r $CIRCLE_PROJECT_REPONAME \
@@ -214,7 +215,9 @@ jobs:
               -t $GITHUB_TOKEN \
               -n $CIRCLE_TAG \
               -b "$(cat ./.github/RELEASE_NOTES_TEMPLATE.md)" \
-              $CIRCLE_TAG $ARTIFACTS;
+              $CIRCLE_TAG $ARTIFACTS
+            else
+              echo "GITHUB_TOKEN not provided, not pushing release $CIRCLE_TAG"
             fi
           name: Upload artifacts to GitHub release page
 
