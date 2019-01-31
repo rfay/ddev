@@ -16,14 +16,16 @@ RELEASE_TAG=${6:-}
 
 trigger_build_url=https://circleci.com/api/v1.1/project/github/$PROJECT/tree/$BRANCH?circle-token=${CIRCLE_TOKEN}
 
-BUILD_PARAMS="\"CIRCLE_JOB\": \"${CIRCLE_JOB}\", \"GITHUB_TOKEN\":\"${GITHUB_TOKEN}\", \"RELEASE_TAG\": \"${RELEASE_TAG}\""
+set -x
+BUILD_PARAMS="\"CIRCLE_JOB\": \"${CIRCLE_JOB}\", \"job_name\": \"${CIRCLE_JOB}\", \"GITHUB_TOKEN\":\"${GITHUB_TOKEN}\", \"RELEASE_TAG\": \"${RELEASE_TAG}\""
 if [ "${RELEASE_TAG}" != "" ]; then
     DATA="\"tag\": \"$RELEASE_TAG\","
 fi
-DATA="${DATA} { \"build_parameters\": \"${BUILD_PARAMS}\" } "
 
-curl -sS \
+DATA="${DATA} \"build_parameters\": { ${BUILD_PARAMS} } "
+
+curl -X POST -sS \
   --header "Content-Type: application/json" \
-  --data "${DATA}" \
-  --request POST \
+  --data "{ ${DATA} }" \
     $trigger_build_url
+

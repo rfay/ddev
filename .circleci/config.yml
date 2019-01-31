@@ -196,14 +196,16 @@ jobs:
     - run:
         command: |
           if [ ! -z "${GITHUB_TOKEN}" ]; then
-            echo "GITHUB_TOKEN provided, pushing release $CIRCLE_TAG"
+            version=$(make version)
+            version=${version#*:}  # Remove the VERSION: in front of make version
+            echo "GITHUB_TOKEN provided, pushing release $RELEASE_TAG"
             /home/circleci/ghr \
             -prerelease \
             -r $CIRCLE_PROJECT_REPONAME \
             -u $CIRCLE_PROJECT_USERNAME \
             -b "$(cat ./.github/RELEASE_NOTES_TEMPLATE.md)" \
             -t $GITHUB_TOKEN \
-            $(make version) $ARTIFACTS
+            "${version}" $ARTIFACTS
           else
             echo "GITHUB_TOKEN not provided, not pushing release $CIRCLE_TAG"
           fi
