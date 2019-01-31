@@ -215,9 +215,9 @@ jobs:
               -r $CIRCLE_PROJECT_REPONAME \
               -u $CIRCLE_PROJECT_USERNAME \
               -t $GITHUB_TOKEN \
-              # -b "$(cat ./.github/RELEASE_NOTES_TEMPLATE.md)" \
               $RELEASE_TAG $ARTIFACTS
               set +x
+              # -b "$(cat ./.github/RELEASE_NOTES_TEMPLATE.md)" \
             else
               echo "GITHUB_TOKEN not provided, not pushing release $CIRCLE_TAG"
             fi
