@@ -4,7 +4,9 @@
 
 If you just push a tag, circleci will build that tag and make its artifacts available both on CircleCI and by creating a GitHub release draft containing the artifacts. This is a result of the tag_build *workflow*, which calls the job.
 
-## To push a release, use trigger_build.sh
+DEBUG: THIS IS ONE COMMIT PAST.
+
+## To push a XXXXX, use trigger_build.sh
 
 .circleci/trigger_build.sh <circle_token> tag_build drud/ddev <optional_branch> <github_personal_access_token>  <release_tag>  | jq -r
 
