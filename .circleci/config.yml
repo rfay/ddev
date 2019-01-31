@@ -206,11 +206,11 @@ jobs:
 
       - run:
           command: |
-            if [ ! -z "${GITHUB_TOKEN}" ]; then 
+            if [ ! -z "${GITHUB_TOKEN}" ]; then
               /home/circleci/ghr \
               -draft \
-              -r $GITHUB_REPOSITORY \
-              -u $GITHUB_USERNAME \
+              -r $CIRCLE_PROJECT_REPONAME \
+              -u $CIRCLECI_PROJECT_USERNAME \
               -t $GITHUB_TOKEN \
               -n $CIRCLE_TAG \
               -b "$(cat ./.github/RELEASE_NOTES_TEMPLATE.md)" \
