@@ -3,7 +3,9 @@
 # from https://circleci.com/docs/1.0/nightly-builds/
 # See also https://circleci.com/docs/2.0/defining-multiple-jobs/
 
-# trigger_build.sh $circle_token $project_optional $branch_optional
+# trigger_build.sh $circle_token $project_optional $branch_optional $github_token_optional $release_tag_optional
+
+# .circleci/trigger_build.sh c4e304eb5323f91900908b3443ea583circletoken release_build rfay/ddev 20190131_deploy_artifacts_from_circle 9f622120dd9800f5c59ea80a1ad9github_token  v1.5.7  | jq -r
 
 CIRCLE_TOKEN=$1
 CIRCLE_JOB=${2:-nightly_build}
