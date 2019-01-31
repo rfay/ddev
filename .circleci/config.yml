@@ -217,7 +217,7 @@ jobs:
               -t $GITHUB_TOKEN \
               -n $CIRCLE_TAG \
               -b "$(cat ./.github/RELEASE_NOTES_TEMPLATE.md)" \
-              $CIRCLE_TAG $ARTIFACTS
+              $RELEASE_TAG $ARTIFACTS
               set +x
             else
               echo "GITHUB_TOKEN not provided, not pushing release $CIRCLE_TAG"

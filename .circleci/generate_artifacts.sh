@@ -10,7 +10,7 @@ set -o nounset
 ARTIFACTS=${1:-/artifacts}
 # We only build the xz artifacts if $2 ($BUILD_XZ) is not empty.
 BUILD_XZ=${2:-}
-BUILD_IMAGE_TARBALLS=${3:true}
+BUILD_IMAGE_TARBALLS=${3:-true}
 BASE_DIR=$PWD
 
 sudo mkdir -p $ARTIFACTS && sudo chmod 777 $ARTIFACTS
