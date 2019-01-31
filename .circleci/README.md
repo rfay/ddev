@@ -4,9 +4,9 @@
 
 If you just push a tag, circleci will build that tag and make its artifacts available both on CircleCI and by creating a GitHub release draft containing the artifacts. This is a result of the tag_build *workflow*, which calls the job.
 
-## trigger_build.sh is obsolete since we use workflows
+## To push a release, use trigger_build.sh
 
-Sadly, the below information is currently inoperative due to CircleCI not supporting access to their API if workflows are used...
+.circleci/trigger_build.sh <circle_token> tag_build drud/ddev <optional_branch> <github_personal_access_token>  <release_tag>  | jq -r
 
 trigger_build.sh can trigger a nightly or a normal build. It triggers *jobs* not workflows.
 
