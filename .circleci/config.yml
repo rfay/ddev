@@ -213,7 +213,7 @@ jobs:
               /home/circleci/ghr \
               -draft \
               -r $CIRCLE_PROJECT_REPONAME \
-              -u $CIRCLECI_PROJECT_USERNAME \
+              -u $CIRCLE_PROJECT_USERNAME \
               -t $GITHUB_TOKEN \
               -n $CIRCLE_TAG \
               # -b "$(cat ./.github/RELEASE_NOTES_TEMPLATE.md)" \

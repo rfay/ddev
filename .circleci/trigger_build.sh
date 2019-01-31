@@ -12,14 +12,11 @@ BRANCH=${4:-master}
 GITHUB_TOKEN=${5:-}
 RELEASE_TAG=${6:-}
 
-set -x
-
 trigger_build_url=https://circleci.com/api/v1.1/project/github/$PROJECT/tree/$BRANCH?circle-token=${CIRCLE_TOKEN}
 
 BUILD_PARAMS="\"CIRCLE_JOB\": \"${CIRCLE_JOB}\", \"GITHUB_TOKEN\":\"${GITHUB_TOKEN}\", \"RELEASE_TAG\": \"${RELEASE_TAG}\""
-echo $BUILD_PARAMS
 
-curl \
+curl -sS \
   --header "Content-Type: application/json" \
   --data "{\"build_parameters\": {${BUILD_PARAMS}}}" \
   --request POST \
