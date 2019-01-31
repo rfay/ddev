@@ -216,7 +216,7 @@ jobs:
               -u $CIRCLECI_PROJECT_USERNAME \
               -t $GITHUB_TOKEN \
               -n $CIRCLE_TAG \
-              -b "$(cat ./.github/RELEASE_NOTES_TEMPLATE.md)" \
+              # -b "$(cat ./.github/RELEASE_NOTES_TEMPLATE.md)" \
               $RELEASE_TAG $ARTIFACTS
               set +x
             else
