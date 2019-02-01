@@ -8,8 +8,8 @@
 # Trigger a new job: https://circleci.com/docs/api/v1-reference/#new-build
 
 CIRCLE_TOKEN=$1
-RELEASE_TAG=${2:-}
-GITHUB_TOKEN=${3:-}
+RELEASE_TAG=$2
+GITHUB_TOKEN=$3
 PROJECT=${4:-drud/ddev}
 
 trigger_build_url=https://circleci.com/api/v1.1/project/github/$PROJECT?circle-token=${CIRCLE_TOKEN}
