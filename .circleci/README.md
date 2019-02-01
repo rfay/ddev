@@ -6,7 +6,7 @@ If you just push a tag, circleci will build that tag and make its artifacts avai
 
 ## Push a release with trigger_release.sh
 
-`.circleci/trigger_release.sh circlepikey0908b3443ea58316baf928b <VERSION> githubpersonaltokenc590a1ad9f7c353962dea  | jq -r 'del(.circle_yml)'`
+`.circleci/trigger_release.sh circlepikey3ea58316baf928b <VERSION> githubpersonaltokenc1ad9f7c353962dea  | jq -r 'del(.circle_yml)'`
 
 ## trigger_job.sh options
 

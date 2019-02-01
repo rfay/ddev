@@ -2,7 +2,7 @@
 
 # trigger_release.sh $circle_token $release_tag $github_token $project_optional
 
-# .circleci/trigger_release.sh circlepikey0908b3443ea58316baf928b v1.5.9 githubpersonaltokenc590a1ad9f7c353962dea optional/ddev  | jq -r 'del(.circle_yml)'
+# .circleci/trigger_release.sh circlepikey0908b3a58316baf928b v1.5.9 githubpersonaltokenc5ad9f7c353962dea optional/ddev  | jq -r 'del(.circle_yml)'
 
 # api docs: https://circleci.com/docs/api
 # Trigger a new job: https://circleci.com/docs/api/v1-reference/#new-build
