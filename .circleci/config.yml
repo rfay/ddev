@@ -17,12 +17,12 @@ jobs:
     - save_cache:
         key: homebrew-linux-v2
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
 
         # Now build using the regular ddev-only technique - this results in a fully clean set of executables.
     - run:
         command: |
-          make -s clean linux darwin windows_install chocolatey EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+          make -s clean linux darwin windows_install chocolatey EXTRA_PATH=~//.linuxbrew/bin
         name: Build the ddev executables
     - persist_to_workspace:
         root: ~/
@@ -48,11 +48,11 @@ jobs:
     - save_cache:
         key: homebrew-linux-v2
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
 
         # Now build using the regular ddev-only technique - this results in a fully clean set of executables.
     - run:
-        command: make -s test EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+        command: make -s test EXTRA_PATH=~//.linuxbrew/bin
         name: ddev tests
         no_output_timeout: "40m"
     - store_test_results:
@@ -200,12 +200,12 @@ jobs:
     - save_cache:
         key: homebrew-linux-v2
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
 
     # Now build using the regular ddev-only technique - this results in a fully clean set of executables.
     # Run the built-in ddev tests with the executables just built.
     - run:
-        command: make -s test EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+        command: make -s test EXTRA_PATH=~//.linuxbrew/bin
         name: ddev tests
         no_output_timeout: "120m"
     - store_test_results:
@@ -232,9 +232,9 @@ jobs:
     - save_cache:
         key: homebrew-linux-v2
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
     - run:
-        command: make -s test EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+        command: make -s test EXTRA_PATH=~//.linuxbrew/bin
         name: ddev tests
         no_output_timeout: "120m"
     - store_test_results:
@@ -261,11 +261,11 @@ jobs:
     - save_cache:
         key: homebrew-linux-v2
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
         # Now build using the regular ddev-only technique - this results in a fully clean set of executables.
     # Run the built-in ddev tests with the executables just built.
     - run:
-        command: make -s test EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+        command: make -s test EXTRA_PATH=~//.linuxbrew/bin
         name: ddev tests
         no_output_timeout: "120m"
     - store_test_results:
@@ -288,9 +288,9 @@ jobs:
     - save_cache:
         key: homebrew-linux-v2
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
     - run:
-        command: make staticrequired EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+        command: make staticrequired EXTRA_PATH=~//.linuxbrew/bin
         name: staticrequired
 
   lx_container_test:
@@ -308,15 +308,15 @@ jobs:
     - save_cache:
         key: homebrew-linux-v2
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
     - run:
         command: |
           for dir in containers/*
               do pushd $dir
               echo "--- Build container $dir"
-              time make container DOCKER_ARGS=--no-cache EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+              time make container DOCKER_ARGS=--no-cache EXTRA_PATH=~//.linuxbrew/bin
               echo "--- Test container $dir"
-              time make test EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+              time make test EXTRA_PATH=~//.linuxbrew/bin
               popd
           done
         name: linux container test
@@ -365,7 +365,7 @@ jobs:
     - save_cache:
         key: homebrew-linux-v2
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
     - store_artifacts:
         path: /artifacts
         name: Artifact storage
@@ -389,11 +389,11 @@ jobs:
       - save_cache:
           key: homebrew-linux-v2
           paths:
-          - /home/linuxbrew
+          - ~/.linuxbrew
 
       # Now build using the regular ddev-only technique - this results in a fully clean set of executables.
       - run:
-          command: make -s clean linux darwin windows_install chocolatey EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+          command: make -s clean linux darwin windows_install chocolatey EXTRA_PATH=~//.linuxbrew/bin
           name: Build the ddev executables
 
       - run:
@@ -430,11 +430,11 @@ jobs:
     - save_cache:
         key: homebrew-linux-v2
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
 
     # Now build using the regular ddev-only technique - this results in a fully clean set of executables.
     - run:
-        command: make -s clean linux darwin windows_install chocolatey EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+        command: make -s clean linux darwin windows_install chocolatey EXTRA_PATH=~//.linuxbrew/bin
         name: Build the ddev executables
 
     - run:
