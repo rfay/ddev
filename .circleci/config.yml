@@ -10,19 +10,19 @@ jobs:
     - checkout
     - restore_cache:
         keys:
-        - homebrew-linux-v2
+        - hombrew-linux-v3
     - run:
         command: ./.circleci/linux_circle_vm_setup.sh
         name: NORMAL Circle VM setup - tools, docker, golang
     - save_cache:
-        key: homebrew-linux-v2
+        key: hombrew-linux-v3
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
 
         # Now build using the regular ddev-only technique - this results in a fully clean set of executables.
     - run:
         command: |
-          make -s clean linux darwin windows_install chocolatey EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+          make -s clean linux darwin windows_install chocolatey EXTRA_PATH=~//.linuxbrew/bin
         name: Build the ddev executables
     - persist_to_workspace:
         root: ~/
@@ -40,19 +40,19 @@ jobs:
         at: ~/
     - restore_cache:
         keys:
-        - homebrew-linux-v2
+        - hombrew-linux-v3
     # Run the built-in ddev tests with the executables just built.
     - run:
         command: ./.circleci/linux_circle_vm_setup.sh
         name: Circle VM setup - tools, docker, golang
     - save_cache:
-        key: homebrew-linux-v2
+        key: hombrew-linux-v3
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
 
         # Now build using the regular ddev-only technique - this results in a fully clean set of executables.
     - run:
-        command: make -s test EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+        command: make -s test EXTRA_PATH=~//.linuxbrew/bin
         name: ddev tests
         no_output_timeout: "40m"
     - store_test_results:
@@ -191,21 +191,21 @@ jobs:
     steps:
     - restore_cache:
         keys:
-        - homebrew-linux-v2
+        - hombrew-linux-v3
     - attach_workspace:
         at: ~/
     - run:
         command: ./.circleci/linux_circle_vm_setup.sh
         name: Circle VM setup - tools, docker, golang
     - save_cache:
-        key: homebrew-linux-v2
+        key: hombrew-linux-v3
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
 
     # Now build using the regular ddev-only technique - this results in a fully clean set of executables.
     # Run the built-in ddev tests with the executables just built.
     - run:
-        command: make -s test EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+        command: make -s test EXTRA_PATH=~//.linuxbrew/bin
         name: ddev tests
         no_output_timeout: "120m"
     - store_test_results:
@@ -223,18 +223,18 @@ jobs:
     steps:
     - restore_cache:
         keys:
-        - homebrew-linux-v2
+        - hombrew-linux-v3
     - attach_workspace:
         at: ~/
     - run:
         command: ./.circleci/linux_circle_vm_setup.sh
         name: Circle VM setup - tools, docker, golang
     - save_cache:
-        key: homebrew-linux-v2
+        key: hombrew-linux-v3
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
     - run:
-        command: make -s test EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+        command: make -s test EXTRA_PATH=~//.linuxbrew/bin
         name: ddev tests
         no_output_timeout: "120m"
     - store_test_results:
@@ -252,20 +252,20 @@ jobs:
     steps:
     - restore_cache:
         keys:
-        - homebrew-linux-v2
+        - hombrew-linux-v3
     - attach_workspace:
         at: ~/
     - run:
         command: ./.circleci/linux_circle_vm_setup.sh
         name: Circle VM setup - tools, docker, golang
     - save_cache:
-        key: homebrew-linux-v2
+        key: hombrew-linux-v3
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
         # Now build using the regular ddev-only technique - this results in a fully clean set of executables.
     # Run the built-in ddev tests with the executables just built.
     - run:
-        command: make -s test EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+        command: make -s test EXTRA_PATH=~//.linuxbrew/bin
         name: ddev tests
         no_output_timeout: "120m"
     - store_test_results:
@@ -281,16 +281,16 @@ jobs:
     - checkout
     - restore_cache:
         keys:
-        - homebrew-linux-v2
+        - hombrew-linux-v3
     - run:
         command: ./.circleci/linux_circle_vm_setup.sh
         name: Circle VM setup - tools, docker, golang
     - save_cache:
-        key: homebrew-linux-v2
+        key: hombrew-linux-v3
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
     - run:
-        command: make staticrequired EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+        command: make staticrequired EXTRA_PATH=~//.linuxbrew/bin
         name: staticrequired
 
   lx_container_test:
@@ -301,22 +301,22 @@ jobs:
     - checkout
     - restore_cache:
         keys:
-        - homebrew-linux-v2
+        - hombrew-linux-v3
     - run:
         command: ./.circleci/linux_circle_vm_setup.sh
         name: Circle VM setup - tools, docker, golang
     - save_cache:
-        key: homebrew-linux-v2
+        key: hombrew-linux-v3
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
     - run:
         command: |
           for dir in containers/*
               do pushd $dir
               echo "--- Build container $dir"
-              time make container DOCKER_ARGS=--no-cache EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+              time make container DOCKER_ARGS=--no-cache EXTRA_PATH=~//.linuxbrew/bin
               echo "--- Test container $dir"
-              time make test EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+              time make test EXTRA_PATH=~//.linuxbrew/bin
               popd
           done
         name: linux container test
@@ -363,9 +363,9 @@ jobs:
         name: tar/zip up artifacts and make hashes
         no_output_timeout: "40m"
     - save_cache:
-        key: homebrew-linux-v2
+        key: hombrew-linux-v3
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
     - store_artifacts:
         path: /artifacts
         name: Artifact storage
@@ -382,18 +382,18 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-          - homebrew-linux-v2
+          - hombrew-linux-v3
       - run:
           command: ./.circleci/linux_circle_vm_setup.sh
           name: TAG BUILD Circle VM setup - tools, docker, golang
       - save_cache:
-          key: homebrew-linux-v2
+          key: hombrew-linux-v3
           paths:
-          - /home/linuxbrew
+          - ~/.linuxbrew
 
       # Now build using the regular ddev-only technique - this results in a fully clean set of executables.
       - run:
-          command: make -s clean linux darwin windows_install chocolatey EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+          command: make -s clean linux darwin windows_install chocolatey EXTRA_PATH=~//.linuxbrew/bin
           name: Build the ddev executables
 
       - run:
@@ -423,18 +423,18 @@ jobs:
     - checkout
     - restore_cache:
         keys:
-        - homebrew-linux-v2
+        - hombrew-linux-v3
     - run:
         command: ./.circleci/linux_circle_vm_setup.sh
         name: RELEASE BUILD Circle VM setup - tools, docker, golang
     - save_cache:
-        key: homebrew-linux-v2
+        key: hombrew-linux-v3
         paths:
-        - /home/linuxbrew
+        - ~/.linuxbrew
 
     # Now build using the regular ddev-only technique - this results in a fully clean set of executables.
     - run:
-        command: make -s clean linux darwin windows_install chocolatey EXTRA_PATH=/home/linuxbrew/.linuxbrew/bin
+        command: make -s clean linux darwin windows_install chocolatey EXTRA_PATH=~//.linuxbrew/bin
         name: Build the ddev executables
 
     - run:

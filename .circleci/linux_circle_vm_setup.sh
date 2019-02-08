@@ -8,14 +8,18 @@ set -x
 sudo apt-get update -qq
 sudo apt-get install -qq mysql-client realpath zip nsis jq expect nfs-kernel-server build-essential curl git
 
-if [ ! -d /home/linuxbrew/.linuxbrew/bin ] ; then
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"
-    export PATH=$PATH:/home/linuxbrew/.linuxbrew/bin
-    echo "export PATH=/home/linuxbrew/linuxbrew/.linuxbrew/bin:$PATH" >~/.bashrc
+if [ ! -d  ~/.linuxbrew/bin ] ; then
+    mkdir -p ~/.linuxbrew
+    git clone https://github.com/Homebrew/brew ~/.linuxbrew/Homebrew
+    mkdir ~/.linuxbrew/bin
+    ln -s ../Homebrew/bin/brew ~/.linuxbrew/bin
+    eval $(~/.linuxbrew/bin/brew shellenv)
+    export PATH=~/.linuxbrew/bin:$PATH
+    echo "export PATH=~/.linuxbrew/bin:$PATH" >~/.bashrc
 fi
-export PATH=$PATH:/home/linuxbrew/.linuxbrew/bin
-/home/linuxbrew/.linuxbrew/bin/brew update
-/home/linuxbrew/.linuxbrew/bin/brew install osslsigncode golang
+export PATH=~/.linuxbrew/bin:$PATH
+brew update
+brew install osslsigncode golang
 
 sudo bash -c "printf '/home 10.0.0.0/255.0.0.0(rw,sync,no_subtree_check) 172.16.0.0/255.240.0.0(rw,sync,no_subtree_check) 192.168.0.0/255.255.0.0(rw,sync,no_subtree_check)\n/tmp 10.0.0.0/255.0.0.0(rw,sync,no_subtree_check) 172.16.0.0/255.240.0.0(rw,sync,no_subtree_check) 192.168.0.0/255.255.0.0(rw,sync,no_subtree_check)' >>/etc/exports"
 sudo service nfs-kernel-server restart
