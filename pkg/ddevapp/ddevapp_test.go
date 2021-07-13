@@ -524,12 +524,13 @@ func TestDdevStartUnmanagedSettings(t *testing.T) {
 
 	// Use Drupal8 only, mostly for the composer example
 	site := FullTestSites[1]
+
+	app = &ddevapp.DdevApp{Name: site.Name}
+	_ = app.Stop(true, false)
+
 	// If running this with GOTEST_SHORT we have to create the directory, tarball etc.
 	if site.Dir == "" || !fileutil.FileExists(site.Dir) {
-		app := &ddevapp.DdevApp{Name: site.Name}
-		_ = app.Stop(true, false)
 		_ = globalconfig.RemoveProjectInfo(site.Name)
-
 		err := site.Prepare()
 		require.NoError(t, err)
 		// nolint: errcheck
