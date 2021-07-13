@@ -1810,8 +1810,6 @@ func (app *DdevApp) Stop(removeData bool, createSnapshot bool) error {
 		util.Success("Project %s was deleted. Your code and configuration are unchanged.", app.Name)
 	}
 
-	_ = dockerutil.RemoveVolume(app.GetNFSMountVolName())
-
 	err = app.ProcessHooks("post-stop")
 	if err != nil {
 		return fmt.Errorf("Failed to process post-stop hooks: %v", err)
@@ -2182,7 +2180,9 @@ func (app *DdevApp) GetWorkingDir(service string, dir string) string {
 
 // GetNFSMountVolName returns the docker volume name of the nfs mount volume
 func (app *DdevApp) GetNFSMountVolName() string {
-	return dockerutil.GetDockerVolumeName("ddev-" + app.Name + "_nfsmount")
+	// Although some volume names are auto-lowercased by docker, this one
+	// is explicitly specified by us and is not lowercased.
+	return "ddev-" + app.Name + "_nfsmount"
 }
 
 // StartAppIfNotRunning is intended to replace much-duplicated code in the commands.

@@ -515,7 +515,6 @@ func TestDdevStartMultipleHostnames(t *testing.T) {
 // TestDdevStartUnmanagedSettings start and config with disable_settings_management
 func TestDdevStartUnmanagedSettings(t *testing.T) {
 	assert := asrt.New(t)
-	app := &ddevapp.DdevApp{}
 
 	// Make sure this leaves us in the original test directory
 	testDir, _ := os.Getwd()
@@ -525,7 +524,7 @@ func TestDdevStartUnmanagedSettings(t *testing.T) {
 	// Use Drupal8 only, mostly for the composer example
 	site := FullTestSites[1]
 
-	app = &ddevapp.DdevApp{Name: site.Name}
+	app := &ddevapp.DdevApp{Name: site.Name}
 	_ = app.Stop(true, false)
 
 	// If running this with GOTEST_SHORT we have to create the directory, tarball etc.

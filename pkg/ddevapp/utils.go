@@ -138,10 +138,7 @@ func Cleanup(app *DdevApp) error {
 			return fmt.Errorf("could not remove container %s: %v", containerName, err)
 		}
 	}
-	// Always kill the nfs volume on ddev remove
-	for _, volName := range []string{app.GetNFSMountVolName()} {
-		_ = dockerutil.RemoveVolume(volName)
-	}
+	_ = dockerutil.RemoveVolume(app.GetNFSMountVolName())
 
 	err = StopRouterIfNoContainers()
 	return err
