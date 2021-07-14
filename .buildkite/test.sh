@@ -1,6 +1,8 @@
 #!/bin/bash
 # This script is used to build drud/ddev using buildkite
 
+docker-compose enable-v2
+
 export PATH=$PATH:/home/linuxbrew/.linuxbrew/bin
 echo "--- buildkite building ${BUILDKITE_JOB_ID:-} at $(date) on $(hostname) as USER=${USER} for OS=${OSTYPE} in ${PWD} with golang=$(go version | awk '{print $3}') docker-desktop=$(scripts/docker-desktop-version.sh) docker=$(docker --version | awk '{print $3}') and docker-compose $(docker-compose --version | awk '{print $3}') ddev version=$(ddev --version | awk '{print $3}')"
 
@@ -79,4 +81,6 @@ make test
 RV=$?
 echo "test.sh completed with status=$RV"
 ddev poweroff || true
+
+docker-compose disable-v2
 exit $RV
