@@ -70,6 +70,9 @@ ports:
   # Currently un-notified and unsupported mailhog https port
   - port: 8027
     onOpen: ignore
+  # Currently un-notified and unsupported phpmyadmin http port
+  - port: 8036
+    onOpen: ignore
   # xdebug port
   - port: 9000
     onOpen: ignore
