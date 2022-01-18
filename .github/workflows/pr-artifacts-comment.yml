@@ -1,4 +1,4 @@
-name: Comment on pull request
+name: Comment on PR with artifacts links
 on:
   workflow_run:
     workflows: ['PR Build']
