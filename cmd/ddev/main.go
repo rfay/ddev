@@ -16,6 +16,8 @@ func main() {
 	if os.Geteuid() == 0 && len(os.Args) > 1 && os.Args[1] != "hostname" {
 		util.Failed("ddev is not designed to be run with root privileges, please run as normal user and without sudo")
 	}
+	x := 1
+	_ = x
 
 	cmd.Execute()
 }
