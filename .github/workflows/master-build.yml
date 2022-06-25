@@ -211,7 +211,7 @@ jobs:
         # Use ddev-bin (default) unless not running with repo owner = drud
         run: |
           echo "DDEV_AUR_REPO=ddev-edge >$GITHUB_ENV
-        if: github.repository_owner != "drud"
+        if: env.GITHUB_REPOSITORY_OWNER != 'drud'
 
     # Goreleaser does GitHub release artifacts, homebrew, AUR
       - name: goreleaser
