@@ -4,3 +4,5 @@
 .docker_image
 /dictionary.dic
 /.idea
+/site
+/authors.json
