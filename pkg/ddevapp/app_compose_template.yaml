@@ -310,4 +310,6 @@ volumes:
   {{ if and .MutagenEnabled (not .NoProjectMount) }}
   project_mutagen:
     name: {{ .MutagenVolumeName }}
+    labels:
+      - "com.ddev.${DDEV_SITENAME}.docker-context={{ .DockerContext }}"
   {{ end }}{{/* end if and .MutagenEnabled (not .NoProjectMount) */}}

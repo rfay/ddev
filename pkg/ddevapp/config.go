@@ -660,6 +660,7 @@ type composeYAMLVars struct {
 	WebExtraHTTPPorts         string
 	WebExtraHTTPSPorts        string
 	WebExtraExposedPorts      string
+	DockerContext             string
 }
 
 // RenderComposeYAML renders the contents of .ddev/.ddev-docker-compose*.
@@ -743,6 +744,7 @@ func (app *DdevApp) RenderComposeYAML() (string, error) {
 		IsGitpod:              nodeps.IsGitpod(),
 		// Default max time we wait for containers to be healthy
 		DefaultContainerTimeout: app.DefaultContainerTimeout,
+		DockerContext:           dockerutil.DockerContext,
 	}
 	// We don't want to bind-mount git dir if it doesn't exist
 	if fileutil.IsDirectory(filepath.Join(app.AppRoot, ".git")) {
