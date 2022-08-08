@@ -407,7 +407,7 @@ func MutagenReset(app *DdevApp) error {
 
 // GetMutagenVolumeName returns the name for the mutagen docker volume
 func GetMutagenVolumeName(app *DdevApp) string {
-	return app.Name + "_" + "project_mutagen"
+	return app.Name + "_" + "project_mutagen" + "_" + dockerutil.DockerContext
 }
 
 // MutagenMonitor shows the output of `mutagen sync monitor <syncName>`
@@ -489,8 +489,10 @@ func IsMutagenVolumeMounted(app *DdevApp) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
+	volumeName := GetMutagenVolumeName(app)
 	for _, m := range inspect.Mounts {
-		if m.Name == app.Name+"_project_mutagen" {
+		if m.Name == volumeName {
 			return true, nil
 		}
 	}
