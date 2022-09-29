@@ -85,6 +85,7 @@ if [ ! -f ${NVM_DIR:-${HOME}/.nvm}/nvm.sh ]; then (install_nvm.sh || true); fi
 # enableGlobalCache configuration option. Assumes ~/.yarn/berry as the default
 # global folder.
 (cd && yarn config set cache-folder /mnt/ddev-global-cache/yarn || true)
+# ensure default yarn2 global folder is there to symlink cache afterwards
 mkdir -p ~/.yarn/berry
 ln -sf /mnt/ddev-global-cache/yarn ~/.yarn/berry/cache
 
