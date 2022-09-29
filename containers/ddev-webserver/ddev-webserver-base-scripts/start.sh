@@ -82,7 +82,7 @@ sudo mkdir -p /mnt/ddev-global-cache/{bashhistory/${HOSTNAME},mysqlhistory/${HOS
 sudo chown -R "$(id -u):$(id -g)" /mnt/ddev-global-cache/ /var/lib/php
 # The following ensures a persistent and shared "global" cache for
 # yarn1 (classic) and yarn2 (berry). In the case of yarn2, the global cache
-# will only be used if the project is configured to use it through it's won
+# will only be used if the project is configured to use it through it's own
 # enableGlobalCache configuration option. Assumes ~/.yarn/berry as the default
 # global folder.
 (cd && yarn config set cache-folder /mnt/ddev-global-cache/yarn || true)
