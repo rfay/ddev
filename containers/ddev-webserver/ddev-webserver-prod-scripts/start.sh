@@ -81,7 +81,7 @@ if [ ! -f ${NVM_DIR:-${HOME}/.nvm}/nvm.sh ]; then (install_nvm.sh || true); fi
 
 # The following ensures a persistent and shared "global" cache for
 # yarn1 (classic) and yarn2 (berry). In the case of yarn2, the global cache
-# will only be used if the project is configured to use it through it's won
+# will only be used if the project is configured to use it through it's own
 # enableGlobalCache configuration option. Assumes ~/.yarn/berry as the default
 # global folder.
 (cd && yarn config set cache-folder /mnt/ddev-global-cache/yarn || true)
