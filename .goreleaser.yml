@@ -314,7 +314,7 @@ aurs:
     name: Randy Fay
     email: randy@randyfay.com
 
-- name: "ddev-edge"
+- name: "rfay-test-ddev-edge"
   ids:
   - ddev
   homepage: "https://github.com/drud/ddev"
