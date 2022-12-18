@@ -17,7 +17,7 @@ var SegmentKey = ""
 var WebImg = "drud/ddev-webserver"
 
 // WebTag defines the default web image tag
-var WebTag = "v1.21.4" // Note that this can be overridden by make
+var WebTag = "20221218_debian_bookworm" // Note that this can be overridden by make
 
 // DBImg defines the default db image used for applications.
 var DBImg = "drud/ddev-dbserver"
