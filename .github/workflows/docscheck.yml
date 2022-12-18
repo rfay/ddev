@@ -1,0 +1,51 @@
+name: Check docs
+defaults:
+  run:
+    shell: bash
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    paths:
+      - "docs/**"
+      - ".spellcheckwordlist.txt"
+      - ".spellcheck.yml"
+      - ".markdownlintrc"
+      - "mkdocs.yml"
+      - ".readthedocs.yaml"
+      - ".github/workflows/**"
+      - "markdown-link-check.json"
+jobs:
+  build:
+    name: Docs check (spellcheck, markdownlint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: rojopolis/spellcheck-github-actions@0.28.0
+        name: Spellcheck
+      - run: echo "/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin" >> $GITHUB_PATH
+      - name: Run markdownlint on docs
+        uses: docker://avtodev/markdown-lint:v1
+        with:
+          config: '.markdownlintrc'
+          args: '*.md docs/content'
+      #    - name: Debugging with tmate
+      #      uses: mxschmitt/action-tmate@v3.1
+      - name: "Check links in markdown"
+        uses: gaurav-nelson/github-action-markdown-link-check@1.0.13
+        with:
+          use-quiet-mode: 'yes'
+          folder-path: 'docs/'
+          file-path: "README.md"
+          config-file: 'markdown-link-check.json'
+      - name: Test mkdocs
+        env:
+          MKDOCS_GITHUB_USER: ${{ secrets.MKDOCS_GITHUB_USER }}
+          MKDOCS_GITHUB_TOKEN: ${{ secrets.MKDOCS_GITHUB_TOKEN }}
+        if: env.MKDOCS_GITHUB_TOKEN != ''
+        run: |
+          sudo pip3 install setuptools
+          sudo pip3 install -r docs/mkdocs-pip-requirements
+          mkdocs -q build -d /tmp/mkdocsbuild
