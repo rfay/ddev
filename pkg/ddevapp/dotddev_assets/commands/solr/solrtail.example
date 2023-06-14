@@ -10,4 +10,4 @@
 # into the solr container and of course that you have a container
 # named solr.
 
-tail -f /opt/solr/server/logs/solr.log
+tail -f /var/solr/logs/solr.log
