@@ -456,6 +456,9 @@ func (app *DdevApp) ValidateConfig() error {
 		return fmt.Errorf("unsupported system Node.js version: '%s'; for the system Node.js version ddev only supports %s. However, you can use 'ddev nvm install' at runtime to use any supported version", app.NodeJSVersion, nodeps.GetValidNodeVersions())
 	}
 
+	if nodeps.ArrayContainsString(app.OmitContainers, "dba") {
+		util.Warning("The 'dba' container has been removed, so `omit_containers[dba]` does nothing, please remove it from your configuration.")
+	}
 	if !nodeps.IsValidOmitContainers(app.OmitContainers) {
 		return fmt.Errorf("unsupported omit_containers: %s, ddev (%s) only supports the following for omit_containers: %s", app.OmitContainers, runtime.GOARCH, nodeps.GetValidOmitContainers()).(InvalidOmitContainers)
 	}

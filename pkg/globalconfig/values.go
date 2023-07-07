@@ -16,7 +16,7 @@ const (
 
 const DdevGithubOrg = "ddev"
 
-// ValidOmitContainers is the valid omit's that can be done in for a project
+// ValidOmitContainers is the valid omit_container options that can be done globally
 var ValidOmitContainers = map[string]bool{
 	DdevRouterContainer:   true,
 	DdevSSHAgentContainer: true,

@@ -24,6 +24,7 @@ const (
 const (
 	DdevSSHAgentContainer = "ddev-ssh-agent"
 	DBContainer           = "db"
+	DBAContainer          = "dba" // Obsolete and ignored
 	WebContainer          = "web"
 	RouterContainer       = "ddev-router"
 )
@@ -38,6 +39,7 @@ const (
 // ValidOmitContainers is the list of things that can be omitted
 var ValidOmitContainers = map[string]bool{
 	DBContainer:           true,
+	DBAContainer:          true, // Obsolete and ignored
 	DdevSSHAgentContainer: true,
 }
 
