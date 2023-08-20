@@ -8,13 +8,13 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/drud/ddev/pkg/fileutil"
-	"github.com/drud/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/fileutil"
+	"github.com/ddev/ddev/pkg/nodeps"
 	"github.com/mattn/go-isatty"
 
-	"github.com/drud/ddev/pkg/ddevapp"
-	"github.com/drud/ddev/pkg/output"
-	"github.com/drud/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/ddevapp"
+	"github.com/ddev/ddev/pkg/output"
+	"github.com/ddev/ddev/pkg/util"
 	"github.com/spf13/cobra"
 )
 
@@ -72,6 +72,11 @@ ddev composer create --prefer-dist --no-interaction --no-dev psr/log
 			}
 		}
 
+		err = os.MkdirAll(composerRoot, 0755)
+		if err != nil {
+			util.Failed("failed to create composerRoot: %v", err)
+		}
+
 		// Remove most contents of composer root
 		util.Warning("Removing any existing files in composer root")
 		objs, err := fileutil.ListFilesInDir(composerRoot)
@@ -87,6 +92,17 @@ ddev composer create --prefer-dist --no-interaction --no-dev psr/log
 
 			if err = os.RemoveAll(filepath.Join(composerRoot, o)); err != nil {
 				util.Failed("Failed to create project: %v", err)
+			}
+		}
+
+		// Upload dirs have to be there for bind-mounts to work when mutagen enabled
+		app.CreateUploadDirsIfNecessary()
+		// We may have just removed host-side directories, invalidating
+		// the docker bind-mounts are using, so restart to pick up the new ones.
+		if app.IsMutagenEnabled() {
+			err = app.Restart()
+			if err != nil {
+				util.Failed("Failed to restart project after removal of project files: %v", err)
 			}
 		}
 
@@ -193,7 +209,7 @@ ddev composer create --prefer-dist --no-interaction --no-dev psr/log
 			stdout, stderr, err := app.Exec(&ddevapp.ExecOpts{
 				Service: "web",
 				RawCmd:  composerCmd,
-				Dir:     "/var/www/html",
+				Dir:     app.GetComposerRoot(true, false),
 				Tty:     isatty.IsTerminal(os.Stdin.Fd()),
 			})
 			if err != nil {

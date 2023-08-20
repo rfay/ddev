@@ -3,13 +3,13 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"github.com/drud/ddev/pkg/ddevapp"
-	"github.com/drud/ddev/pkg/dockerutil"
-	"github.com/drud/ddev/pkg/globalconfig"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/output"
-	"github.com/drud/ddev/pkg/styles"
-	"github.com/drud/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/ddevapp"
+	"github.com/ddev/ddev/pkg/globalconfig"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/output"
+	"github.com/ddev/ddev/pkg/styles"
+	"github.com/ddev/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/version"
 	"sort"
 	"strings"
 
@@ -26,7 +26,7 @@ var DescribeCommand = &cobra.Command{
 	Long: `Get a detailed description of a running ddev project. Describe provides basic
 information about a ddev project, including its name, location, url, and status.
 It also provides details for MySQL connections, and connection information for
-additional services like MailHog and phpMyAdmin. You can run 'ddev describe' from
+additional services like MailHog. You can run 'ddev describe' from
 a project directory to describe that project, or you can specify a project to describe by
 running 'ddev describe <projectname>'.`,
 	Example: "ddev describe\nddev describe <projectname>\nddev status\nddev st",
@@ -89,15 +89,13 @@ func renderAppDescribe(app *ddevapp.DdevApp, desc map[string]interface{}) (strin
 			},
 		})
 	}
-	dockerEnv := fmt.Sprintf("docker %s", dockerutil.DockerVersion)
-	if dockerutil.IsColima() {
-		dockerEnv = "Colima"
+	dockerPlatform, err := version.GetDockerPlatform()
+	if err != nil {
+		util.Warning("Unable to determine docker platform: %v", err)
 	}
-	router := "traditional"
-	if globalconfig.DdevGlobalConfig.UseTraefik {
-		router = "traefik"
-	}
-	t.SetTitle(fmt.Sprintf("Project: %s %s %s\nDocker provider: %s\nRouter: %s", app.Name, desc["shortroot"].(string), app.GetPrimaryURL(), dockerEnv, router))
+
+	router := globalconfig.DdevGlobalConfig.Router
+	t.SetTitle(fmt.Sprintf("Project: %s %s %s\nDocker platform: %s\nRouter: %s", app.Name, desc["shortroot"].(string), app.GetPrimaryURL(), dockerPlatform, router))
 	t.AppendHeader(table.Row{"Service", "Stat", "URL/Port", "Info"})
 
 	// Only show extended status for running sites.
@@ -132,7 +130,7 @@ func renderAppDescribe(app *ddevapp.DdevApp, desc map[string]interface{}) (strin
 					urlPortParts = append(urlPortParts, httpURL)
 				}
 			// Gitpod, web container only, using port proxied by gitpod
-			case nodeps.IsGitpod() && k == "web":
+			case (nodeps.IsGitpod() || nodeps.IsCodespaces()) && k == "web":
 				urlPortParts = append(urlPortParts, app.GetPrimaryURL())
 
 			// Router disabled, but not because of gitpod, use direct http url
@@ -170,10 +168,6 @@ func renderAppDescribe(app *ddevapp.DdevApp, desc map[string]interface{}) (strin
 			if k == "db" {
 				extraInfo = append(extraInfo, app.Database.Type+":"+app.Database.Version)
 				extraInfo = append(extraInfo, "User/Pass: 'db/db'\nor 'root/root'")
-			}
-			if k == "dba" {
-				k = "PHPMyAdmin"
-				urlPortParts = append(urlPortParts, "`ddev launch -p`")
 			}
 			t.AppendRow(table.Row{k, ddevapp.FormatSiteStatus(v["status"]), strings.Join(urlPortParts, "\n"), strings.Join(extraInfo, "\n")})
 		}

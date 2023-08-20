@@ -12,6 +12,8 @@ services:
         uid: '{{ .UID }}'
         gid: {{ if ne .DBType "postgres" }} {{ .GID }} {{ else }} "999" {{ end }}
     image: ${DDEV_DBIMAGE}-${DDEV_SITENAME}-built
+    cap_add:
+      - SYS_NICE
     stop_grace_period: 60s
     working_dir: "{{ .DBWorkingDir }}"
     volumes:
@@ -43,6 +45,7 @@ services:
     environment:
       - COLUMNS
       - DDEV_DATABASE
+      - DDEV_DATABASE_FAMILY
       - DDEV_HOSTNAME
       - DDEV_PHP_VERSION
       - DDEV_PRIMARY_URL
@@ -77,7 +80,7 @@ services:
       interval: 1s
       retries: 120
       start_period: 120s
-      timeout: 120s
+      timeout: "{{ .DefaultContainerTimeout }}s"
   {{ end }} {{/* end if not .OmitDB */}}
 
   web:
@@ -89,15 +92,13 @@ services:
         username: '{{ .Username }}'
         uid: '{{ .UID }}'
         gid: '{{ .GID }}'
+        DDEV_PHP_VERSION: ${DDEV_PHP_VERSION}
     image: ${DDEV_WEBIMAGE}-${DDEV_SITENAME}-built
+    command: /pre-start.sh
     {{ if .EnvFile }}
     env_file: '{{ .EnvFile }}'
     {{ end }}
 
-    {{ if .UseHostDockerInternalExtraHosts }}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    {{ end }}
     networks: ["default", "ddev_default"]
     cap_add:
       - SYS_PTRACE
@@ -125,33 +126,33 @@ services:
         target: /var/www
         volume:
           nocopy: true
-      # This second mount is only to make just the volume available so it can be chowned
+      # This second mutagen mount is only to make just the volume available so it can be chowned
       # without accidentally also hitting docker mounts
       - type: volume
         source: project_mutagen
         target: /tmp/project_mutagen
         volume:
           nocopy: true
+      {{- end }}
 
-      {{ end }}
-      {{ if .NoBindMounts }}
-      - "ddev-config:/mnt/ddev_config"
-      {{ else }}
-      - ".:/mnt/ddev_config:ro"
-      - "./xhprof:/usr/local/bin/xhprof:ro"
-        {{ if .MutagenEnabled }}
-          {{ if .ContainerUploadDir }}
-      - {{ .HostUploadDir }}:{{ .ContainerUploadDir }}:rw
-          {{ end }} {{/* end if .ContainerUploadDir */}}
-          {{ if .GitDirMount }}
+      {{- if .NoBindMounts }}
+      - ddev-config:/mnt/ddev_config
+      {{- else }}
+      - .:/mnt/ddev_config:ro
+      - ./xhprof:/usr/local/bin/xhprof:ro
+        {{- if .MutagenEnabled }}
+          {{- range $uploadDirMap := .UploadDirsMap}}
+      - {{ $uploadDirMap }}:rw
+          {{- end}} {{- /* end range .UploadDirsMap */}}
+          {{- if .GitDirMount }}
       - ../.git:/var/www/html/.git:rw
-          {{ end }} {{/* end if .GitDirMount */}}
-        {{ end }} {{/* end if .MutagenEnabled */}}
-      {{ end }} {{/* end else of if .NoBindMounts */}}
-      - "ddev-global-cache:/mnt/ddev-global-cache"
-      {{ if not .OmitSSHAgent }}
-      - "ddev-ssh-agent_socket_dir:/home/.ssh-agent"
-      {{ end }}
+          {{- end }} {{- /* end if .GitDirMount */}}
+        {{- end }} {{- /* end if .MutagenEnabled */}}
+      {{- end }} {{- /* end else of if .NoBindMounts */}}
+      - ddev-global-cache:/mnt/ddev-global-cache
+      {{- if not .OmitSSHAgent }}
+      - ddev-ssh-agent_socket_dir:/home/.ssh-agent
+      {{- end }}
 
     restart: "{{ if .AutoRestartContainers }}always{{ else }}no{{ end }}"
     user: '$DDEV_UID:$DDEV_GID'
@@ -169,7 +170,9 @@ services:
     - DDEV_COMPOSER_ROOT
     - DDEV_DATABASE
     - DDEV_DOCROOT
+    - DDEV_DATABASE_FAMILY
     - DDEV_HOSTNAME
+    - DDEV_MUTAGEN_ENABLED
     - DDEV_PHP_VERSION
     - DDEV_PRIMARY_URL
     - DDEV_PROJECT
@@ -179,6 +182,8 @@ services:
     - DDEV_SITENAME
     - DDEV_TLD
     - DDEV_FILES_DIR
+    - DDEV_FILES_DIRS
+    - DDEV_WEB_ENTRYPOINT=/mnt/ddev_config/web-entrypoint.d
     - DDEV_WEBSERVER_TYPE
     - DDEV_XDEBUG_ENABLED
     - DDEV_VERSION
@@ -222,7 +227,11 @@ services:
 
       {{ if .HostDockerInternalIP }}
     extra_hosts: [ "host.docker.internal:{{ .HostDockerInternalIP }}" ]
+      {{ else if .UseHostDockerInternalExtraHosts }}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
       {{ end }}
+
       {{ if not .OmitRouter }}
     external_links:
       {{ range $hostname := .Hostnames }}- "ddev-router:{{ $hostname }}"
@@ -232,45 +241,13 @@ services:
       interval: 1s
       retries: 120
       start_period: 120s
-      timeout: 120s
+      timeout: "{{ .DefaultContainerTimeout }}s"
 
-  {{ if not .OmitDBA }}
-  dba:
-    container_name: ddev-${DDEV_SITENAME}-dba
-    image: $DDEV_DBAIMAGE
-    working_dir: "{{ .DBAWorkingDir }}"
-    restart: "{{ if .AutoRestartContainers }}always{{ else }}no{{ end }}"
-    labels:
-      com.ddev.site-name: ${DDEV_SITENAME}
-      com.ddev.platform: {{ .Plugin }}
-      com.ddev.app-type: {{ .AppType }}
-      com.ddev.approot: $DDEV_APPROOT
-    expose:
-      - "80"
-    {{ if .HostPHPMyAdminPort }}
-    ports:
-      - "{{ .DockerIP }}:{{ .HostPHPMyAdminPort }}:80"
-    {{ end }} {{/* end if .HostPHPMyAdminPort */}}
-    hostname: {{ .Name }}-dba
-    environment:
-    - PMA_USER=root
-    - PMA_PASSWORD=root
-    - VIRTUAL_HOST=$DDEV_HOSTNAME
-    - UPLOAD_LIMIT=1024M
-    - TZ={{ .Timezone }}
-    # HTTP_EXPOSE allows for ports accepting HTTP traffic to be accessible from <site>.ddev.site:<port>
-    - HTTP_EXPOSE=${DDEV_PHPMYADMIN_PORT}:{{ .DBAPort }}
-    - HTTPS_EXPOSE=${DDEV_PHPMYADMIN_HTTPS_PORT}:{{ .DBAPort }}
-    healthcheck:
-      interval: 120s
-      timeout: 2s
-      retries: 1
-    {{ end }}{{/* end if not .OmitDBA */}}
 networks:
   ddev_default:
     name: ddev_default
     external: true
-  {{if .IsGitpod}}{{/* see https://github.com/drud/ddev/issues/3766 */}}
+  {{if .IsGitpod}}{{/* see https://github.com/ddev/ddev/issues/3766 */}}
   default:
     driver_opts:
       com.docker.network.driver.mtu: 1440
@@ -282,7 +259,7 @@ volumes:
     name: "{{ .MariaDBVolumeName}}"
     external: true
   {{ end }} {{/* end if and (not .OmitDB) (ne .DBType postgres) */}}
-  
+
   {{if and (not .OmitDB) ( eq .DBType "postgres") }}
   database:
     name: "{{ .PostgresVolumeName }}"

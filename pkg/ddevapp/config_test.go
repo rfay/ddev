@@ -10,23 +10,20 @@ import (
 	"sort"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/Masterminds/semver/v3"
-
-	"github.com/drud/ddev/pkg/dockerutil"
-	"github.com/drud/ddev/pkg/exec"
-	"github.com/drud/ddev/pkg/globalconfig"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/versionconstants"
-	"github.com/stretchr/testify/require"
-
-	. "github.com/drud/ddev/pkg/ddevapp"
-	"github.com/drud/ddev/pkg/fileutil"
-	"github.com/drud/ddev/pkg/testcommon"
-	"github.com/drud/ddev/pkg/util"
+	. "github.com/ddev/ddev/pkg/ddevapp"
+	"github.com/ddev/ddev/pkg/docker"
+	"github.com/ddev/ddev/pkg/dockerutil"
+	"github.com/ddev/ddev/pkg/exec"
+	"github.com/ddev/ddev/pkg/fileutil"
+	"github.com/ddev/ddev/pkg/globalconfig"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/testcommon"
+	"github.com/ddev/ddev/pkg/util"
 	"github.com/google/uuid"
 	asrt "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // isSemver returns true if a string is a semantic version.
@@ -57,8 +54,8 @@ func TestNewConfig(t *testing.T) {
 	})
 
 	// Ensure the config uses specified defaults.
-	assert.Equal(app.GetDBImage(), versionconstants.GetDBImage(nodeps.MariaDB, ""))
-	assert.Equal(app.WebImage, versionconstants.GetWebImage())
+	assert.Equal(app.GetDBImage(), docker.GetDBImage(nodeps.MariaDB, ""))
+	assert.Equal(app.WebImage, docker.GetWebImage())
 	app.Name = util.RandString(32)
 	app.Type = nodeps.AppTypeDrupal8
 
@@ -151,7 +148,7 @@ func TestPrepDirectory(t *testing.T) {
 	assert.NoError(err)
 
 	// Prep the directory.
-	err = PrepDdevDirectory(filepath.Dir(app.ConfigPath))
+	err = PrepDdevDirectory(app)
 	assert.NoError(err)
 
 	// Read directory info an ensure it exists.
@@ -299,7 +296,7 @@ func TestConfigCommand(t *testing.T) {
 		assert.Equal(testValues[apptypePos], app.Type)
 		assert.Equal("docroot", app.Docroot)
 		assert.EqualValues(testValues[phpVersionPos], app.PHPVersion, "PHP value incorrect for apptype %v (expected %s got %s) (%v)", app.Type, testValues[phpVersionPos], app.PHPVersion, app)
-		err = PrepDdevDirectory(testDir)
+		err = PrepDdevDirectory(app)
 		assert.NoError(err)
 	}
 }
@@ -356,7 +353,7 @@ func TestConfigCommandInteractiveCreateDocrootDenied(t *testing.T) {
 		// Ensure we have expected vales in output.
 		assert.Contains(err.Error(), "docroot must exist to continue configuration")
 
-		err = PrepDdevDirectory(testDir)
+		err = PrepDdevDirectory(app)
 		assert.NoError(err)
 		util.Success("Finished %s", t.Name())
 	}
@@ -421,7 +418,7 @@ func TestConfigCommandCreateDocrootAllowed(t *testing.T) {
 		assert.Equal(nonexistentDocroot, app.Docroot)
 		assert.Equal(testValues[phpVersionPos], app.PHPVersion, "expected php%v for apptype %s", testValues[phpVersionPos], app.Type)
 
-		err = PrepDdevDirectory(tmpDir)
+		err = PrepDdevDirectory(app)
 		assert.NoError(err)
 	}
 	util.Success("Finished %s", t.Name())
@@ -433,7 +430,7 @@ func TestConfigCommandDocrootDetection(t *testing.T) {
 	assert := asrt.New(t)
 	origDir, _ := os.Getwd()
 
-	testMatrix := AvailableDocrootLocations()
+	testMatrix := AvailablePHPDocrootLocations()
 	for index, testDocrootName := range testMatrix {
 		tmpDir := testcommon.CreateTmpDir(fmt.Sprintf("TestConfigCommand_%v", index))
 
@@ -477,7 +474,7 @@ func TestConfigCommandDocrootDetection(t *testing.T) {
 		assert.Equal(name, app.Name)
 		assert.Equal(nodeps.AppTypeDrupal8, app.Type)
 		assert.Equal(testDocrootName, app.Docroot)
-		err = PrepDdevDirectory(tmpDir)
+		err = PrepDdevDirectory(app)
 		assert.NoError(err)
 	}
 }
@@ -536,7 +533,7 @@ func TestConfigCommandDocrootDetectionIndexVerification(t *testing.T) {
 	assert.Equal(name, app.Name)
 	assert.Equal(nodeps.AppTypeDrupal8, app.Type)
 	assert.Equal("docroot", app.Docroot)
-	err = PrepDdevDirectory(testDir)
+	err = PrepDdevDirectory(app)
 	assert.NoError(err)
 }
 
@@ -590,7 +587,7 @@ func TestReadConfigCRLF(t *testing.T) {
 
 // TestConfigValidate tests validation of configuration values.
 func TestConfigValidate(t *testing.T) {
-	if nodeps.IsMacM1() {
+	if nodeps.IsAppleSilicon() {
 		t.Skip("Skipping on mac M1 to ignore problems with 'connection reset by peer'")
 	}
 
@@ -672,13 +669,21 @@ func TestConfigValidate(t *testing.T) {
 	assert.NoError(err)
 	err = app.WriteConfig()
 	assert.NoError(err)
-	err = app.Start()
-	assert.NoError(err)
-	staticURI := site.Safe200URIWithExpectation.URI
-	_, _, err = testcommon.GetLocalHTTPResponse(t, "http://x.ddev.site/"+staticURI)
-	assert.NoError(err)
-	_, _, err = testcommon.GetLocalHTTPResponse(t, "http://somethjingrandom.any.ddev.site/"+staticURI)
-	assert.NoError(err)
+	// This seems to completely fail on git-bash/Windows/mutagen. Hard to figure out why.
+	// Traditional Windows is not a very high priority
+	// This apparently started failing with Docker Desktop 4.19.0
+	// rfay 2023-05-02
+	if runtime.GOOS != "windows" {
+		err = app.Start()
+		assert.NoError(err)
+		err = app.MutagenSyncFlush()
+		assert.NoError(err)
+		staticURI := site.Safe200URIWithExpectation.URI
+		_, _, err = testcommon.GetLocalHTTPResponse(t, "http://x.ddev.site/"+staticURI)
+		assert.NoError(err)
+		_, _, err = testcommon.GetLocalHTTPResponse(t, "http://somethjingrandom.any.ddev.site/"+staticURI)
+		assert.NoError(err)
+	}
 
 	// Make sure that a bare "*" in the additional_hostnames does *not* work
 	app.AdditionalHostnames = []string{"x", "*"}
@@ -746,8 +751,7 @@ func TestConfigOverrideDetection(t *testing.T) {
 	switchDir := site.Chdir()
 	defer switchDir()
 
-	runTime := util.TimeTrack(time.Now(), fmt.Sprintf("%s ConfigOverrideDetection", site.Name))
-	runTime()
+	defer util.TimeTrackC(fmt.Sprintf("%s ConfigOverrideDetection", site.Name))()
 
 	// Copy test overrides into the project .ddev directory
 	for _, item := range []string{"nginx", "nginx_full", "apache", "php", "mysql"} {
@@ -776,18 +780,20 @@ func TestConfigOverrideDetection(t *testing.T) {
 	startErr := app.StartAndWait(2)
 	stdout := stdoutFunc()
 
-	var logs string
+	var logs, health string
 	if startErr != nil {
-		logs, _ = GetErrLogsFromApp(app, startErr)
+		logs, health, _ = GetErrLogsFromApp(app, startErr)
 	}
 
-	require.NoError(t, startErr, "app.StartAndWait() did not succeed: output:\n=====\n%s\n===== logs:\n========= logs =======\n%s\n========\n", stdout, logs)
+	require.NoError(t, startErr, "app.StartAndWait() did not succeed: output:\n=====\n%s\n===== health:\n========= health =======\n%s\n========\n===== logs:\n========= logs =======\n%s\n========\n", stdout, health, logs)
 
 	assert.Contains(stdout, "collation.cnf")
 	assert.Contains(stdout, "my-php.ini")
 
 	switch app.WebserverType {
 	case nodeps.WebserverNginxFPM:
+		fallthrough
+	case nodeps.WebserverNginxGunicorn:
 		assert.Contains(stdout, "nginx-site.conf")
 		assert.NotContains(stdout, "apache-site.conf")
 		assert.Contains(stdout, "junker99.conf")
@@ -795,13 +801,12 @@ func TestConfigOverrideDetection(t *testing.T) {
 		assert.Contains(stdout, "apache-site.conf")
 		assert.NotContains(stdout, "nginx-site.conf")
 	}
-	assert.Contains(stdout, "Custom configuration takes effect")
-	runTime()
+	assert.Contains(stdout, "Custom configuration is updated")
 }
 
 // TestPHPOverrides tests to make sure that PHP overrides work in all webservers.
 func TestPHPOverrides(t *testing.T) {
-	if nodeps.IsMacM1() {
+	if nodeps.IsAppleSilicon() {
 		t.Skip("Skipping on mac M1 to ignore problems with 'connection reset by peer'")
 	}
 
@@ -819,7 +824,7 @@ func TestPHPOverrides(t *testing.T) {
 		err = os.Chdir(origDir)
 		assert.NoError(err)
 	})
-	runTime := util.TimeTrack(time.Now(), fmt.Sprintf("%s %s", site.Name, t.Name()))
+	runTime := util.TimeTrackC(fmt.Sprintf("%s %s", site.Name, t.Name()))
 
 	testcommon.ClearDockerEnv()
 	err = app.Init(site.Dir)
@@ -854,12 +859,67 @@ func TestPHPOverrides(t *testing.T) {
 	startErr := app.StartAndWait(5)
 	assert.NoError(startErr)
 	if startErr != nil {
-		logs, _ := GetErrLogsFromApp(app, startErr)
-		t.Fatalf("============== logs from app.StartAndWait() ==============\n%s\n", logs)
+		logs, health, _ := GetErrLogsFromApp(app, startErr)
+		t.Fatalf("============== health from app.StartAndWait() ==============\n%s\n============== logs from app.StartAndWait() ==============\n%s\n", health, logs)
 	}
 
+	err = app.MutagenSyncFlush()
+	require.NoError(t, err, "failed to flush mutagen sync")
 	_, _ = testcommon.EnsureLocalHTTPContent(t, "http://"+app.GetHostname()+"/phpinfo.php", `max_input_time</td><td class="v">999`, 60)
 
+}
+
+// TestPHPConfig checks some key PHP configuration items
+func TestPHPConfig(t *testing.T) {
+
+	assert := asrt.New(t)
+	origDir, _ := os.Getwd()
+	app := &DdevApp{}
+	site := TestSites[0]
+	err := os.Chdir(site.Dir)
+	require.NoError(t, err)
+
+	testcommon.ClearDockerEnv()
+	err = app.Init(site.Dir)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = os.Chdir(origDir)
+		err = app.Stop(true, false)
+		assert.NoError(err)
+	})
+
+	// Most of the time there's no reason to do all versions of PHP
+	phpKeys := []string{}
+	exclusions := []string{"5.6", "7.0", "7.1", "7.2", "7.3", "7.4"}
+	for k := range nodeps.ValidPHPVersions {
+		if os.Getenv("GOTEST_SHORT") != "" && !nodeps.ArrayContainsString(exclusions, k) {
+			phpKeys = append(phpKeys, k)
+		}
+	}
+	sort.Strings(phpKeys)
+
+	for _, v := range phpKeys {
+		app.PHPVersion = v
+		err = app.Start()
+		require.NoError(t, err)
+
+		out, _, err := app.Exec(&ExecOpts{
+			Cmd: "php --version",
+		})
+		require.NoError(t, err)
+		t.Logf("============= PHP version=%s ================", out)
+
+		// Look for problems with serialize_precision,https://github.com/ddev/ddev/issues/5092
+		out, _, err = app.Exec(&ExecOpts{
+			Cmd: `php -r "var_dump(0.6);"`,
+		})
+		require.NoError(t, err)
+		out = strings.Trim(out, "\n")
+		require.Equal(t, `float(0.6)`, out)
+	}
+
+	err = app.Stop(true, false)
+	require.NoError(t, err)
 }
 
 // TestPostgresConfigOverride makes sure that overriding Postgres config works
@@ -921,7 +981,7 @@ func TestExtraPackages(t *testing.T) {
 	switchDir := site.Chdir()
 	defer switchDir()
 
-	runTime := util.TimeTrack(time.Now(), fmt.Sprintf("%s %s", site.Name, t.Name()))
+	runTime := util.TimeTrackC(fmt.Sprintf("%s %s", site.Name, t.Name()))
 
 	err := app.Init(site.Dir)
 	assert.NoError(err)
@@ -1002,7 +1062,7 @@ func TestTimezoneConfig(t *testing.T) {
 	switchDir := site.Chdir()
 	defer switchDir()
 
-	runTime := util.TimeTrack(time.Now(), fmt.Sprintf("%s %s", t.Name(), site.Name))
+	runTime := util.TimeTrackC(fmt.Sprintf("%s %s", t.Name(), site.Name))
 
 	err := app.Init(site.Dir)
 	assert.NoError(err)
@@ -1057,7 +1117,7 @@ func TestTimezoneConfig(t *testing.T) {
 
 // TestComposerVersionConfig tests to make sure setting composer version takes effect in the container.
 func TestComposerVersionConfig(t *testing.T) {
-	if nodeps.IsMacM1() || dockerutil.IsColima() {
+	if nodeps.IsAppleSilicon() || dockerutil.IsColima() {
 		t.Skip("Skipping on Mac M1 and Colima, just lots of failed network connections")
 	}
 	assert := asrt.New(t)
@@ -1067,7 +1127,7 @@ func TestComposerVersionConfig(t *testing.T) {
 	switchDir := site.Chdir()
 	defer switchDir()
 
-	runTime := util.TimeTrack(time.Now(), fmt.Sprintf("%s %s", t.Name(), site.Name))
+	runTime := util.TimeTrackC(fmt.Sprintf("%s %s", t.Name(), site.Name))
 
 	err := app.Init(site.Dir)
 	assert.NoError(err)
@@ -1082,15 +1142,14 @@ func TestComposerVersionConfig(t *testing.T) {
 		assert.NoError(err)
 	})
 
-	for _, testVersion := range []string{"2.0.0-RC2", "2", "2.2", "1", "stable", "preview", "snapshot"} {
+	for _, testVersion := range []string{"2", "2.2", "2.5.5", "1", "stable", "preview", "snapshot"} {
 		app.ComposerVersion = testVersion
 		err = app.Start()
 		assert.NoError(err)
 
-		// Without timezone set, we should find Etc/UTC
 		stdout, _, err := app.Exec(&ExecOpts{
 			Service: "web",
-			Cmd:     "composer --version | awk '{print $3;}'",
+			Cmd:     "composer --version 2>/dev/null | awk '/Composer version/ {print $3;}'",
 		})
 		assert.NoError(err)
 
@@ -1103,9 +1162,6 @@ func TestComposerVersionConfig(t *testing.T) {
 				assert.Equal(testVersion, strings.TrimSpace(stdout))
 			}
 		}
-
-		err = app.Stop(true, false)
-		assert.NoError(err)
 	}
 
 	runTime()
@@ -1121,7 +1177,7 @@ func TestCustomBuildDockerfiles(t *testing.T) {
 	switchDir := site.Chdir()
 	defer switchDir()
 
-	runTime := util.TimeTrack(time.Now(), fmt.Sprintf("%s TestCustomBuildDockerfiles", site.Name))
+	runTime := util.TimeTrackC(fmt.Sprintf("%s TestCustomBuildDockerfiles", site.Name))
 
 	err := app.Init(site.Dir)
 	assert.NoError(err)
@@ -1129,6 +1185,7 @@ func TestCustomBuildDockerfiles(t *testing.T) {
 	assert.NoError(err)
 
 	t.Cleanup(func() {
+		runTime()
 		err = app.Stop(true, false)
 		assert.NoError(err)
 		err = os.RemoveAll(app.GetConfigPath("web-build"))
@@ -1151,10 +1208,7 @@ ADD junkfile /
 RUN touch /var/tmp/`+"added-by-"+item+"-test1.txt"))
 		assert.NoError(err)
 
-		// The ARG BASE_IMAGE and FROM $BASE_IMAGE are left in here to test legacy behavior
 		err = WriteImageDockerfile(app.GetConfigPath(item+"-build/Dockerfile.test2"), []byte(`
-ARG BASE_IMAGE
-FROM $BASE_IMAGE
 RUN touch /var/tmp/`+"added-by-"+item+"-test2.txt"))
 		assert.NoError(err)
 
@@ -1172,9 +1226,17 @@ RUN touch /var/tmp/`+"added-by-"+item+"-test4.txt"))
 RUN rm /var/tmp/`+"added-by-"+item+"-test4.txt"))
 		assert.NoError(err)
 	}
+
+	// Make sure that DDEV_PHP_VERSION gets into the build
+	err = WriteImageDockerfile(app.GetConfigPath("web-build/Dockerfile.ddev-php-version"), []byte(`
+ARG DDEV_PHP_VERSION
+RUN touch /var/tmp/running-php-${DDEV_PHP_VERSION}
+`))
+	require.NoError(t, err)
+
 	// Start and make sure that the packages don't exist already
 	err = app.Start()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	// Make sure that the expected in-container file has been created
 	for _, item := range []string{"web", "db"} {
@@ -1185,35 +1247,35 @@ RUN rm /var/tmp/`+"added-by-"+item+"-test4.txt"))
 		assert.NoError(err)
 		_, _, err = app.Exec(&ExecOpts{
 			Service: item,
-			Cmd:     "ls /var/tmp/added-by-" + item + ".txt",
+			Cmd:     "ls /var/tmp/added-by-" + item + ".txt >/dev/null",
 		})
 		assert.NoError(err)
 		_, _, err = app.Exec(&ExecOpts{
 			Service: item,
-			Cmd:     "ls /var/tmp/added-by-" + item + "-test1.txt",
+			Cmd:     "ls /var/tmp/added-by-" + item + "-test1.txt >/dev/null",
 		})
 		assert.NoError(err)
 		_, _, err = app.Exec(&ExecOpts{
 			Service: item,
-			Cmd:     "ls /var/tmp/added-by-" + item + "-test2.txt",
+			Cmd:     "ls /var/tmp/added-by-" + item + "-test2.txt >/dev/null",
 		})
 		assert.NoError(err)
 		_, _, err = app.Exec(&ExecOpts{
 			Service: item,
-			Cmd:     "ls /var/tmp/added-by-" + item + "-test3.txt",
+			Cmd:     "ls /var/tmp/added-by-" + item + "-test3.txt >/dev/null",
 		})
 		assert.NoError(err)
 		_, _, err = app.Exec(&ExecOpts{
 			Service: item,
-			Cmd:     "ls /var/tmp/added-by-" + item + "-test4.txt",
+			Cmd:     "ls /var/tmp/added-by-" + item + "-test4.txt 2>/dev/null",
 		})
 		assert.Error(err)
 	}
 
-	err = app.Stop(true, false)
+	_, _, err = app.Exec(&ExecOpts{
+		Cmd: fmt.Sprintf("ls /var/tmp/running-php-%s >/dev/null", app.PHPVersion),
+	})
 	assert.NoError(err)
-
-	runTime()
 }
 
 // TestConfigLoadingOrder verifies that configs load in lexicographical order

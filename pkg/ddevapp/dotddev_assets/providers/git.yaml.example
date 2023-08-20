@@ -8,7 +8,7 @@
 # 3. Update the environment_variables below to point to the git repository that contains your database dump and files.
 
 environment_variables:
-  project_url: https://github.com/drud/ddev-pull-git-test-repo
+  project_url: https://github.com/ddev/ddev-pull-git-test-repo
   branch: main
   checkout_dir: ~/tmp/ddev-pull-git-test-repo
 
@@ -30,11 +30,11 @@ db_import_command:
   command: |
     set -eu -o pipefail
     # set -x
-    ddev import-db --src="${checkout_dir}/db.sql.gz"
+    ddev import-db --file="${checkout_dir}/db.sql.gz"
 
 files_import_command:
   service: host
   command: |
     set -eu -o pipefail
     # set -x
-    ddev import-files --src="${checkout_dir}/files"
+    ddev import-files --source="${checkout_dir}/files"

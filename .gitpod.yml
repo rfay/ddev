@@ -1,16 +1,14 @@
-image: drud/ddev-gitpod-base:20221018
+image: ddev/ddev-gitpod-base:20230724
 tasks:
   - name: build-run
     init: |
       # Compile ddev
       make
-      cd /tmp && ddev config --auto
       ddev debug download-images
-      ddev delete -Oy tmp
       mkcert -install
     command: |
       export DDEV_NONINTERACTIVE=true
-      DDEV_REPO=${DDEV_REPO:-https://github.com/drud/d9simple}
+      DDEV_REPO=${DDEV_REPO:-https://github.com/ddev/d10simple}
       DDEV_ARTIFACTS=${DDEV_REPO}-artifacts
       git clone ${DDEV_ARTIFACTS} "/tmp/${DDEV_ARTIFACTS##*/}" || true
       reponame=${DDEV_REPO##*/}
@@ -24,8 +22,8 @@ tasks:
       ddev stop -a
       ddev start -y
       if [ -d "/tmp/${DDEV_ARTIFACTS##*/}" ]; then
-        ddev import-db --src=/tmp/${DDEV_ARTIFACTS##*/}/db.sql.gz
-        ddev import-files --src=/tmp/${DDEV_ARTIFACTS##*/}/files.tgz
+        ddev import-db --file=/tmp/${DDEV_ARTIFACTS##*/}/db.sql.gz
+        ddev import-files --source=/tmp/${DDEV_ARTIFACTS##*/}/files.tgz
       fi
       gp ports await 8080 && sleep 1 && gp preview $(gp url 8080)
 
@@ -71,6 +69,8 @@ ports:
     onOpen: ignore
   # Currently un-notified and unsupported mailhog https port
   - port: 8027
+    onOpen: ignore
+  - port: 8036
     onOpen: ignore
   # xdebug port
   - port: 9003

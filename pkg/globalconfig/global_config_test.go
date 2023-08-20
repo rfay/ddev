@@ -3,12 +3,12 @@ package globalconfig_test
 import (
 	"context"
 	"errors"
-	"github.com/drud/ddev/pkg/dockerutil"
-	"github.com/drud/ddev/pkg/exec"
-	"github.com/drud/ddev/pkg/globalconfig"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/testcommon"
-	"github.com/drud/ddev/pkg/versionconstants"
+	"github.com/ddev/ddev/pkg/dockerutil"
+	"github.com/ddev/ddev/pkg/exec"
+	"github.com/ddev/ddev/pkg/globalconfig"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/testcommon"
+	"github.com/ddev/ddev/pkg/versionconstants"
 	asrt "github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net"
@@ -17,6 +17,10 @@ import (
 	"testing"
 	"time"
 )
+
+func init() {
+	globalconfig.EnsureGlobalConfig()
+}
 
 // TestGetFreePort checks GetFreePort() to make sure it respects
 // ports reserved in DdevGlobalConfig.UsedHostPorts
@@ -40,6 +44,8 @@ func TestGetFreePort(t *testing.T) {
 	for ; i < max; i++ {
 		ports = append(ports, strconv.Itoa(i))
 	}
+	// Make sure we have a global config set up.
+	_ = globalconfig.ReadGlobalConfig()
 	err = globalconfig.ReservePorts(t.Name(), ports)
 	assert.NoError(err)
 	t.Cleanup(func() {
@@ -75,6 +81,9 @@ func TestSetProjectAppRoot(t *testing.T) {
 
 	// Create a project in a valid directory
 	tmpDir := testcommon.CreateTmpDir(t.Name())
+
+	// Make sure we have valid global config
+	_ = globalconfig.ReadGlobalConfig()
 	err = globalconfig.SetProjectAppRoot(t.Name(), tmpDir)
 	assert.NoError(err)
 

@@ -2,22 +2,31 @@ package ddevapp
 
 import (
 	"fmt"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/util"
+	"github.com/pkg/errors"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
+
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/util"
 )
 
+// appTypeFuncs prototypes
+//
+// settingsCreator
 type settingsCreator func(*DdevApp) (string, error)
-type uploadDir func(*DdevApp) string
+
+// uploadDirs
+type uploadDirs func(*DdevApp) []string
 
 // hookDefaultComments should probably change its arg from string to app when
 // config refactor is done.
 type hookDefaultComments func() []byte
 
-type apptypeSettingsPaths func(app *DdevApp)
+// appTypeSettingsPaths
+type appTypeSettingsPaths func(app *DdevApp)
 
 // appTypeDetect returns true if the app is of the specified type
 type appTypeDetect func(app *DdevApp) bool
@@ -37,18 +46,18 @@ type postConfigAction func(app *DdevApp) error
 type postStartAction func(app *DdevApp) error
 
 // importFilesAction
-type importFilesAction func(app *DdevApp, importPath, extPath string) error
+type importFilesAction func(app *DdevApp, uploadDir, importPath, extractPath string) error
 
 // defaultWorkingDirMap returns the app type's default working directory map
 type defaultWorkingDirMap func(app *DdevApp, defaults map[string]string) map[string]string
 
-// AppTypeFuncs struct defines the functions that can be called (if populated)
+// appTypeFuncs struct defines the functions that can be called (if populated)
 // for a given appType.
-type AppTypeFuncs struct {
+type appTypeFuncs struct {
 	settingsCreator
-	uploadDir
+	uploadDirs
 	hookDefaultComments
-	apptypeSettingsPaths
+	appTypeSettingsPaths
 	appTypeDetect
 	postImportDBAction
 	configOverrideAction
@@ -60,62 +69,160 @@ type AppTypeFuncs struct {
 
 // appTypeMatrix is a static map that defines the various functions to be called
 // for each apptype (CMS).
-var appTypeMatrix map[string]AppTypeFuncs
+var appTypeMatrix map[string]appTypeFuncs
 
 func init() {
-	appTypeMatrix = map[string]AppTypeFuncs{
+	appTypeMatrix = map[string]appTypeFuncs{
 		nodeps.AppTypeBackdrop: {
-			settingsCreator: createBackdropSettingsFile, uploadDir: getBackdropUploadDir, hookDefaultComments: getBackdropHooks, apptypeSettingsPaths: setBackdropSiteSettingsPaths, appTypeDetect: isBackdropApp, postImportDBAction: backdropPostImportDBAction, configOverrideAction: nil, postConfigAction: nil, postStartAction: backdropPostStartAction, importFilesAction: backdropImportFilesAction, defaultWorkingDirMap: docrootWorkingDir,
+			settingsCreator:      createBackdropSettingsFile,
+			uploadDirs:           getBackdropUploadDirs,
+			hookDefaultComments:  getBackdropHooks,
+			appTypeSettingsPaths: setBackdropSiteSettingsPaths,
+			appTypeDetect:        isBackdropApp,
+			postImportDBAction:   backdropPostImportDBAction,
+			postStartAction:      backdropPostStartAction,
+			importFilesAction:    backdropImportFilesAction,
+			defaultWorkingDirMap: docrootWorkingDir,
 		},
 
 		nodeps.AppTypeCraftCms: {
-			uploadDir: nil, importFilesAction: craftCmsImportFilesAction, appTypeDetect: isCraftCmsApp, configOverrideAction: nil, postConfigAction: craftCmsPostConfigAction, postStartAction: craftCmsPostStartAction,
+			importFilesAction:    craftCmsImportFilesAction,
+			appTypeDetect:        isCraftCmsApp,
+			configOverrideAction: craftCmsConfigOverrideAction,
+			postStartAction:      craftCmsPostStartAction,
+		},
+
+		nodeps.AppTypeDjango4: {
+			settingsCreator:      django4SettingsCreator,
+			appTypeDetect:        isDjango4App,
+			configOverrideAction: django4ConfigOverrideAction,
+			postConfigAction:     django4PostConfigAction,
+			postStartAction:      django4PostStartAction,
+			importFilesAction:    genericImportFilesAction,
 		},
 
 		nodeps.AppTypeDrupal6: {
-			settingsCreator: createDrupalSettingsPHP, uploadDir: getDrupalUploadDir, hookDefaultComments: getDrupal6Hooks, apptypeSettingsPaths: setDrupalSiteSettingsPaths, appTypeDetect: isDrupal6App, postImportDBAction: nil, configOverrideAction: drupal6ConfigOverrideAction, postConfigAction: nil, postStartAction: drupal6PostStartAction, importFilesAction: drupalImportFilesAction, defaultWorkingDirMap: docrootWorkingDir,
+			settingsCreator:      createDrupalSettingsPHP,
+			uploadDirs:           getDrupalUploadDirs,
+			hookDefaultComments:  getDrupal6Hooks,
+			appTypeSettingsPaths: setDrupalSiteSettingsPaths,
+			appTypeDetect:        isDrupal6App,
+			configOverrideAction: drupal6ConfigOverrideAction,
+			postStartAction:      drupal6PostStartAction,
+			importFilesAction:    drupalImportFilesAction,
+			defaultWorkingDirMap: docrootWorkingDir,
 		},
 
 		nodeps.AppTypeDrupal7: {
-			settingsCreator: createDrupalSettingsPHP, uploadDir: getDrupalUploadDir, hookDefaultComments: getDrupal7Hooks, apptypeSettingsPaths: setDrupalSiteSettingsPaths, appTypeDetect: isDrupal7App, postImportDBAction: nil, configOverrideAction: nil, postConfigAction: nil, postStartAction: drupal7PostStartAction, importFilesAction: drupalImportFilesAction, defaultWorkingDirMap: docrootWorkingDir,
+			settingsCreator:      createDrupalSettingsPHP,
+			uploadDirs:           getDrupalUploadDirs,
+			hookDefaultComments:  getDrupal7Hooks,
+			appTypeSettingsPaths: setDrupalSiteSettingsPaths,
+			appTypeDetect:        isDrupal7App,
+			postStartAction:      drupal7PostStartAction,
+			importFilesAction:    drupalImportFilesAction,
+			defaultWorkingDirMap: docrootWorkingDir,
 		},
 
 		nodeps.AppTypeDrupal8: {
-			settingsCreator: createDrupalSettingsPHP, uploadDir: getDrupalUploadDir, hookDefaultComments: getDrupal8Hooks, apptypeSettingsPaths: setDrupalSiteSettingsPaths, appTypeDetect: isDrupal8App, postImportDBAction: nil, configOverrideAction: drupal8ConfigOverrideAction, postConfigAction: nil, postStartAction: drupal8PostStartAction, importFilesAction: drupalImportFilesAction,
+			settingsCreator:      createDrupalSettingsPHP,
+			uploadDirs:           getDrupalUploadDirs,
+			hookDefaultComments:  getDrupal8Hooks,
+			appTypeSettingsPaths: setDrupalSiteSettingsPaths,
+			appTypeDetect:        isDrupal8App,
+			configOverrideAction: drupal8ConfigOverrideAction,
+			postStartAction:      drupal8PostStartAction,
+			importFilesAction:    drupalImportFilesAction,
 		},
 
 		nodeps.AppTypeDrupal9: {
-			settingsCreator: createDrupalSettingsPHP, uploadDir: getDrupalUploadDir, hookDefaultComments: getDrupal8Hooks, apptypeSettingsPaths: setDrupalSiteSettingsPaths, appTypeDetect: isDrupal9App, postImportDBAction: nil, configOverrideAction: nil, postConfigAction: nil, postStartAction: drupalPostStartAction, importFilesAction: drupalImportFilesAction,
+			settingsCreator:      createDrupalSettingsPHP,
+			uploadDirs:           getDrupalUploadDirs,
+			hookDefaultComments:  getDrupal8Hooks,
+			appTypeSettingsPaths: setDrupalSiteSettingsPaths,
+			appTypeDetect:        isDrupal9App,
+			postStartAction:      drupalPostStartAction,
+			importFilesAction:    drupalImportFilesAction,
 		},
 
 		nodeps.AppTypeDrupal10: {
-			settingsCreator: createDrupalSettingsPHP, uploadDir: getDrupalUploadDir, hookDefaultComments: getDrupal8Hooks, apptypeSettingsPaths: setDrupalSiteSettingsPaths, appTypeDetect: isDrupal10App, postImportDBAction: nil, configOverrideAction: drupal10ConfigOverrideAction, postConfigAction: nil, postStartAction: drupalPostStartAction, importFilesAction: drupalImportFilesAction,
+			settingsCreator:      createDrupalSettingsPHP,
+			uploadDirs:           getDrupalUploadDirs,
+			hookDefaultComments:  getDrupal8Hooks,
+			appTypeSettingsPaths: setDrupalSiteSettingsPaths,
+			appTypeDetect:        isDrupal10App,
+			configOverrideAction: drupal10ConfigOverrideAction,
+			postStartAction:      drupalPostStartAction,
+			importFilesAction:    drupalImportFilesAction,
 		},
 
 		nodeps.AppTypeLaravel: {
-			appTypeDetect: isLaravelApp, postStartAction: laravelPostStartAction, configOverrideAction: nil,
+			appTypeDetect:        isLaravelApp,
+			postStartAction:      laravelPostStartAction,
+			configOverrideAction: laravelConfigOverrideAction,
+			importFilesAction:    genericImportFilesAction,
+		},
+
+		nodeps.AppTypeSilverstripe: {
+			appTypeDetect:        isSilverstripeApp,
+			postStartAction:      silverstripePostStartAction,
+			configOverrideAction: silverstripeConfigOverrideAction,
 		},
 
 		nodeps.AppTypeMagento: {
-			settingsCreator: createMagentoSettingsFile, uploadDir: getMagentoUploadDir, hookDefaultComments: nil, apptypeSettingsPaths: setMagentoSiteSettingsPaths, appTypeDetect: isMagentoApp, postImportDBAction: nil, configOverrideAction: magentoConfigOverrideAction, postConfigAction: nil, postStartAction: nil, importFilesAction: magentoImportFilesAction,
+			settingsCreator:      createMagentoSettingsFile,
+			uploadDirs:           getMagentoUploadDirs,
+			appTypeSettingsPaths: setMagentoSiteSettingsPaths,
+			appTypeDetect:        isMagentoApp,
+			configOverrideAction: magentoConfigOverrideAction,
+			importFilesAction:    magentoImportFilesAction,
 		},
 
 		nodeps.AppTypeMagento2: {
-			settingsCreator: createMagento2SettingsFile, uploadDir: getMagento2UploadDir, hookDefaultComments: nil, apptypeSettingsPaths: setMagento2SiteSettingsPaths, appTypeDetect: isMagento2App, postImportDBAction: nil, configOverrideAction: magento2ConfigOverrideAction, postConfigAction: nil, postStartAction: nil, importFilesAction: magentoImportFilesAction,
+			settingsCreator:      createMagento2SettingsFile,
+			uploadDirs:           getMagento2UploadDirs,
+			appTypeSettingsPaths: setMagento2SiteSettingsPaths,
+			appTypeDetect:        isMagento2App,
+			configOverrideAction: magento2ConfigOverrideAction,
+			importFilesAction:    magentoImportFilesAction,
 		},
 
 		nodeps.AppTypePHP: {
-			uploadDir: getPHPUploadDir, postStartAction: phpPostStartAction, importFilesAction: phpImportFilesAction,
+			postStartAction:   phpPostStartAction,
+			importFilesAction: genericImportFilesAction,
 		},
 
-		nodeps.AppTypeShopware6: {settingsCreator: nil, appTypeDetect: isShopware6App, apptypeSettingsPaths: setShopware6SiteSettingsPaths, uploadDir: getShopwareUploadDir, configOverrideAction: nil, postStartAction: shopware6PostStartAction, importFilesAction: shopware6ImportFilesAction},
+		nodeps.AppTypePython: {
+			appTypeDetect:        isPythonApp,
+			configOverrideAction: pythonConfigOverrideAction,
+			postConfigAction:     pythonPostConfigAction,
+			importFilesAction:    genericImportFilesAction,
+		},
+
+		nodeps.AppTypeShopware6: {
+			appTypeDetect:        isShopware6App,
+			appTypeSettingsPaths: setShopware6SiteSettingsPaths,
+			uploadDirs:           getShopwareUploadDirs,
+			postStartAction:      shopware6PostStartAction,
+			importFilesAction:    shopware6ImportFilesAction,
+		},
 
 		nodeps.AppTypeTYPO3: {
-			settingsCreator: createTypo3SettingsFile, uploadDir: getTypo3UploadDir, hookDefaultComments: getTypo3Hooks, apptypeSettingsPaths: setTypo3SiteSettingsPaths, appTypeDetect: isTypo3App, postImportDBAction: nil, configOverrideAction: nil, postConfigAction: nil, postStartAction: nil, importFilesAction: typo3ImportFilesAction,
+			settingsCreator:      createTypo3SettingsFile,
+			uploadDirs:           getTypo3UploadDirs,
+			hookDefaultComments:  getTypo3Hooks,
+			appTypeSettingsPaths: setTypo3SiteSettingsPaths,
+			appTypeDetect:        isTypo3App,
+			importFilesAction:    typo3ImportFilesAction,
 		},
 
 		nodeps.AppTypeWordPress: {
-			settingsCreator: createWordpressSettingsFile, uploadDir: getWordpressUploadDir, hookDefaultComments: getWordpressHooks, apptypeSettingsPaths: setWordpressSiteSettingsPaths, appTypeDetect: isWordpressApp, postImportDBAction: nil, configOverrideAction: nil, postConfigAction: nil, postStartAction: nil, importFilesAction: wordpressImportFilesAction,
+			settingsCreator:      createWordpressSettingsFile,
+			uploadDirs:           getWordpressUploadDirs,
+			hookDefaultComments:  getWordpressHooks,
+			appTypeSettingsPaths: setWordpressSiteSettingsPaths,
+			appTypeDetect:        isWordpressApp,
+			importFilesAction:    wordpressImportFilesAction,
 		},
 	}
 }
@@ -124,7 +231,7 @@ func init() {
 // provided app is the apptype has a settingsCreator function.
 // It also preps the ddev directory, including setting up the .ddev gitignore
 func (app *DdevApp) CreateSettingsFile() (string, error) {
-	err := PrepDdevDirectory(filepath.Dir(app.ConfigPath))
+	err := PrepDdevDirectory(app)
 	if err != nil {
 		util.Warning("Unable to PrepDdevDirectory: %v", err)
 	}
@@ -180,21 +287,16 @@ func (app *DdevApp) CreateSettingsFile() (string, error) {
 		}
 		return settingsPath, nil
 	}
-	err = app.MutagenSyncFlush()
-	if err != nil {
-		return "", err
+
+	// If the project is not running, it makes no sense to sync it
+	if s, _ := app.SiteStatus(); s == SiteRunning {
+		err = app.MutagenSyncFlush()
+		if err != nil {
+			return "", err
+		}
 	}
 
 	return "", nil
-}
-
-// GetUploadDir returns the upload (public files) directory for the given app
-func (app *DdevApp) GetUploadDir() string {
-	if appFuncs, ok := appTypeMatrix[app.GetType()]; ok && appFuncs.uploadDir != nil {
-		uploadDir := appFuncs.uploadDir(app)
-		return uploadDir
-	}
-	return app.UploadDir
 }
 
 // GetHookDefaultComments gets the actual text of the config.yaml hook suggestions
@@ -210,8 +312,8 @@ func (app *DdevApp) GetHookDefaultComments() []byte {
 // SetApptypeSettingsPaths chooses and sets the settings.php/settings.local.php
 // and related paths for a given app.
 func (app *DdevApp) SetApptypeSettingsPaths() {
-	if appFuncs, ok := appTypeMatrix[app.Type]; ok && appFuncs.apptypeSettingsPaths != nil {
-		appFuncs.apptypeSettingsPaths(app)
+	if appFuncs, ok := appTypeMatrix[app.Type]; ok && appFuncs.appTypeSettingsPaths != nil {
+		appFuncs.appTypeSettingsPaths(app)
 	}
 }
 
@@ -223,6 +325,7 @@ func (app *DdevApp) DetectAppType() string {
 			return appName
 		}
 	}
+
 	return nodeps.AppTypePHP
 }
 
@@ -267,10 +370,14 @@ func (app *DdevApp) PostStartAction() error {
 	return nil
 }
 
-// ImportFilesAction executes the relevant import files workflow for each app type.
-func (app *DdevApp) ImportFilesAction(importPath, extPath string) error {
+// dispatchImportFilesAction executes the relevant import files workflow for each app type.
+func (app *DdevApp) dispatchImportFilesAction(uploadDir, importPath, extractPath string) error {
+	if strings.TrimSpace(uploadDir) == "" {
+		return errors.Errorf("upload_dirs is not set for this project (%s)", app.Type)
+	}
+
 	if appFuncs, ok := appTypeMatrix[app.Type]; ok && appFuncs.importFilesAction != nil {
-		return appFuncs.importFilesAction(app, importPath, extPath)
+		return appFuncs.importFilesAction(app, uploadDir, importPath, extractPath)
 	}
 
 	return fmt.Errorf("this project type (%s) does not support import-files", app.Type)
@@ -284,7 +391,6 @@ func (app *DdevApp) DefaultWorkingDirMap() map[string]string {
 	defaults := map[string]string{
 		"web": "/var/www/html/",
 		"db":  "/home/" + username,
-		"dba": "/root",
 	}
 
 	if appFuncs, ok := appTypeMatrix[app.Type]; ok && appFuncs.defaultWorkingDirMap != nil {

@@ -1,5 +1,5 @@
 /**
- * ddev.nsi - DDEV Local Setup Script
+ * ddev.nsi - DDEV Setup Script
  *
  * Important hints on extending this installer, please follow this
  * instructions.
@@ -62,7 +62,7 @@
  * and therefor defined as LanguageString later in the script.
  */
 !define PRODUCT_NAME "DDEV"
-!define PRODUCT_NAME_FULL "${PRODUCT_NAME} Local"
+!define PRODUCT_NAME_FULL "${PRODUCT_NAME}"
 !define PRODUCT_VERSION "${VERSION}"
 !define PRODUCT_PUBLISHER "Localdev Foundation"
 
@@ -72,15 +72,15 @@
 !define PRODUCT_DOCUMENTATION "${PRODUCT_NAME} Documentation"
 !define PRODUCT_DOCUMENTATION_URL "https://ddev.readthedocs.io"
 
-!define PRODUCT_RELEASE_URL "https://github.com/drud/ddev/releases"
+!define PRODUCT_RELEASE_URL "https://github.com/ddev/ddev/releases"
 !define PRODUCT_RELEASE_NOTES "${PRODUCT_NAME} Release Notes"
 !define PRODUCT_RELEASE_NOTES_URL "${PRODUCT_RELEASE_URL}/${RELEASE_TAG}"
 
 !define PRODUCT_ISSUES "${PRODUCT_NAME} Issues"
-!define PRODUCT_ISSUES_URL "https://github.com/drud/ddev/issues"
+!define PRODUCT_ISSUES_URL "https://github.com/ddev/ddev/issues"
 
 !define PRODUCT_PROJECT "${PRODUCT_NAME} GitHub"
-!define PRODUCT_PROJECT_URL "https://github.com/drud/ddev#readme"
+!define PRODUCT_PROJECT_URL "https://github.com/ddev/ddev#readme"
 
 
 
@@ -99,7 +99,7 @@
  */
 !define GSUDO_NAME "gsudo"
 !define GSUDO_SETUP "sudo.exe"
-!define GSUDO_URL "https://github.com/drud/gsudo/releases/download/v0.7.3/gsudo.exe"
+!define GSUDO_URL "https://github.com/ddev/gsudo/releases/download/v0.7.3/gsudo.exe"
 
 !define WINNFSD_NAME "WinNFSd"
 !define WINNFSD_VERSION "2.4.0"
@@ -109,7 +109,7 @@
 !define NSSM_NAME "NSSM"
 !define NSSM_VERSION "2.24-101-g897c7ad"
 !define NSSM_SETUP "nssm.exe"
-!define NSSM_URL "https://github.com/drud/nssm/releases/download/${NSSM_VERSION}/nssm.exe"
+!define NSSM_URL "https://github.com/ddev/nssm/releases/download/${NSSM_VERSION}/nssm.exe"
 
 
 
@@ -150,9 +150,7 @@ InstType "Minimal"
 !include "WinVer.nsh"
 
 !include "ddev.nsh"
-!ifndef DOCKER_EXCLUDE
-  !include "docker.nsh"
-!endif
+
 
 
 
@@ -228,10 +226,6 @@ Caption "${PRODUCT_NAME_FULL} ${PRODUCT_VERSION} $InstallerModeCaption"
 !insertmacro MUI_PAGE_LICENSE "..\.gotmp\bin\windows_amd64\sudo_license.txt"
 
 ; Components page
-!ifdef DOCKER_NSH
-  Var DockerVisible
-  Var DockerSelected
-!endif
 Var MkcertSetup
 !define MUI_PAGE_CUSTOMFUNCTION_PRE ComponentsPre
 !insertmacro MUI_PAGE_COMPONENTS
@@ -321,7 +315,7 @@ ReserveFile /plugin INetC.dll
 ;VIAddVersionKey /LANG=${LANG_ENGLISH} "Comments" "A test comment"
 ;VIAddVersionKey /LANG=${LANG_ENGLISH} "CompanyName" "${PRODUCT_PUBLISHER}"
 ;VIAddVersionKey /LANG=${LANG_ENGLISH} "LegalTrademarks" "Test Application is a trademark of Fake company"
-;VIAddVersionKey /LANG=${LANG_ENGLISH} "LegalCopyright" "https://github.com/drud/ddev/raw/master/LICENSE"
+;VIAddVersionKey /LANG=${LANG_ENGLISH} "LegalCopyright" "https://github.com/ddev/ddev/raw/master/LICENSE"
 ;VIAddVersionKey /LANG=${LANG_ENGLISH} "FileDescription" "Windows Installer of ${PRODUCT_NAME_FULL}"
 ;ProductName
 ;Comments
@@ -423,45 +417,6 @@ SectionGroup /e "${PRODUCT_NAME_FULL}"
 SectionGroupEnd
 
 /**
- * Docker download and install
- */
-!ifdef DOCKER_NSH
-Section /o "${DOCKER_DESKTOP_NAME}" SecDocker
-  ; Set URL and temporary file name
-  !define DOCKER_DESKTOP_INSTALLER "$TEMP\${DOCKER_DESKTOP_SETUP}"
-
-  ; Download installer
-  INetC::get /CANCELTEXT "Skip download" /QUESTION "" "${DOCKER_DESKTOP_URL}" "${DOCKER_DESKTOP_INSTALLER}" /END
-  Pop $R0 ; return value = exit code, "OK" if OK
-
-  ; Check download result
-  ${If} $R0 = "OK"
-    ; Execute installer
-    ExecWait '"${DOCKER_DESKTOP_INSTALLER}"' $R0
-
-    ; Delete installer
-    Delete "${DOCKER_DESKTOP_INSTALLER}"
-
-    ${If} $R0 != 0
-      ; Installation failed, show message and continue
-      SetDetailsView show
-      DetailPrint "Installation of `${DOCKER_DESKTOP_NAME}` failed:"
-      DetailPrint " $R0"
-      MessageBox MB_ICONEXCLAMATION|MB_OK "Installation of `${DOCKER_DESKTOP_NAME}` has failed, please download and install once this installation has finished. Continue the resting installation."
-    ${EndIf}
-  ${Else}
-    ; Download failed, show message and continue
-    SetDetailsView show
-    DetailPrint "Download of `${DOCKER_DESKTOP_NAME}` failed:"
-    DetailPrint " $R0"
-    MessageBox MB_ICONEXCLAMATION|MB_OK "Download of `${DOCKER_DESKTOP_NAME}` has failed, please download and install once this installation has finished. Continue the resting installation."
-  ${EndIf}
-
-  !undef DOCKER_DESKTOP_INSTALLER
-SectionEnd
-!endif ; DOCKER_NSH
-
-/**
  * sudo application install
  */
 Section "${GSUDO_NAME}" SecSudo
@@ -486,7 +441,7 @@ Section "${GSUDO_NAME}" SecSudo
     SetDetailsView show
     DetailPrint "Download of `${GSUDO_NAME}` failed:"
     DetailPrint " $R0"
-    MessageBox MB_ICONEXCLAMATION|MB_OK "Download of `${GSUDO_NAME}` has failed, please download it to the DDEV installation folder `$INSTDIR` once this installation has finished. Continue the resting installation."
+    MessageBox MB_ICONEXCLAMATION|MB_OK "Download of `${GSUDO_NAME}` has failed, please download it to the DDEV installation folder `$INSTDIR` once this installation has finished. Continue with the rest of the installation."
   ${EndIf}
 
   !undef GSUDO_DEST
@@ -552,14 +507,14 @@ SectionGroupEnd
 /**
  * WinNFSd group
  */
-SectionGroup /e "WinNFSd"
+SectionGroup /e "WinNFSd (deprecated)"
   /**
    * WinNFSd application install
    */
-  Section "${WINNFSD_NAME}" SecWinNFSd
+  Section /o "${WINNFSD_NAME}" SecWinNFSd
     SectionIn 1
     SetOutPath "$INSTDIR"
-    SetOverwrite try
+    SetOverwrite off
 
     ; Copy files
     File "licenses\winnfsd_license.txt"
@@ -578,7 +533,7 @@ SectionGroup /e "WinNFSd"
       SetDetailsView show
       DetailPrint "Download of `${WINNFSD_NAME}` failed:"
       DetailPrint " $R0"
-      MessageBox MB_ICONEXCLAMATION|MB_OK "Download of `${WINNFSD_NAME}` has failed, please download it to the DDEV installation folder `$INSTDIR` once this installation has finished. Continue the resting installation."
+      MessageBox MB_ICONEXCLAMATION|MB_OK "Download of `${WINNFSD_NAME}` has failed, please download it to the DDEV installation folder `$INSTDIR` once this installation has finished. Continue with the rest of the installation."
     ${EndIf}
 
     !undef WINNFSD_DEST
@@ -587,7 +542,7 @@ SectionGroup /e "WinNFSd"
   /**
    * NSSM application install
    */
-  Section "${NSSM_NAME}" SecNSSM
+  Section /o "${NSSM_NAME}" SecNSSM
     ; Install in non choco mode only
     ${IfNot} ${Chocolatey}
       SectionIn 1
@@ -607,7 +562,7 @@ SectionGroup /e "WinNFSd"
         SetDetailsView show
         DetailPrint "Download of `${NSSM_NAME}` failed:"
         DetailPrint " $R0"
-        MessageBox MB_ICONEXCLAMATION|MB_OK "Download of `${NSSM_NAME}` has failed, please download it to the DDEV installation folder `$INSTDIR` once this installation has finished. Continue the resting installation."
+        MessageBox MB_ICONEXCLAMATION|MB_OK "Download of `${NSSM_NAME}` has failed, please download it to the DDEV installation folder `$INSTDIR` once this installation has finished. Continue with the rest of the installation."
       ${EndIf}
 
       !undef NSSM_DEST
@@ -661,14 +616,11 @@ SectionEnd
  */
 LangString DESC_SecDDEV ${LANG_ENGLISH} "Install ${PRODUCT_NAME_FULL} (required)"
 LangString DESC_SecAddToPath ${LANG_ENGLISH} "Add the ${PRODUCT_NAME} (and sudo) directory to the global PATH"
-!ifdef DOCKER_NSH
-LangString DESC_SecDocker ${LANG_ENGLISH} "Download and install ${DOCKER_DESKTOP_NAME} (www.docker.com) which do not seem to be installed, but is required for $(^Name) to function"
-!endif ; DOCKER_NSH
-LangString DESC_SecSudo ${LANG_ENGLISH} "Sudo for Windows (github.com/ mattn/sudo) allows for elevated privileges which are used to add hostnames to the Windows hosts file (required)"
-LangString DESC_SecMkcert ${LANG_ENGLISH} "mkcert (github.com/ FiloSottile/mkcert) is a simple tool for making locally-trusted development certificates. It requires no configuration"
+LangString DESC_SecSudo ${LANG_ENGLISH} "Sudo for Windows (github.com/gerardog/gsudo) allows for elevated privileges which are used to add hostnames to the Windows hosts file (required)"
+LangString DESC_SecMkcert ${LANG_ENGLISH} "mkcert (github.com/FiloSottile/mkcert) is a simple tool for making locally-trusted development certificates. It requires no configuration"
 LangString DESC_SecMkcertSetup ${LANG_ENGLISH} "Run `mkcert -install` to setup a local CA"
-LangString DESC_SecWinNFSd ${LANG_ENGLISH} "WinNFSd (github.com/ winnfsd/winnfsd) is an optional NFS server that can be used with ${PRODUCT_NAME_FULL}"
-LangString DESC_SecNSSM ${LANG_ENGLISH} "NSSM (nssm.cc) is used to install services, specifically WinNFSd for NFS"
+LangString DESC_SecWinNFSd ${LANG_ENGLISH} "WinNFSd (github.com/winnfsd/winnfsd) is an optional NFS server that can be used with ${PRODUCT_NAME_FULL} (deprecated)"
+LangString DESC_SecNSSM ${LANG_ENGLISH} "NSSM (nssm.cc) is used to install services, specifically WinNFSd for NFS (deprecated)"
 
 
 
@@ -680,9 +632,6 @@ LangString DESC_SecNSSM ${LANG_ENGLISH} "NSSM (nssm.cc) is used to install servi
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDDEV} $(DESC_SecDDEV)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecAddToPath} $(DESC_SecAddToPath)
-  !ifdef DOCKER_NSH
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecDocker} $(DESC_SecDocker)
-  !endif ; DOCKER_NSH
   !insertmacro MUI_DESCRIPTION_TEXT ${SecSudo} $(DESC_SecSudo)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMkcert} $(DESC_SecMkcert)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMkcertSetup} $(DESC_SecMkcertSetup)
@@ -763,10 +712,6 @@ Function .onInit
   ${EndIf}
 
   ; Initialize global variables
-  !ifdef DOCKER_NSH
-  StrCpy $DockerVisible ""
-  StrCpy $DockerSelected ""
-  !endif ; DOCKER_NSH
   StrCpy $mkcertSetup ""
 
   ; Check parameters
@@ -784,11 +729,6 @@ FunctionEnd
  * GUI initialization, called before window is shown
  */
 Function onGUIInit
-  ; Check for docker-compose
-  !ifdef DOCKER_NSH
-  Call checkDocker
-  !endif ; DOCKER_NSH
-
   ; Read setup status from registry
   ${IfNot} ${Silent}
     ReadRegDWORD $mkcertSetup ${REG_UNINST_ROOT} "${REG_UNINST_KEY}" "NSIS:mkcertSetup"
@@ -803,13 +743,6 @@ FunctionEnd
 Function .onSelChange
   ; Apply special selections on install type change
   ${If} $0 = -1
-    !ifdef DOCKER_NSH
-    ${If} $DockerVisible == 1
-    ${AndIf} $DockerSelected == 1
-      !insertmacro SelectSection ${SecDocker}
-    ${EndIf}
-    !endif ; DOCKER_NSH
-
     ${If} $mkcertSetup != 1
     ${AndIf} ${SectionIsSelected} ${SecMkcert}
     ${AndIfNot} ${Silent}
@@ -836,14 +769,6 @@ FunctionEnd
  * Disable not applicable sections
  */
 Function ComponentsPre
-  !ifdef DOCKER_NSH
-  ${If} $DockerVisible != 1
-    !insertmacro RemoveSection ${SecDocker}
-  ${ElseIf} $DockerSelected == 1
-    !insertmacro SelectSection ${SecDocker}
-  ${EndIf}
-  !endif ; DOCKER_NSH
-
   ${If} $mkcertSetup != 1
   ${AndIf} ${SectionIsSelected} ${SecMkcert}
   ${AndIfNot} ${Silent}
@@ -940,52 +865,6 @@ Function StartMenuPre
     Abort
   ${EndIf}
 FunctionEnd
-
-/**
- * Check for docker-compose
- */
-!ifdef DOCKER_NSH
-Function checkDocker
-  ${IfNot} ${Silent}
-    Var /GLOBAL DockerIgnore
-
-    ; Read setup status from registry
-    ReadRegDWORD $DockerIgnore ${REG_UNINST_ROOT} "${REG_UNINST_KEY}" "NSIS:DockerIgnore"
-
-    ; Check if ignore flag is set
-    ${If} $DockerIgnore != 1
-      ; Check if docker-compose is executable
-      ${IfNot} ${DockerComposeIsExecutable}
-        ; Check if docker is supported on this system
-        ${If} ${DockerDesktopIsInstallable}
-          ; Show Docker Desktop section
-          StrCpy $DockerVisible "1"
-
-          ; Check if docker is installed
-          ${IfNot} ${DockerDesktopIsInstalled}
-            MessageBox MB_ICONQUESTION|MB_YESNOCANCEL "`${DOCKER_DESKTOP_NAME}` is not installed, but it is required for $(^Name) to function. Would you like to download and install `${DOCKER_DESKTOP_NAME}` during this setup? Cancel will not show this message again." IDYES DockerDesktopSelect IDCANCEL CheckDockerIgnore
-          ${Else}
-            MessageBox MB_ICONINFORMATION|MB_OK "`${DOCKER_DESKTOP_NAME}` is installed but docker-compose is not available in variable `Path` ), but they are required for $(^Name) to function. Please install them after you complete $(^Name) installation."
-          ${EndIf}
-
-          Goto CheckDockerEnd
-
-        DockerDesktopSelect:
-          StrCpy $DockerSelected "1"
-        ${EndIf}
-
-        Goto CheckDockerEnd
-
-      CheckDockerIgnore:
-        WriteRegDWORD ${REG_UNINST_ROOT} "${REG_UNINST_KEY}" "NSIS:DockerIgnore" 1
-      ${EndIf}
-    ${EndIf}
-  ${EndIf}
-  CheckDockerEnd:
-FunctionEnd
-!endif ; DOCKER_NSH
-
-
 
 /**
  * Uninstaller Section

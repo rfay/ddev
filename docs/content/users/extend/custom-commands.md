@@ -6,9 +6,9 @@ This involves adding a Bash script to the project in `.ddev/commands/host`, a sp
 
 Example commands in `ddev/commands/*/*.example` can be copied, moved, or symlinked.
 
-For example, [.ddev/commands/host/mysqlworkbench.example](https://github.com/drud/ddev/blob/master/pkg/ddevapp/global_dotddev_assets/commands/host/mysqlworkbench.example) can be used to add a `ddev mysqlworkbench` command. Rename it from `mysqlworkbench.example` to `mysqlworkbench`. If you’re on macOS or Linux (or some configurations of Windows) you can `cd .ddev/commands/host && ln -s mysqlworkbench.example mysqlworkbench`.
+For example, [.ddev/commands/host/mysqlworkbench.example](https://github.com/ddev/ddev/blob/master/pkg/ddevapp/global_dotddev_assets/commands/host/mysqlworkbench.example) can be used to add a `ddev mysqlworkbench` command. Rename it from `mysqlworkbench.example` to `mysqlworkbench`. If you’re on macOS or Linux (or some configurations of Windows) you can `cd .ddev/commands/host && ln -s mysqlworkbench.example mysqlworkbench`.
 
-The [`ddev mysql`](../basics/commands.md#mysql) runs the `mysql` client inside the `db` container command using this technique. See the [`ddev mysql` command](https://github.com/drud/ddev/blob/master/pkg/ddevapp/global_dotddev_assets/commands/db/mysql).
+The [`ddev mysql`](../usage/commands.md#mysql) runs the `mysql` client inside the `db` container command using this technique. See the [`ddev mysql` command](https://github.com/ddev/ddev/blob/master/pkg/ddevapp/global_dotddev_assets/commands/db/mysql).
 
 ## Notes for All Command Types
 
@@ -32,7 +32,7 @@ open -a PhpStorm.app ${DDEV_APPROOT}
 
 ## Container Commands
 
-To provide a command which will execute in a container, add a Bash script to `.ddev/commands/<container_name>`, for example, `.ddev/commands/web/mycommand`. The Bash script will be executed inside the named container. For example, see the [several standard DDEV script-based web container commands](https://github.com/drud/ddev/blob/master/pkg/ddevapp/global_dotddev_assets/commands/web).
+To provide a command which will execute in a container, add a Bash script to `.ddev/commands/<container_name>`, for example, `.ddev/commands/web/mycommand`. The Bash script will be executed inside the named container. For example, see the [several standard DDEV script-based web container commands](https://github.com/ddev/ddev/blob/master/pkg/ddevapp/global_dotddev_assets/commands/web).
 
 You can run commands in custom containers as well as standard DDEV `web` and `db` containers. Use the service name, like `.ddev/commands/solr/<command>`. The only catch with a custom container is that your service must mount `/mnt/ddev_config` like the `web` and `db` containers do; the `volumes` section of `docker-compose.<servicename>.yaml` needs:
 
@@ -55,50 +55,57 @@ tail -f /opt/solr/server/logs/solr.log
 
 ## Global Commands
 
-Global commands work exactly the same as project-level commands, they just need to go in your global `.ddev` directory. Your home directory has a `.ddev/commands` in it, where you can add host, web, or db commands.
+Global commands work exactly the same as project-level commands, but they need to go in your *global* `.ddev` directory. Your home directory has a `.ddev/commands` in it, where you can add host, web, or db commands.
 
 ## Shell Command Examples
 
-There are many examples of [global](https://github.com/drud/ddev/tree/master/pkg/ddevapp/global_dotddev_assets/commands) and [project-level](https://github.com/drud/ddev/tree/master/pkg/ddevapp/dotddev_assets/commands) custom/shell commands that ship with DDEV you can adapt for your own use. They can be found in your `~/.ddev/commands/*` directories and in your project’s `.ddev/commands/*` directories. There you’ll see how to provide usage, examples, and how to use arguments provided to the commands. For example, the [`xdebug` command](https://github.com/drud/ddev/blob/master/pkg/ddevapp/global_dotddev_assets/commands/web/xdebug) shows simple argument processing and the [launch command](https://github.com/drud/ddev/blob/master/pkg/ddevapp/global_dotddev_assets/commands/host/launch) demonstrates flag processing.
+There are many examples of [global](https://github.com/ddev/ddev/tree/master/pkg/ddevapp/global_dotddev_assets/commands) and [project-level](https://github.com/ddev/ddev/tree/master/pkg/ddevapp/dotddev_assets/commands) custom/shell commands that ship with DDEV you can adapt for your own use. They can be found in your `~/.ddev/commands/*` directories and in your project’s `.ddev/commands/*` directories. There you’ll see how to provide usage, examples, and how to use arguments provided to the commands. For example, the [`xdebug` command](https://github.com/ddev/ddev/blob/master/pkg/ddevapp/global_dotddev_assets/commands/web/xdebug) shows simple argument processing and the [launch command](https://github.com/ddev/ddev/blob/master/pkg/ddevapp/global_dotddev_assets/commands/host/launch) demonstrates flag processing.
 
 ## Environment Variables Provided
 
 A number of environment variables are provided to these command scripts. These are generally supported, but please avoid using undocumented environment variables. Useful variables for host scripts are:
 
-* `DDEV_APPROOT`: file system location of the project on the host
-* `DDEV_DATABASE`: database in use, in format `type:version` (example: `mariadb:10.5`)
-* `DDEV_DOCROOT`: relative path from approot to docroot
-* `DDEV_HOSTNAME`: comma-separated list of FQDN hostnames
-* `DDEV_HOST_DB_PORT`: localhost port of the database server
-* `DDEV_HOST_HTTPS_PORT`: localhost port for HTTPS on web server
-* `DDEV_HOST_WEBSERVER_PORT`: localhost port of the web server
-* `DDEV_PHP_VERSION`: current PHP version
-* `DDEV_PRIMARY_URL`: primary project URL
-* `DDEV_PROJECT`: project name, like `d8composer`
+* `DDEV_APPROOT`: File system location of the project on the host
+* `DDEV_DATABASE`: Database in use, in format `type:version` (example: `mariadb:10.5`)
+* `DDEV_DATABASE_FAMILY`: Database "family" (example: `mysql`, `postgres`), useful for database connection URLs
+* `DDEV_DOCROOT`: Relative path from approot to docroot
+* `DDEV_GID`: The GID the web container runs as
+* `DDEV_HOSTNAME`: Comma-separated list of FQDN hostnames
+* `DDEV_HOST_DB_PORT`: Localhost port of the database server
+* `DDEV_HOST_HTTPS_PORT`: Localhost port for HTTPS on web server
+* `DDEV_HOST_MAILHOG_PORT`: Localhost port for MailHog
+* `DDEV_HOST_WEBSERVER_PORT`: Localhost port of the web server
+* `DDEV_MUTAGEN_ENABLED`: `true` if Mutagen is enabled
+* `DDEV_PHP_VERSION`: Current PHP version
+* `DDEV_PRIMARY_URL`: Primary project URL
+* `DDEV_PROJECT`: Project name, like `d8composer`
 * `DDEV_PROJECT_TYPE`: `drupal8`, `typo3`, `backdrop`, `wordpress`, etc.
-* `DDEV_ROUTER_HTTP_PORT`: router port for HTTP
-* `DDEV_ROUTER_HTTPS_PORT`: router port for HTTPS
-* `DDEV_SITENAME`: project name, like `d8composer`
-* `DDEV_TLD`: top-level project domain, like `ddev.site`
-* `DDEV_WEBSERVER_TYPE`: `nginx-fpm` or `apache-fpm`
-* `GOARCH`: architecture (`arm64`, `amd64`)
-* `GOOS`: operating system (`windows`, `darwin`, `linux`)
+* `DDEV_ROUTER_HTTP_PORT`: Router port for HTTP
+* `DDEV_ROUTER_HTTPS_PORT`: Router port for HTTPS
+* `DDEV_SITENAME`: Project name, like `d8composer`
+* `DDEV_TLD`: Top-level project domain, like `ddev.site`
+* `DDEV_UID`: The UID the web container runs as
+* `DDEV_WEBSERVER_TYPE`: `nginx-fpm`, `apache-fpm`, or `nginx-gunicorn`
+* `GOARCH`: Architecture (`arm64`, `amd64`)
+* `GOOS`: Operating system (`windows`, `darwin`, `linux`)
 
 Useful variables for container scripts are:
 
-* `DDEV_DOCROOT`: relative path from approot to docroot
-* `DDEV_FILES_DIR`: directory of user-uploaded files
-* `DDEV_HOSTNAME`: comma-separated list of FQDN hostnames
-* `DDEV_PHP_VERSION`: current PHP version
-* `DDEV_PRIMARY_URL`: primary URL for the project
-* `DDEV_PROJECT`: project name, like `d8composer`
+* `DDEV_DOCROOT`: Relative path from approot to docroot
+* `DDEV_FILES_DIR`: *Deprecated*, first directory of user-uploaded files
+* `DDEV_FILES_DIRS`: Comma-separated list of directories of user-uploaded files
+* `DDEV_HOSTNAME`: Comma-separated list of FQDN hostnames
+* `DDEV_MUTAGEN_ENABLED`: `true` if Mutagen is enabled
+* `DDEV_PHP_VERSION`: Current PHP version
+* `DDEV_PRIMARY_URL`: Primary URL for the project
+* `DDEV_PROJECT`: Project name, like `d8composer`
 * `DDEV_PROJECT_TYPE`: `drupal8`, `typo3`, `backdrop`, `wordpress`, etc.
-* `DDEV_ROUTER_HTTP_PORT`: router port for HTTP
-* `DDEV_ROUTER_HTTPS_PORT`: router port for HTTPS
-* `DDEV_SITENAME`: project name, like `d8composer`
-* `DDEV_TLD`: top-level project domain, like `ddev.site`
-* `DDEV_WEBSERVER_TYPE`: `nginx-fpm` or `apache-fpm`
-* `IS_DDEV_PROJECT`: if `true`, PHP is running under DDEV
+* `DDEV_ROUTER_HTTP_PORT`: Router port for HTTP
+* `DDEV_ROUTER_HTTPS_PORT`: Router port for HTTPS
+* `DDEV_SITENAME`: Project name, like `d8composer`
+* `DDEV_TLD`: Top-level project domain, like `ddev.site`
+* `DDEV_WEBSERVER_TYPE`: `nginx-fpm`, `apache-fpm`, or `nginx-gunicorn`
+* `IS_DDEV_PROJECT`: If `true`, PHP is running under DDEV
 
 ## Annotations Supported
 
@@ -171,7 +178,7 @@ The following fields can be used for a flag definition:
 * `Type`: possible values are `bool`, `string`, `int`, `uint` (defaults to `bool`)
 * `DefValue`: default value for usage message
 * `NoOptDefVal`: default value, if the flag is on the command line without any options
-* `Annotations`: used by cobra.Command Bash autocomplete code (see <https://github.com/spf13/cobra/blob/master/bash_completions.md>)
+* `Annotations`: used by cobra.Command Bash autocomplete code (see <https://github.com/spf13/cobra/blob/main/site/content/completions/bash.md>)
 
 ### “ProjectTypes” Annotation
 
@@ -214,6 +221,16 @@ Example: `## DBTypes: postgres`
 If your container command should run from the directory you are running the command in the host, add the `HostWorkingDir` annotation.
 
 Example: `## HostWorkingDir: true`
+
+### "ExecRaw" Annotation (Container Commands Only)
+
+Use `ExecRaw: true` to pass command arguments directly to the container as-is.
+
+For example, when `ExecRaw` is true, `ddev yarn --help` returns the help for `yarn`, not DDEV's help for the `ddev yarn` command.
+
+We recommend  using this annotation for all container commands. The default behavior is retained to avoid breaking existing commands.
+
+Example: `## ExecRaw: true`
 
 ## Known Windows Issues
 

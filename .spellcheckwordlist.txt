@@ -40,10 +40,13 @@ Does
 DrupalEasy
 Dump
 Enable
+EndeavourOS
+ExecRaw
 ExecStart
 ExecStop
 Execute
 Executes
+ExpressionEngine
 FPATH
 FSTYPE
 Flags
@@ -54,6 +57,7 @@ GUIs
 Get
 GitPod
 Gitter
+Gotenberg
 Gzipped
 HOWTO
 HeidiSQL
@@ -89,6 +93,7 @@ Netbeans
 Nginx
 OSs
 OpenMage
+OrbStack
 PECL
 PHAR
 PHIVE
@@ -98,8 +103,8 @@ PID
 PWD
 PartOf
 PathMaps
-phpMyAdmin's
 PhpStorm
+PhpStorm's
 PowerShell
 Pull
 Quickstart
@@ -111,15 +116,18 @@ SELinux
 SMTP
 SendGrid
 Shopware
+Silverstripe
 Snapshotting
 Solr
 SomeExternalDrive
 Starts
+Statamic
 Support
 TablePlus
 Traefik
 TravisCI
 UAC
+UDP
 Unshare
 Usage
 Use
@@ -128,6 +136,7 @@ Uz
 VCS
 Ventura
 VM
+VNC
 VPN
 VPNs
 WAMP
@@ -204,6 +213,8 @@ clis
 client
 cms
 codebase
+codespace
+codespaces
 colima
 colima's
 collection
@@ -232,7 +243,6 @@ daemonize
 data
 database
 db
-dba
 dbhost
 dbimage
 dbname
@@ -258,6 +268,7 @@ disable
 disallowal
 distro
 distros
+django
 dns
 dnsmasq
 docker
@@ -271,7 +282,7 @@ docroot
 docroots
 dotfile
 dotfiles
-drud
+dropdown
 drupal
 drupalize
 drupalpod
@@ -299,6 +310,7 @@ filesystem
 filesystems
 findstr
 fish
+flask
 for
 format
 fpath
@@ -429,6 +441,7 @@ nfsd
 nfsmount
 nginx
 ngrok
+ngrok's
 node
 nodejs
 noerrors
@@ -456,7 +469,6 @@ pgdump
 php
 phpMyAdmin
 phpinfo
-phpmyadmin
 pg_dump
 pgsql
 phpcs
@@ -493,6 +505,7 @@ provider
 ps
 psql
 public
+python
 Querious
 quickstart
 quickstarts
@@ -672,4 +685,3 @@ zcompdump
 zsh
 zshrc
 zxf
-

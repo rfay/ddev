@@ -2,21 +2,21 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/drud/ddev/pkg/ddevapp"
-	"github.com/drud/ddev/pkg/dockerutil"
-	"github.com/drud/ddev/pkg/globalconfig"
-	"github.com/drud/ddev/pkg/output"
-	"github.com/drud/ddev/pkg/updatecheck"
-	"github.com/drud/ddev/pkg/util"
-	"github.com/drud/ddev/pkg/versionconstants"
-	"github.com/rogpeppe/go-internal/semver"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"gopkg.in/segmentio/analytics-go.v3"
 	"os"
 	"path/filepath"
-
 	"time"
+
+	"github.com/ddev/ddev/pkg/amplitude"
+	"github.com/ddev/ddev/pkg/ddevapp"
+	"github.com/ddev/ddev/pkg/dockerutil"
+	"github.com/ddev/ddev/pkg/globalconfig"
+	"github.com/ddev/ddev/pkg/output"
+	"github.com/ddev/ddev/pkg/updatecheck"
+	"github.com/ddev/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/versionconstants"
+	"github.com/spf13/cobra"
+	"golang.org/x/mod/semver"
+	"gopkg.in/segmentio/analytics-go.v3"
 )
 
 var (
@@ -40,6 +40,21 @@ Support: https://ddev.readthedocs.io/en/stable/users/support`,
 		// LogSetup() has already been done, but now needs to be done
 		// again *after* --json flag is parsed.
 		output.LogSetUp()
+
+		// Anonymize user defined custom commands.
+		cmdCopy := *cmd
+		argsCopy := args
+		if IsUserDefinedCustomCommand(&cmdCopy) {
+			cmdCopy.Use = "custom-command"
+			argsCopy = []string{}
+		}
+
+		// We don't want to send to amplitude if using --json-output
+		// That captures an enormous number of PhpStorm running the
+		// ddev describe -j over and over again.
+		if !output.JSONOutput {
+			amplitude.TrackCommand(&cmdCopy, argsCopy)
+		}
 
 		// Skip docker and other validation for most commands
 		if command != "start" && command != "restart" {
@@ -73,7 +88,7 @@ Support: https://ddev.readthedocs.io/en/stable/users/support`,
 				return // Do not continue as we'll end up with github api violations.
 			}
 
-			updateNeeded, updateVersion, updateURL, err := updatecheck.AvailableUpdates("drud", "ddev", versionconstants.DdevVersion)
+			updateNeeded, updateVersion, updateURL, err := updatecheck.AvailableUpdates("ddev", "ddev", versionconstants.DdevVersion)
 
 			if err != nil {
 				util.Warning("Could not check for updates. This is most often caused by a networking issue.")
@@ -86,8 +101,24 @@ Support: https://ddev.readthedocs.io/en/stable/users/support`,
 		}
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		// TODO remove once it's activated directly in ddevapp
+		if instrumentationApp == nil {
+			app, err := ddevapp.NewApp("", false)
+			if err == nil {
+				instrumentationApp = app
+			}
+		}
+
+		// We don't need to track when used with --json-output
+		// picks up enormous number of automated ddev describe
+		if instrumentationApp != nil && !output.JSONOutput {
+			instrumentationApp.TrackProject()
+		}
+
+		// TODO: remove when we decide to stop reporting to Segment.
+		// All code to "end TODO remove once Amplitude" will be removed
 		// Do not report these commands
-		ignores := map[string]bool{"describe": true, "auth": true, "blackfire": false, "clean": true, "composer": true, "debug": true, "delete": true, "drush": true, "exec": true, "export-db": true, "get": true, "help": true, "hostname": true, "import-db": true, "import-files": true, "list": true, "logs": true, "mutagen": true, "mysql": true, "npm": true, "nvm": true, "pause": true, "php": true, "poweroff": true, "pull": true, "push": true, "service": true, "share": true, "snapshot": true, "ssh": true, "stop": true, "version": true, "xdebug": true, "xhprof": true, "yarn": true}
+		ignores := map[string]bool{"describe": true, "auth": true, "blackfire": false, "clean": true, "composer": true, "debug": true, "delete": true, "drush": true, "exec": true, "export-db": true, "get": true, "help": true, "hostname": true, "import-db": true, "import-files": true, "list": true, "logs": true, "mutagen": true, "mysql": true, "npm": true, "nvm": true, "php": true, "poweroff": true, "pull": true, "push": true, "service": true, "share": true, "snapshot": true, "ssh": true, "stop": true, "version": true, "xdebug": true, "xhprof": true, "yarn": true}
 
 		if _, ok := ignores[cmd.CalledAs()]; ok {
 			return
@@ -115,7 +146,7 @@ Support: https://ddev.readthedocs.io/en/stable/users/support`,
 		}
 
 		if globalconfig.DdevGlobalConfig.InstrumentationOptIn && versionconstants.SegmentKey != "" && globalconfig.IsInternetActive() && len(fullCommand) > 1 {
-			runTime := util.TimeTrack(time.Now(), "Instrumentation")
+			defer util.TimeTrackC("Instrumentation")()
 			// Try to get default instrumentationApp from current directory if not already set
 			if instrumentationApp == nil {
 				app, err := ddevapp.NewApp("", false)
@@ -129,17 +160,14 @@ Support: https://ddev.readthedocs.io/en/stable/users/support`,
 			}
 			ddevapp.SetInstrumentationBaseTags()
 			ddevapp.SendInstrumentationEvents(event)
-			runTime()
 		}
+		// end TODO remove once Amplitude has verified with an alpha release.
 	},
 }
 
 // Execute adds all child commands to the root command sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	// bind flags to viper config values...allows override by flag
-	viper.AutomaticEnv() // read in environment variables that match
-
 	if err := RootCmd.Execute(); err != nil {
 		os.Exit(-1)
 	}
@@ -187,7 +215,7 @@ func instrumentationNotSetUpWarning() {
 // and update the info.
 func checkDdevVersionAndOptInInstrumentation(skipConfirmation bool) error {
 	if !output.JSONOutput && semver.Compare(versionconstants.DdevVersion, globalconfig.DdevGlobalConfig.LastStartedVersion) > 0 && globalconfig.DdevGlobalConfig.InstrumentationOptIn == false && !globalconfig.DdevNoInstrumentation && !skipConfirmation {
-		allowStats := util.Confirm("It looks like you have a new ddev release.\nMay we send anonymous ddev usage statistics and errors?\nTo know what we will see please take a look at\nhttps://ddev.readthedocs.io/en/stable/users/details/opting-in\nPermission to beam up?")
+		allowStats := util.Confirm("It looks like you have a new ddev release.\nMay we send anonymous ddev usage statistics and errors?\nTo know what we will see please take a look at\nhttps://ddev.readthedocs.io/en/latest/users/usage/diagnostics/#opt-in-usage-information\nPermission to beam up?")
 		if allowStats {
 			globalconfig.DdevGlobalConfig.InstrumentationOptIn = true
 			client, _ := analytics.NewWithConfig(versionconstants.SegmentKey, analytics.Config{
@@ -212,6 +240,8 @@ func checkDdevVersionAndOptInInstrumentation(skipConfirmation bool) error {
 			if okPoweroff {
 				ddevapp.PowerOff()
 			}
+			util.Debug("Terminating all mutagen sync sessions")
+			ddevapp.TerminateAllMutagenSync()
 		}
 
 		// If they have a new version write the new version into last-started

@@ -1,19 +1,27 @@
 # Additional Project Hostnames
 
-Add additional hostnames to a project in its `.ddev/config.yaml`:
+You can add hostnames to a project by editing its [config file](../configuration/config.md#additional_hostnames) or using the [`ddev config`](../usage/commands.md#config) command.
 
-```
+Use the `additional_hostnames` array in `.ddev/config.yaml`:
+
+```yaml
 name: mysite
 
 additional_hostnames:
-- "extraname"
-- "fr.mysite"
-- "es.mysite"
-- "it.mysite"
-- "\*.lotsofnames"
+  - "extraname"
+  - "fr.mysite"
+  - "es.mysite"
+  - "it.mysite"
+  - "*.lotsofnames"
 ```
 
-This configuration would result in working hostnames of `mysite.ddev.site`, `extraname.ddev.site`, `fr.mysite.ddev.site`, `es.mysite.ddev.site`, and `it.mysite.ddev.site`—with full HTTP and HTTPS URLs for each.
+This configuration would result in working hostnames of `mysite.ddev.site`, `extraname.ddev.site`, `fr.mysite.ddev.site`, `es.mysite.ddev.site`, and `it.mysite.ddev.site`, with full HTTP and HTTPS URLs for each.
+
+You could accomplish the same thing by running the `ddev config` command:
+
+```bash
+ddev config --additional-hostnames extraname,fr.mysite,es.mysite,it.mysite,*.lotsofnames
+```
 
 In addition, the wildcard `*.lotsofnames` will result in anything `*.lotsofnames.ddev.site` being recognized by the project. This works only if you’re connected to the internet, using `ddev.site` for your top-level-domain, and using DNS for name lookups. (These are all the defaults.)
 
@@ -21,7 +29,7 @@ In addition, the wildcard `*.lotsofnames` will result in anything `*.lotsofnames
 
 **If you use a FQDN which is resolvable on the internet, you must use `use_dns_when_possible: false` or configure that with `ddev config --use-dns-when-possible=false`.**
 
-```
+```yaml
 name: somename
 
 additional_fqdns:
@@ -34,7 +42,7 @@ This configuration would result in working FQDNs of `somename.ddev.site`, `examp
 
 !!!warning "Don’t use the same `additional_fqdns` or `additional_hostnames` in two different projects."
 
-    If you see `ddev-router` status become unhealthy in [`ddev list`](../basics/commands.md#list), it’s most often a result of trying to use conflicting FQDNs in more than one project. `example.com` can only be assigned to one project, or it will break `ddev-router`.
+    If you see `ddev-router` status become unhealthy in [`ddev list`](../usage/commands.md#list), it’s most often a result of trying to use conflicting FQDNs in more than one project. `example.com` can only be assigned to one project, or it will break `ddev-router`.
 
 !!!warning "May not work predictably everywhere."
 

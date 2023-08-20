@@ -2,9 +2,9 @@ package ddevapp
 
 import (
 	"fmt"
-	"github.com/drud/ddev/pkg/fileutil"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/fileutil"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/util"
 	"os"
 	"path/filepath"
 )
@@ -26,7 +26,8 @@ func laravelPostStartAction(app *DdevApp) error {
 	if app.DisableSettingsManagement {
 		return nil
 	}
-	_, envText, err := ReadProjectEnvFile(app)
+	envFilePath := filepath.Join(app.AppRoot, ".env")
+	_, envText, err := ReadProjectEnvFile(envFilePath)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("Unable to read .env file: %v", err)
 	}
@@ -36,7 +37,7 @@ func laravelPostStartAction(app *DdevApp) error {
 			util.Debug("laravel: .env.example does not exist yet, not trying to process it")
 			return nil
 		}
-		_, envText, err = ReadProjectEnvFile(app)
+		_, envText, err = ReadProjectEnvFile(envFilePath)
 		if err != nil {
 			return err
 		}
@@ -55,11 +56,19 @@ func laravelPostStartAction(app *DdevApp) error {
 		"DB_USERNAME":   "db",
 		"DB_PASSWORD":   "db",
 		"DB_CONNECTION": dbConnection,
+		"MAIL_HOST":     "127.0.0.1",
+		"MAIL_PORT":     "1025",
 	}
-	err = WriteProjectEnvFile(app, envMap, envText)
+	err = WriteProjectEnvFile(envFilePath, envMap, envText)
 	if err != nil {
 		return err
 	}
 
+	return nil
+}
+
+// laravelConfigOverrideAction overrides php_version for laravel, requires PHP8.1
+func laravelConfigOverrideAction(app *DdevApp) error {
+	app.PHPVersion = nodeps.PHP81
 	return nil
 }

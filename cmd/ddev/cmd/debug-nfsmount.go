@@ -2,16 +2,19 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/drud/ddev/pkg/ddevapp"
-	"github.com/drud/ddev/pkg/dockerutil"
-	"github.com/drud/ddev/pkg/fileutil"
-	"github.com/drud/ddev/pkg/output"
-	"github.com/drud/ddev/pkg/util"
-	"github.com/drud/ddev/pkg/versionconstants"
-	"github.com/spf13/cobra"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/ddev/ddev/pkg/config/types"
+	"github.com/ddev/ddev/pkg/ddevapp"
+	"github.com/ddev/ddev/pkg/docker"
+	"github.com/ddev/ddev/pkg/dockerutil"
+	"github.com/ddev/ddev/pkg/fileutil"
+	"github.com/ddev/ddev/pkg/globalconfig"
+	"github.com/ddev/ddev/pkg/output"
+	"github.com/ddev/ddev/pkg/util"
+	"github.com/spf13/cobra"
 )
 
 // DebugNFSMountCmd implements the ddev debug nfsmount command
@@ -33,7 +36,7 @@ var DebugNFSMountCmd = &cobra.Command{
 		}
 		oldContainer, err := dockerutil.FindContainerByName(containerName)
 		if err == nil && oldContainer != nil {
-			err = dockerutil.RemoveContainer(oldContainer.ID, 20)
+			err = dockerutil.RemoveContainer(oldContainer.ID)
 			if err != nil {
 				util.Failed("Failed to remove existing test container %s: %v", containerName, err)
 			}
@@ -59,7 +62,7 @@ var DebugNFSMountCmd = &cobra.Command{
 		_ = volume
 		uidStr, _, _ := util.GetContainerUIDGid()
 
-		_, out, err := dockerutil.RunSimpleContainer(versionconstants.GetWebImage(), containerName, []string{"sh", "-c", "findmnt -T /nfsmount && ls -d /nfsmount/.ddev"}, []string{}, []string{}, []string{"testnfsmount" + ":/nfsmount"}, uidStr, true, false, nil)
+		_, out, err := dockerutil.RunSimpleContainer(docker.GetWebImage(), containerName, []string{"sh", "-c", "findmnt -T /nfsmount && ls -d /nfsmount/.ddev"}, []string{}, []string{}, []string{"testnfsmount" + ":/nfsmount"}, uidStr, true, false, map[string]string{"com.ddev.site-name": ""}, nil)
 		if err != nil {
 			util.Warning("NFS does not seem to be set up yet, see debugging instructions at https://ddev.readthedocs.io/en/stable/users/install/performance/#debugging-ddev-start-failures-with-nfs_mount_enabled-true")
 			util.Failed("Details: error=%v\noutput=%v", err, out)
@@ -68,12 +71,12 @@ var DebugNFSMountCmd = &cobra.Command{
 		util.Success("")
 		util.Success("Successfully accessed NFS mount of %s", app.AppRoot)
 		switch {
-		case app.NFSMountEnabledGlobal:
-			util.Success("nfs_mount_enabled is set globally")
-		case app.NFSMountEnabled:
-			util.Success("nfs_mount_enabled is true in this project (%s), but is not set globally", app.Name)
+		case globalconfig.DdevGlobalConfig.GetPerformanceMode() == types.PerformanceModeNFS:
+			util.Success("%s=nfs is set globally", types.FlagPerformanceModeName)
+		case app.PerformanceMode == types.PerformanceModeNFS:
+			util.Success("%s=nfs is set in this project (%s), but is not set globally", types.FlagPerformanceModeName, app.Name)
 		default:
-			util.Warning("nfs_mount_enabled is not set either globally or in this project. \nUse `ddev config global --nfs-mount-enabled` to enable it.")
+			util.Warning("%[1]s=nfs is not set either globally or in this project. \nUse `ddev config --%[1]s=nfs` to enable it for this project.", types.FlagPerformanceModeName)
 		}
 	},
 }

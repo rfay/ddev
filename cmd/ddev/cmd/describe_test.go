@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/drud/ddev/pkg/dockerutil"
+	"github.com/ddev/ddev/pkg/globalconfig"
 	"github.com/stretchr/testify/require"
 	"runtime"
 	"strings"
@@ -14,10 +14,10 @@ import (
 
 	"path/filepath"
 
-	"github.com/drud/ddev/pkg/ddevapp"
-	"github.com/drud/ddev/pkg/exec"
-	"github.com/drud/ddev/pkg/testcommon"
-	"github.com/drud/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/ddevapp"
+	"github.com/ddev/ddev/pkg/exec"
+	"github.com/ddev/ddev/pkg/testcommon"
+	"github.com/ddev/ddev/pkg/util"
 	log "github.com/sirupsen/logrus"
 	asrt "github.com/stretchr/testify/assert"
 )
@@ -55,6 +55,12 @@ func TestDescribeBadArgs(t *testing.T) {
 func TestCmdDescribe(t *testing.T) {
 	assert := asrt.New(t)
 
+	out, err := exec.RunHostCommand(DdevBin, "config", "global", "--simple-formatting=false", "--table-style=default")
+	require.NoError(t, err, "ddev config global failed with output: '%s'", out)
+	t.Logf("ddev config global output: '%s'", out)
+	globalconfig.EnsureGlobalConfig()
+
+	require.NoError(t, err, "ddev config global failed with output: '%s'", out)
 	for _, v := range TestSites {
 		app, err := ddevapp.NewApp(v.Dir, false)
 		require.NoError(t, err)
@@ -117,11 +123,19 @@ func TestCmdDescribe(t *testing.T) {
 // TestCmdDescribeAppFunction performs unit tests on the describeApp function from the working directory.
 func TestCmdDescribeAppFunction(t *testing.T) {
 	assert := asrt.New(t)
+	origDir, _ := os.Getwd()
 	for i, v := range TestSites {
-		cleanup := v.Chdir()
+		err := os.Chdir(v.Dir)
+		require.NoError(t, err)
 
 		app, err := ddevapp.GetActiveApp("")
 		assert.NoError(err)
+		t.Cleanup(func() {
+			err := os.Chdir(origDir)
+			assert.NoError(err)
+			err = app.Restart()
+			assert.NoError(err)
+		})
 
 		desc, err := app.Describe(false)
 		assert.NoError(err)
@@ -141,13 +155,6 @@ func TestCmdDescribeAppFunction(t *testing.T) {
 		desc, err = app.Describe(false)
 		assert.NoError(err)
 		assert.Equal("exited", desc["router_status"])
-		_, err = exec.RunCommand("docker", []string{"start", "ddev-router"})
-		assert.NoError(err)
-
-		_, err = dockerutil.ContainerWait(10, map[string]string{"com.docker.compose.service": "ddev-router"})
-		assert.NoError(err)
-
-		cleanup()
 	}
 }
 

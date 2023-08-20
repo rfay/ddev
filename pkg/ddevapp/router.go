@@ -3,23 +3,21 @@ package ddevapp
 import (
 	"bytes"
 	"fmt"
-	"github.com/Masterminds/sprig/v3"
-	"github.com/drud/ddev/pkg/fileutil"
-	"github.com/drud/ddev/pkg/globalconfig"
-	"github.com/drud/ddev/pkg/netutil"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/versionconstants"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"text/template"
 
-	"github.com/drud/ddev/pkg/dockerutil"
-	"github.com/drud/ddev/pkg/util"
-	"github.com/fsouza/go-dockerclient"
+	dockerImages "github.com/ddev/ddev/pkg/docker"
+	"github.com/ddev/ddev/pkg/dockerutil"
+	"github.com/ddev/ddev/pkg/globalconfig"
+	"github.com/ddev/ddev/pkg/netutil"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/util"
+	docker "github.com/fsouza/go-dockerclient"
 )
 
 // RouterProjectName is the "machine name" of the router docker-compose
@@ -41,7 +39,7 @@ func FullRenderedRouterComposeYAMLPath() string {
 
 // IsRouterDisabled returns true if the router is disabled
 func IsRouterDisabled(app *DdevApp) bool {
-	if nodeps.IsGitpod() {
+	if nodeps.IsGitpod() || nodeps.IsCodespaces() {
 		return true
 	}
 	return nodeps.ArrayContainsString(app.GetOmittedContainers(), globalconfig.DdevRouterContainer)
@@ -55,7 +53,7 @@ func StopRouterIfNoContainers() error {
 	}
 
 	if !containersRunning {
-		err = dockerutil.RemoveContainer(nodeps.RouterContainer, 0)
+		err = dockerutil.RemoveContainer(nodeps.RouterContainer)
 		if err != nil {
 			if _, ok := err.(*docker.NoSuchContainer); !ok {
 				return err
@@ -67,15 +65,11 @@ func StopRouterIfNoContainers() error {
 
 // StartDdevRouter ensures the router is running.
 func StartDdevRouter() error {
-	err := os.MkdirAll(filepath.Join(globalconfig.GetGlobalDdevDir(), "router-build"), 0755)
-	if err != nil {
-		return err
-	}
 	// If the router is not healthy/running, we'll kill it so it
 	// starts over again.
 	router, err := FindDdevRouter()
 	if router != nil && err == nil && router.State != "running" {
-		err = dockerutil.RemoveContainer(nodeps.RouterContainer, 0)
+		err = dockerutil.RemoveContainer(nodeps.RouterContainer)
 		if err != nil {
 			return err
 		}
@@ -85,11 +79,8 @@ func StartDdevRouter() error {
 	if err != nil {
 		return err
 	}
-	err = GenerateRouterDockerfile()
-	if err != nil {
-		return err
-	}
-	if globalconfig.DdevGlobalConfig.UseTraefik {
+	if globalconfig.DdevGlobalConfig.IsTraefikRouter() {
+
 		err = pushGlobalTraefikConfig()
 		if err != nil {
 			return fmt.Errorf("failed to push global traefik config: %v", err)
@@ -102,7 +93,7 @@ func StartDdevRouter() error {
 	}
 
 	// run docker-compose up -d against the ddev-router full compose file
-	_, _, err = dockerutil.ComposeCmd([]string{routerComposeFullPath}, "-p", RouterProjectName, "up", "-d")
+	_, _, err = dockerutil.ComposeCmd([]string{routerComposeFullPath}, "-p", RouterProjectName, "up", "--build", "-d")
 	if err != nil {
 		return fmt.Errorf("failed to start ddev-router: %v", err)
 	}
@@ -116,10 +107,12 @@ func StartDdevRouter() error {
 	if globalconfig.DdevGlobalConfig.UseLetsEncrypt {
 		routerWaitTimeout = 180
 	}
+	util.Debug(`Waiting for ddev-router to become ready. docker inspect --format "{{json .State.Health }}" ddev-router`)
 	logOutput, err := dockerutil.ContainerWait(routerWaitTimeout, label)
 	if err != nil {
-		return fmt.Errorf("ddev-router failed to become ready; debug with 'docker logs ddev-router'; logOutput=%s, err=%v", logOutput, err)
+		return fmt.Errorf("ddev-router failed to become ready; debug with 'docker logs ddev-router' and 'docker inspect --format \"{{json .State.Health }}\" ddev-router'; logOutput=%s, err=%v", logOutput, err)
 	}
+	util.Debug("ddev-router is ready")
 
 	return nil
 }
@@ -146,7 +139,7 @@ func generateRouterCompose() (string, error) {
 		"Username":                   username,
 		"UID":                        uid,
 		"GID":                        gid,
-		"router_image":               versionconstants.GetRouterImage(),
+		"router_image":               dockerImages.GetRouterImage(),
 		"ports":                      exposedPorts,
 		"router_bind_all_interfaces": globalconfig.DdevGlobalConfig.RouterBindAllInterfaces,
 		"dockerIP":                   dockerIP,
@@ -154,7 +147,8 @@ func generateRouterCompose() (string, error) {
 		"letsencrypt":                globalconfig.DdevGlobalConfig.UseLetsEncrypt,
 		"letsencrypt_email":          globalconfig.DdevGlobalConfig.LetsEncryptEmail,
 		"AutoRestartContainers":      globalconfig.DdevGlobalConfig.AutoRestartContainers,
-		"use_traefik":                globalconfig.DdevGlobalConfig.UseTraefik,
+		"Router":                     globalconfig.DdevGlobalConfig.Router,
+		"TraefikMonitorPort":         globalconfig.DdevGlobalConfig.TraefikMonitorPort,
 	}
 
 	t, err := template.New("router_compose_template.yaml").ParseFS(bundledAssets, "router_compose_template.yaml")
@@ -214,7 +208,7 @@ func RenderRouterStatus() string {
 	var renderedStatus string
 	if !nodeps.ArrayContainsString(globalconfig.DdevGlobalConfig.OmitContainersGlobal, globalconfig.DdevRouterContainer) {
 		status, logOutput := GetRouterStatus()
-		badRouter := "The router is not healthy. Your projects may not be accessible.\nIf it doesn't become healthy try running 'ddev start' on a project to recreate it."
+		badRouter := "The router is not healthy. Your projects may not be accessible.\nIf it doesn't become healthy try running 'ddev poweroff && ddev start' on a project to recreate it."
 
 		switch status {
 		case SiteStopped:
@@ -258,6 +252,9 @@ func determineRouterPorts() []string {
 	// loop through all containers with site-name label
 	for _, container := range containers {
 		if _, ok := container.Labels["com.ddev.site-name"]; ok {
+			if container.State != "running" {
+				continue
+			}
 			var exposePorts []string
 
 			httpPorts := dockerutil.GetContainerEnv("HTTP_EXPOSE", container)
@@ -280,11 +277,13 @@ func determineRouterPorts() []string {
 				exposePort := ""
 				var ports []string
 
-				// Make sure that we are fully numeric in the port pair, and not empty, or ignore
-				_, err = strconv.Atoi(strings.ReplaceAll(exposePortPair, ":", ""))
-				if err != nil {
+				// Each port pair should be of the form <number>:<number> or <number>
+				// It's possible to have received a malformed HTTP_EXPOSE or HTTPS_EXPOSE from
+				// some random container, so don't break if that happens.
+				if !regexp.MustCompile(`^[0-9]+(:[0-9]+)?$`).MatchString(exposePortPair) {
 					continue
 				}
+
 				if strings.Contains(exposePortPair, ":") {
 					ports = strings.Split(exposePortPair, ":")
 				} else {
@@ -335,47 +334,6 @@ func CheckRouterPorts() error {
 		}
 		if netutil.IsPortActive(port) {
 			return fmt.Errorf("port %s is already in use", port)
-		}
-	}
-	return nil
-}
-
-func GenerateRouterDockerfile() error {
-
-	type routerData struct {
-		UseTraefik bool
-	}
-	templateData := routerData{
-		UseTraefik: globalconfig.DdevGlobalConfig.UseTraefik,
-	}
-
-	routerDockerfile := filepath.Join(globalconfig.GetGlobalDdevDir(), "router-build", "Dockerfile")
-	sigExists := true
-	//TODO: Systematize this checking-for-signature, allow an arg to skip if empty
-	fi, err := os.Stat(routerDockerfile)
-	// Don't use simple fileutil.FileExists() because of the danger of an empty file
-	if err == nil && fi.Size() > 0 {
-		// Check to see if file has #ddev-generated in it, meaning we can recreate it.
-		sigExists, err = fileutil.FgrepStringInFile(routerDockerfile, nodeps.DdevFileSignature)
-		if err != nil {
-			return err
-		}
-	}
-	if !sigExists {
-		util.Debug("Not creating %s because it exists and is managed by user", routerDockerfile)
-	} else {
-		f, err := os.Create(routerDockerfile)
-		if err != nil {
-			util.Failed("failed to create router Dockerfile: %v", err)
-		}
-		t, err := template.New("router_Dockerfile_template").Funcs(sprig.TxtFuncMap()).ParseFS(bundledAssets, "router_Dockerfile_template")
-		if err != nil {
-			return fmt.Errorf("could not create template from router_Dockerfile_template: %v", err)
-		}
-
-		err = t.Execute(f, templateData)
-		if err != nil {
-			return fmt.Errorf("could not parse router_Dockerfile_template with templatedate='%v':: %v", templateData, err)
 		}
 	}
 	return nil

@@ -1,20 +1,21 @@
 package cmd
 
 import (
-	"github.com/drud/ddev/pkg/dockerutil"
-	"github.com/drud/ddev/pkg/globalconfig"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 
-	"github.com/drud/ddev/pkg/exec"
+	"github.com/ddev/ddev/pkg/dockerutil"
+	"github.com/ddev/ddev/pkg/globalconfig"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ddev/ddev/pkg/exec"
 	asrt "github.com/stretchr/testify/assert"
 )
 
 // TestCmdXdebug tests the `ddev xdebug` command
 func TestCmdXdebug(t *testing.T) {
-	if nodeps.IsMacM1() && dockerutil.IsDockerDesktop() {
+	if nodeps.IsAppleSilicon() && dockerutil.IsDockerDesktop() {
 		// 2022-03-16: On Docker Desktop 4.6.0, Mac M1, the `ddev xdebug status` fails to return after
 		// turning `ddev xdebug on`. Seems to be new problem with docker desktop 4.6.0, seems to be only
 		// on mac M1. Unable to recreate locally.

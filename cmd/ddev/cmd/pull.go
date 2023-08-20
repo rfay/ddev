@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/drud/ddev/pkg/ddevapp"
-	"github.com/drud/ddev/pkg/dockerutil"
-	"github.com/drud/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/ddevapp"
+	"github.com/ddev/ddev/pkg/dockerutil"
+	"github.com/ddev/ddev/pkg/util"
 	"github.com/spf13/cobra"
 )
 
@@ -62,13 +62,15 @@ func appPull(providerType string, app *ddevapp.DdevApp, skipConfirmation bool, s
 	}
 
 	// Add or override the command-line provided environment variables
-	envVars := strings.Split(env, ",")
-	for _, v := range envVars {
-		split := strings.Split(v, "=")
-		if len(split) != 2 {
-			util.Failed("unable to parse environment variable setting: %v", v)
+	if env != "" {
+		envVars := strings.Split(env, ",")
+		for _, v := range envVars {
+			split := strings.Split(v, "=")
+			if len(split) != 2 {
+				util.Failed("unable to parse command-line environment variable setting: '%v'", v)
+			}
+			provider.EnvironmentVariables[split[0]] = split[1]
 		}
-		provider.EnvironmentVariables[split[0]] = split[1]
 	}
 
 	if err := app.Pull(provider, skipDbArg, skipFilesArg, skipImportArg); err != nil {

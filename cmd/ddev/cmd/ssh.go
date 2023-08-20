@@ -1,9 +1,12 @@
 package cmd
 
 import (
-	"github.com/drud/ddev/pkg/ddevapp"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/util"
+	"os"
+	"os/exec"
+
+	"github.com/ddev/ddev/pkg/ddevapp"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/util"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +19,7 @@ var DdevSSHCmd = &cobra.Command{
 	Short: "Starts a shell session in the container for a service. Uses web service by default.",
 	Long:  `Starts a shell session in the container for a service. Uses web service by default. To start a shell session for another service, run "ddev ssh --service <service>`,
 	Example: `ddev ssh
-ddev ssh -s sb
+ddev ssh -s db
 ddev ssh <projectname>
 ddev ssh -d /var/www/html`,
 	Args: cobra.MaximumNArgs(1),
@@ -28,17 +31,12 @@ ddev ssh -d /var/www/html`,
 		app := projects[0]
 		instrumentationApp = app
 
-		status, _ := app.SiteStatus()
-		if status != ddevapp.SiteRunning {
-			util.Failed("Project is not currently running. Try 'ddev start'.")
-		}
-
 		app.DockerEnv()
 
 		// Use bash for our containers, sh for 3rd-party containers
 		// that may not have bash.
 		shell := "bash"
-		if !nodeps.ArrayContainsString([]string{"web", "db", "dba", "solr"}, serviceType) {
+		if !nodeps.ArrayContainsString([]string{"web", "db", "solr"}, serviceType) {
 			shell = "sh"
 		}
 		err = app.ExecWithTty(&ddevapp.ExecOpts{
@@ -47,7 +45,10 @@ ddev ssh -d /var/www/html`,
 			Dir:     sshDirArg,
 		})
 		if err != nil {
-			util.Failed("Failed to ddev ssh %s: %v", serviceType, err)
+			if exiterr, ok := err.(*exec.ExitError); ok {
+				os.Exit(exiterr.ExitCode())
+			}
+			util.Failed("ddev ssh failed: %v", err)
 		}
 	},
 }

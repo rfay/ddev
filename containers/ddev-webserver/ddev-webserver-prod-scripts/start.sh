@@ -4,6 +4,17 @@ set -o errexit nounset pipefail
 
 rm -f /tmp/healthy
 
+# If supervisord happens to be running (ddev start when already running) then kill it off
+if pkill -0 supervisord; then
+  supervisorctl stop all || true
+  supervisorctl shutdown || true
+fi
+rm -f /var/run/supervisor.sock
+
+export DDEV_WEB_ENTRYPOINT=/mnt/ddev_config/web-entrypoint.d
+
+source /functions.sh
+
 # If user has not been created via normal template (like blackfire uid 999)
 # then try to grab the required files from /etc/skel
 if [ ! -f ~/.gitconfig ]; then cp -r /etc/skel/. ~/ || true; fi
@@ -48,7 +59,7 @@ fi
 
 if [ "$DDEV_PROJECT_TYPE" = "backdrop" ] ; then
     # Start can be executed when the container is already running.
-    mkdir -p ~/.drush/commands && ln -s /var/tmp/backdrop_drush_commands ~/.drush/commands/backdrop
+    mkdir -p ~/.drush/commands && ln -sf /var/tmp/backdrop_drush_commands ~/.drush/commands/backdrop
 fi
 
 if [ "${DDEV_PROJECT_TYPE}" = "drupal6" ] || [ "${DDEV_PROJECT_TYPE}" = "drupal7" ] || [ "${DDEV_PROJECT_TYPE}" = "backdrop" ]; then
@@ -113,5 +124,18 @@ echo 'Server started'
 
 # We don't want the various daemons to know about PHP_IDE_CONFIG
 unset PHP_IDE_CONFIG
+
+# Run any python/django4 activities.
+ddev_python_setup
+
+# Run any custom init scripts (.ddev/.web-entrypoint.d/*.sh)
+ddev_custom_init_scripts
+
+# Make sure /var/tmp/logpipe gets logged; only for standalone non-ddev usages
+logpipe=/var/tmp/logpipe
+if [[ ! -p ${logpipe} ]]; then
+    mkfifo ${logpipe}
+    cat < ${logpipe} >/proc/1/fd/1 &
+fi
 
 exec /usr/bin/supervisord -n -c "/etc/supervisor/supervisord-${DDEV_WEBSERVER_TYPE}.conf"

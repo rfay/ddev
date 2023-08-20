@@ -5,7 +5,7 @@
 # Run this in an administrative PowerShell window.
 # You can download, inspect, and run this, or run it directly with
 # Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072;
-# iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/drud/ddev/master/scripts/install_ddev_wsl2_docker_inside.ps1'))
+# iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/ddev/ddev/master/scripts/install_ddev_wsl2_docker_inside.ps1'))
 
 #Requires -RunAsAdministrator
 
@@ -33,7 +33,7 @@ if (wsl bash -c "test -d /mnt/wsl/docker-desktop >/dev/null 2>&1" ) {
 }
 $ErrorActionPreference = "Stop"
 # Install needed choco items; ddev/gsudo needed for ddev inside wsl2 to update hosts file on windows
-choco install -y ddev gsudo mkcert
+choco upgrade -y ddev gsudo mkcert
 
 mkcert -install
 $env:CAROOT="$(mkcert -CAROOT)"
@@ -42,13 +42,13 @@ setx CAROOT $env:CAROOT; If ($Env:WSLENV -notlike "*CAROOT/up:*") { $env:WSLENV=
 wsl -u root bash -c "apt-get remove -y -qq docker docker-engine docker.io containerd runc >/dev/null 2>&1"
 wsl -u root apt-get update
 wsl -u root apt-get install -y ca-certificates curl gnupg lsb-release
-wsl -u root mkdir -p /etc/apt/keyrings
-wsl -u root bash -c "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg"
-wsl -u root -e bash -c 'echo \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu  $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null 2>&1'
+wsl -u root install -m 0755 -d /etc/apt/keyrings
+wsl -u root bash -c "rm -f /etc/apt/keyrings/docker.gpg && mkdir -p /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg"
+wsl -u root -e bash -c 'echo deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu  $(lsb_release -cs) stable | tee /etc/apt/sources.list.d/docker.list > /dev/null 2>&1'
 
-wsl -u root -e bash -c "curl -fsSL https://apt.fury.io/drud/gpg.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/ddev.gpg > /dev/null"
-wsl -u root -e bash -c 'echo \"deb [signed-by=/etc/apt/trusted.gpg.d/ddev.gpg] https://apt.fury.io/drud/ * *\" > /etc/apt/sources.list.d/ddev.list'
-wsl -u root -e bash -c "sudo apt update && sudo apt install -y ddev docker-ce docker-ce-cli containerd.io wslu"
+wsl -u root -e bash -c "rm -f /etc/apt/keyrings/ddev.gpg && curl -fsSL https://pkg.ddev.com/apt/gpg.key | gpg --dearmor | tee /etc/apt/keyrings/ddev.gpg > /dev/null"
+wsl -u root -e bash -c 'echo deb [signed-by=/etc/apt/keyrings/ddev.gpg] https://pkg.ddev.com/apt/ \* \* > /etc/apt/sources.list.d/ddev.list'
+wsl -u root -e bash -c "apt update && apt install -y ddev docker-ce docker-ce-cli containerd.io wslu"
 wsl -u root -e bash -c "apt-get upgrade -y >/dev/null"
 wsl bash -c 'sudo usermod -aG docker $USER'
 
@@ -61,14 +61,10 @@ if (-not(wsl -e docker ps)) {
 # If docker desktop was previously set up, the .docker can break normal use of docker client.
 wsl rm -rf ~/.docker
 
+refreshenv
+
+wsl -u root -e bash -c "touch /etc/wsl.conf && if ! fgrep '[boot]' /etc/wsl.conf >/dev/null; then printf '\n[boot]\nsystemd=true\n' >>/etc/wsl.conf; fi"
+
 wsl ddev version
 
-# If Windows 11 (greater than build 22000) then we can get auto docker startup using wsl.conf
-# But if Windows 10, they need to start another way.
-$osv = (Get-CimInstance Win32_OperatingSystem).version
-if ([System.Version]$osv -ge [System.Version]"10.0.22000") {
-    wsl -u root -e bash -c "touch /etc/wsl.conf && if ! fgrep '[boot]' /etc/wsl.conf >/dev/null; then printf '\n[boot]\ncommand=service docker start\n' >>/etc/wsl.conf; fi"
-    Write-Output("Windows 11: Added service docker start to /etc/wsl.conf")
-} else {
-    Write-Output("Windows 10: Manual start of docker is required, for example sudo service docker start, see https://ddev.readthedocs.io/en/latest/users/install/ddev-installation/#windows-wsl2")
-}
+

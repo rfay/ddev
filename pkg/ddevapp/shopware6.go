@@ -2,10 +2,11 @@ package ddevapp
 
 import (
 	"fmt"
-	"github.com/drud/ddev/pkg/archive"
-	"github.com/drud/ddev/pkg/fileutil"
 	"os"
 	"path/filepath"
+
+	"github.com/ddev/ddev/pkg/archive"
+	"github.com/ddev/ddev/pkg/fileutil"
 )
 
 // isShopware6App returns true if the app is of type shopware6
@@ -23,8 +24,8 @@ func setShopware6SiteSettingsPaths(app *DdevApp) {
 }
 
 // shopware6ImportFilesAction defines the shopware6 workflow for importing user-generated files.
-func shopware6ImportFilesAction(app *DdevApp, importPath, extPath string) error {
-	destPath := app.GetHostUploadDirFullPath()
+func shopware6ImportFilesAction(app *DdevApp, uploadDir, importPath, extPath string) error {
+	destPath := app.calculateHostUploadDirFullPath(uploadDir)
 
 	// parent of destination dir should exist
 	if !fileutil.FileExists(filepath.Dir(destPath)) {
@@ -67,14 +68,9 @@ func shopware6ImportFilesAction(app *DdevApp, importPath, extPath string) error 
 	return nil
 }
 
-// getShopwareUploadDir will return a custom upload dir if defined,
-// returning a default path if not; this is relative to the docroot
-func getShopwareUploadDir(app *DdevApp) string {
-	if app.UploadDir == "" {
-		return "media"
-	}
-
-	return app.UploadDir
+// getShopwareUploadDirs will return the default paths.
+func getShopwareUploadDirs(_ *DdevApp) []string {
+	return []string{"media"}
 }
 
 // shopware6PostStartAction checks to see if the .env file is set up
@@ -82,7 +78,8 @@ func shopware6PostStartAction(app *DdevApp) error {
 	if app.DisableSettingsManagement {
 		return nil
 	}
-	_, envText, err := ReadProjectEnvFile(app)
+	envFilePath := filepath.Join(app.AppRoot, ".env")
+	_, envText, err := ReadProjectEnvFile(envFilePath)
 	var envMap = map[string]string{
 		"DATABASE_URL": `mysql://db:db@db:3306/db`,
 		"APP_URL":      app.GetPrimaryURL(),
@@ -91,7 +88,7 @@ func shopware6PostStartAction(app *DdevApp) error {
 	// Shopware 6 refuses to do bin/console system:setup if the env file exists,
 	// so if it doesn't exist, wait for it to be created
 	if err == nil {
-		err := WriteProjectEnvFile(app, envMap, envText)
+		err := WriteProjectEnvFile(envFilePath, envMap, envText)
 		if err != nil {
 			return err
 		}

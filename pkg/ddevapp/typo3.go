@@ -8,11 +8,11 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/drud/ddev/pkg/archive"
-	"github.com/drud/ddev/pkg/fileutil"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/output"
-	"github.com/drud/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/archive"
+	"github.com/ddev/ddev/pkg/fileutil"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/output"
+	"github.com/ddev/ddev/pkg/util"
 )
 
 // createTypo3SettingsFile creates the app's LocalConfiguration.php and
@@ -107,13 +107,9 @@ func writeTypo3SettingsFile(app *DdevApp) error {
 	return nil
 }
 
-// getTypo3UploadDir will return a custom upload dir if defined, returning a default path if not.
-func getTypo3UploadDir(app *DdevApp) string {
-	if app.UploadDir == "" {
-		return "fileadmin"
-	}
-
-	return app.UploadDir
+// getTypo3UploadDirs will return the default paths.
+func getTypo3UploadDirs(_ *DdevApp) []string {
+	return []string{"fileadmin"}
 }
 
 // Typo3Hooks adds a TYPO3-specific hooks example for post-import-db
@@ -129,20 +125,21 @@ func getTypo3Hooks() []byte {
 
 // setTypo3SiteSettingsPaths sets the paths to settings files for templating
 func setTypo3SiteSettingsPaths(app *DdevApp) {
-	settingsFileBasePath := filepath.Join(app.AppRoot, app.ComposerRoot)
 	var settingsFilePath, localSettingsFilePath string
 
 	if isTypo3v12OrHigher(app) {
+		settingsFileBasePath := filepath.Join(app.AppRoot, app.ComposerRoot)
 		settingsFilePath = filepath.Join(settingsFileBasePath, "config", "system", "settings.php")
 		localSettingsFilePath = filepath.Join(settingsFileBasePath, "config", "system", "additional.php")
 	} else if isTypo3App(app) {
-		settingsFilePath = filepath.Join(settingsFileBasePath, app.Docroot, "typo3conf", "LocalConfiguration.php")
-		localSettingsFilePath = filepath.Join(settingsFileBasePath, app.Docroot, "typo3conf", "AdditionalConfiguration.php")
+		settingsFileBasePath := filepath.Join(app.AppRoot, app.Docroot)
+		settingsFilePath = filepath.Join(settingsFileBasePath, "typo3conf", "LocalConfiguration.php")
+		localSettingsFilePath = filepath.Join(settingsFileBasePath, "typo3conf", "AdditionalConfiguration.php")
 	} else {
 		// As long as TYPO3 is not installed, the file paths are set to the
 		// AppRoot to avoid the creation of the .gitignore in the wrong location.
-		settingsFilePath = filepath.Join(settingsFileBasePath, "LocalConfiguration.php")
-		localSettingsFilePath = filepath.Join(settingsFileBasePath, "AdditionalConfiguration.php")
+		settingsFilePath = filepath.Join(app.AppRoot, "LocalConfiguration.php")
+		localSettingsFilePath = filepath.Join(app.AppRoot, "AdditionalConfiguration.php")
 	}
 
 	// Update file paths
@@ -169,8 +166,8 @@ func isTypo3App(app *DdevApp) bool {
 
 // typo3ImportFilesAction defines the TYPO3 workflow for importing project files.
 // The TYPO3 import-files workflow is currently identical to the Drupal workflow.
-func typo3ImportFilesAction(app *DdevApp, importPath, extPath string) error {
-	destPath := app.GetHostUploadDirFullPath()
+func typo3ImportFilesAction(app *DdevApp, uploadDir, importPath, extPath string) error {
+	destPath := app.calculateHostUploadDirFullPath(uploadDir)
 
 	// parent of destination dir should exist
 	if !fileutil.FileExists(filepath.Dir(destPath)) {

@@ -4,19 +4,19 @@ This page is about working with the DDEV documentation. See the [Writing Style G
 
 ## Fix Docs Using Web Browser
 
-The documentation is built and checked automatically with various [GitHub Actions workflows](https://github.com/drud/ddev/actions). While it may help to [check your work locally](#fork--clone-the-ddev-repository) for more involved PRs, you can more quickly make suggestions using [GitHub in a browser](#fix-docs-using-web-browser):
+The documentation is built and checked automatically with various [GitHub Actions workflows](https://github.com/ddev/ddev/actions). While it may help to [check your work locally](#fork--clone-the-ddev-repository) for more involved PRs, you can more quickly make suggestions using [GitHub in a browser](#fix-docs-using-web-browser):
 
-1. Click the pencil in the upper right. That will take you to the the right page on GitHub.
+1. Click the pencil in the upper right. That will take you to the right page on GitHub.
 2. Click the pencil button on GitHub and follow the instructions to create your change.
 3. Save your changes and follow the prompts to create a PR.
 4. In the checks on your PR, click the “details” link by `docs/readthedocs.org:ddev` to browse the docs build created by your PR.
 5. Once the PR has run its checks, you’ll see an item labeled `docs/readthedocs.org:ddev`. Click “Details” to review a docs build that includes your changes:
     ![Documentation preview build link](../images/docs-build-link.png)
-6. Take a look at the [“Check docs” action](https://github.com/drud/ddev/actions/workflows/docscheck.yml) to make sure there were no linting or spelling errors.
+6. Take a look at the [“Check docs” action](https://github.com/ddev/ddev/actions/workflows/docscheck.yml) to make sure there were no linting or spelling errors.
 
 ## Fork / Clone the DDEV Repository
 
-To start making changes you’ll need a local copy of the DDEV documentation, so [fork the DDEV repository](https://github.com/drud/ddev/fork) which includes the documentation.
+To start making changes you’ll need a local copy of the DDEV documentation, so [fork the DDEV repository](https://github.com/ddev/ddev/fork) which includes the documentation.
 
 After forking the repository, you can clone it to your local machine.
 
@@ -37,7 +37,7 @@ Preview your changes locally by running `make mkdocs-serve`.
 This will launch a web server on port 8000 and automatically refresh pages as they’re edited.
 
 !!!tip "No need to install MkDocs locally!"
-    It’s easiest to install [install MkDocs locally](https://www.mkdocs.org/user-guide/installation/), but you don’t have to. The `make mkdocs-serve` command will look for and use a local binary, otherwise using `make` to build and serve the documenation. If you don’t have `make` installed on your system, you can directly run the command it would have instead:
+    It’s easiest to [install MkDocs locally](https://www.mkdocs.org/user-guide/installation/), but you don’t have to. The `make mkdocs-serve` command will look for and use a local binary, otherwise using `make` to build and serve the documentation. If you don’t have `make` installed on your system, you can directly run the command it would have instead:
 
     ```
     docker run -it -p 8000:8000 -v "${PWD}:/docs" -e "ADD_MODULES=mkdocs-material mkdocs-redirects mkdocs-minify-plugin mdx_truly_sane_lists mkdocs-git-revision-date-localized-plugin" -e "LIVE_RELOAD_SUPPORT=true" -e "FAST_MODE=true" -e "DOCS_DIRECTORY=./docs" polinux/mkdocs;
@@ -60,7 +60,7 @@ pyspelling:
 Spelling check passed :)
 ```
 
-If you’ve added a correctly-spelled word that gets flagged, like “Symfony” for example, you’ll need to add it to `.spellcheckwordlist.txt` in the [root of DDEV’s repository](https://github.com/drud/ddev/blob/master/.spellcheckwordlist.txt).
+If you’ve added a correctly-spelled word that gets flagged, like “Symfony” for example, you’ll need to add it to `.spellcheckwordlist.txt` in the [root of DDEV’s repository](https://github.com/ddev/ddev/blob/master/.spellcheckwordlist.txt).
 
 !!!warning "`pyspelling` and `aspell` required!"
     It’s probably best to install packages locally before attempting to run `make pyspelling`:

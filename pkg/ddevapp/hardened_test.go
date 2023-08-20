@@ -2,23 +2,23 @@ package ddevapp_test
 
 import (
 	"fmt"
-	"github.com/drud/ddev/pkg/ddevapp"
-	"github.com/drud/ddev/pkg/fileutil"
-	"github.com/drud/ddev/pkg/globalconfig"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/testcommon"
-	"github.com/drud/ddev/pkg/util"
-	asrt "github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
+
+	"github.com/ddev/ddev/pkg/ddevapp"
+	"github.com/ddev/ddev/pkg/fileutil"
+	"github.com/ddev/ddev/pkg/globalconfig"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/testcommon"
+	"github.com/ddev/ddev/pkg/util"
+	asrt "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestHardenedStart makes sure we can do a start and basic use with hardened images
 func TestHardenedStart(t *testing.T) {
-	if nodeps.IsMacM1() {
+	if nodeps.IsAppleSilicon() {
 		t.Skip("Skipping TestHardenedStart on Mac M1 because of useless Docker Desktop failures to connect")
 	}
 
@@ -27,14 +27,20 @@ func TestHardenedStart(t *testing.T) {
 
 	origDir, _ := os.Getwd()
 
-	site := TestSites[0]
+	testSite := 0
+	// Prefer the drupal7 project, as it does ln -s into /usr/local/bin, possibly
+	// requiring sudo, which isn't installed
+	if len(TestSites) >= 3 {
+		testSite = 2
+	}
+	site := TestSites[testSite]
 	err := app.Init(site.Dir)
 	assert.NoError(err)
 	if app.IsMutagenEnabled() {
 		t.Skip("Skipping test because mutagen is enabled")
 	}
 
-	runTime := util.TimeTrack(time.Now(), fmt.Sprintf("%s DdevStart", site.Name))
+	runTime := util.TimeTrackC(fmt.Sprintf("%s DdevStart", site.Name))
 
 	ddevapp.PowerOff()
 
@@ -62,6 +68,9 @@ func TestHardenedStart(t *testing.T) {
 
 	// Create the simplest possible php file
 	err = fileutil.TemplateStringToFile("<?php\necho \"hi there\";\n", nil, filepath.Join(app.AppRoot, "test.php"))
+	require.NoError(t, err)
+
+	err = app.Init(site.Dir)
 	require.NoError(t, err)
 
 	err = app.Start()

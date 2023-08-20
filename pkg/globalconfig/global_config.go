@@ -3,10 +3,6 @@ package globalconfig
 import (
 	"context"
 	"fmt"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/output"
-	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 	"net"
 	"os"
 	"os/exec"
@@ -15,6 +11,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	configTypes "github.com/ddev/ddev/pkg/config/types"
+	"github.com/ddev/ddev/pkg/globalconfig/types"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/output"
+	"github.com/ddev/ddev/pkg/versionconstants"
+	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 )
 
 // DdevGlobalConfigName is the name of the global config file.
@@ -25,10 +29,6 @@ var (
 	DdevGlobalConfig GlobalConfig
 )
 
-func init() {
-	DdevGlobalConfig.ProjectList = make(map[string]*ProjectInfo)
-}
-
 type ProjectInfo struct {
 	AppRoot       string   `yaml:"approot"`
 	UsedHostPorts []string `yaml:"used_host_ports,omitempty,flow"`
@@ -36,32 +36,68 @@ type ProjectInfo struct {
 
 // GlobalConfig is the struct defining ddev's global config
 type GlobalConfig struct {
-	OmitContainersGlobal         []string                `yaml:"omit_containers,flow"`
-	NFSMountEnabledGlobal        bool                    `yaml:"nfs_mount_enabled"`
-	MutagenEnabledGlobal         bool                    `yaml:"mutagen_enabled"`
-	InstrumentationOptIn         bool                    `yaml:"instrumentation_opt_in"`
-	RouterBindAllInterfaces      bool                    `yaml:"router_bind_all_interfaces"`
-	InternetDetectionTimeout     int64                   `yaml:"internet_detection_timeout_ms"`
-	DeveloperMode                bool                    `yaml:"developer_mode,omitempty"`
-	InstrumentationUser          string                  `yaml:"instrumentation_user,omitempty"`
-	LastStartedVersion           string                  `yaml:"last_started_version"`
-	UseHardenedImages            bool                    `yaml:"use_hardened_images"`
-	UseLetsEncrypt               bool                    `yaml:"use_letsencrypt"`
-	LetsEncryptEmail             string                  `yaml:"letsencrypt_email"`
-	AutoRestartContainers        bool                    `yaml:"auto_restart_containers"`
-	FailOnHookFailGlobal         bool                    `yaml:"fail_on_hook_fail"`
-	WebEnvironment               []string                `yaml:"web_environment"`
-	DisableHTTP2                 bool                    `yaml:"disable_http2"`
-	TableStyle                   string                  `yaml:"table_style"`
-	SimpleFormatting             bool                    `yaml:"simple_formatting"`
-	RequiredDockerComposeVersion string                  `yaml:"required_docker_compose_version,omitempty"`
-	UseDockerComposeFromPath     bool                    `yaml:"use_docker_compose_from_path,omitempty"`
-	MkcertCARoot                 string                  `yaml:"mkcert_caroot"`
-	ProjectTldGlobal             string                  `yaml:"project_tld"`
-	XdebugIDELocation            string                  `yaml:"xdebug_ide_location"`
-	NoBindMounts                 bool                    `yaml:"no_bind_mounts"`
-	UseTraefik                   bool                    `yaml:"use_traefik"`
-	ProjectList                  map[string]*ProjectInfo `yaml:"project_info"`
+	OmitContainersGlobal             []string                    `yaml:"omit_containers,flow"`
+	PerformanceMode                  configTypes.PerformanceMode `yaml:"performance_mode"`
+	InstrumentationOptIn             bool                        `yaml:"instrumentation_opt_in"`
+	InstrumentationQueueSize         int                         `yaml:"instrumentation_queue_size,omitempty"`
+	InstrumentationReportingInterval time.Duration               `yaml:"instrumentation_reporting_interval,omitempty"`
+	RouterBindAllInterfaces          bool                        `yaml:"router_bind_all_interfaces"`
+	InternetDetectionTimeout         int64                       `yaml:"internet_detection_timeout_ms"`
+	DeveloperMode                    bool                        `yaml:"developer_mode,omitempty"`
+	InstrumentationUser              string                      `yaml:"instrumentation_user,omitempty"`
+	LastStartedVersion               string                      `yaml:"last_started_version"`
+	UseHardenedImages                bool                        `yaml:"use_hardened_images"`
+	UseLetsEncrypt                   bool                        `yaml:"use_letsencrypt"`
+	LetsEncryptEmail                 string                      `yaml:"letsencrypt_email"`
+	AutoRestartContainers            bool                        `yaml:"auto_restart_containers"`
+	FailOnHookFailGlobal             bool                        `yaml:"fail_on_hook_fail"`
+	WebEnvironment                   []string                    `yaml:"web_environment"`
+	DisableHTTP2                     bool                        `yaml:"disable_http2"`
+	TableStyle                       string                      `yaml:"table_style"`
+	SimpleFormatting                 bool                        `yaml:"simple_formatting"`
+	RequiredDockerComposeVersion     string                      `yaml:"required_docker_compose_version,omitempty"`
+	UseDockerComposeFromPath         bool                        `yaml:"use_docker_compose_from_path,omitempty"`
+	MkcertCARoot                     string                      `yaml:"mkcert_caroot"`
+	ProjectTldGlobal                 string                      `yaml:"project_tld"`
+	XdebugIDELocation                string                      `yaml:"xdebug_ide_location"`
+	NoBindMounts                     bool                        `yaml:"no_bind_mounts"`
+	Router                           string                      `yaml:"router"`
+	TraefikMonitorPort               string                      `yaml:"traefik_monitor_port,omitempty"`
+	WSL2NoWindowsHostsMgt            bool                        `yaml:"wsl2_no_windows_hosts_mgt"`
+	RouterHTTPPort                   string                      `yaml:"router_http_port"`
+	RouterHTTPSPort                  string                      `yaml:"router_https_port"`
+	Messages                         MessagesConfig              `yaml:"messages,omitempty"`
+	RemoteConfig                     RemoteConfig                `yaml:"remote_config,omitempty"`
+	ProjectList                      map[string]*ProjectInfo     `yaml:"project_info"`
+}
+
+// New() returns a default GlobalConfig
+func New() GlobalConfig {
+
+	cfg := GlobalConfig{
+		RequiredDockerComposeVersion: versionconstants.RequiredDockerComposeVersionDefault,
+		InternetDetectionTimeout:     nodeps.InternetDetectionTimeoutDefault,
+		TableStyle:                   "default",
+		RouterHTTPPort:               nodeps.DdevDefaultRouterHTTPPort,
+		RouterHTTPSPort:              nodeps.DdevDefaultRouterHTTPSPort,
+		LastStartedVersion:           "v0.0",
+		NoBindMounts:                 nodeps.NoBindMountsDefault,
+		Router:                       types.RouterTypeDefault,
+		MkcertCARoot:                 readCAROOT(),
+		ProjectList:                  make(map[string]*ProjectInfo),
+		TraefikMonitorPort:           nodeps.TraefikMonitorPortDefault,
+	}
+
+	return cfg
+}
+
+// Make sure the global configuration has been initialized
+func EnsureGlobalConfig() {
+	DdevGlobalConfig = New()
+	err := ReadGlobalConfig()
+	if err != nil {
+		output.UserErr.Fatalf("unable to read global config: %v", err)
+	}
 }
 
 // GetGlobalConfigPath gets the path to global config file
@@ -121,7 +157,11 @@ func GetTableStyle() string {
 // ValidateGlobalConfig validates global config
 func ValidateGlobalConfig() error {
 	if !IsValidOmitContainers(DdevGlobalConfig.OmitContainersGlobal) {
-		return fmt.Errorf("Invalid omit_containers: %s, must contain only %s", strings.Join(DdevGlobalConfig.OmitContainersGlobal, ","), strings.Join(GetValidOmitContainers(), ",")).(InvalidOmitContainers)
+		return fmt.Errorf("invalid omit_containers: %s, must contain only %s", strings.Join(DdevGlobalConfig.OmitContainersGlobal, ","), strings.Join(GetValidOmitContainers(), ",")).(InvalidOmitContainers)
+	}
+
+	if !types.IsValidRouterType(DdevGlobalConfig.Router) {
+		return fmt.Errorf("Invalid router: %s, valid router types are %v", DdevGlobalConfig.Router, types.GetValidRouterTypes())
 	}
 
 	if !IsValidTableStyle(DdevGlobalConfig.TableStyle) {
@@ -131,13 +171,20 @@ func ValidateGlobalConfig() error {
 	if !IsValidXdebugIDELocation(DdevGlobalConfig.XdebugIDELocation) {
 		return fmt.Errorf(`xdebug_ide_location must be IP address or one of %v`, ValidXdebugIDELocations)
 	}
-	if DdevGlobalConfig.DisableHTTP2 && DdevGlobalConfig.UseTraefik {
-		return fmt.Errorf("disable_http2 and use_traefik are mutually incompatible")
+
+	if DdevGlobalConfig.DisableHTTP2 && DdevGlobalConfig.IsTraefikRouter() {
+		return fmt.Errorf("disable_http2 and router = traefik are mutually incompatible, as Traefik does not support disabling HTTP2")
 	}
+
+	if DdevGlobalConfig.IsTraefikRouter() && (DdevGlobalConfig.UseLetsEncrypt || DdevGlobalConfig.LetsEncryptEmail != "") {
+		return fmt.Errorf("use-letsencrypt is not directly supported with traefik. but can be configured with custom config, see https://doc.traefik.io/traefik/https/acme/")
+	}
+
 	return nil
 }
 
 // ReadGlobalConfig reads the global config file into DdevGlobalConfig
+// Or creates the file
 func ReadGlobalConfig() error {
 	globalConfigFile := GetGlobalConfigPath()
 
@@ -150,6 +197,7 @@ func ReadGlobalConfig() error {
 			return nil
 		}
 		if os.IsNotExist(err) {
+			DdevGlobalConfig = New()
 			err := WriteGlobalConfig(DdevGlobalConfig)
 			if err != nil {
 				return err
@@ -161,50 +209,48 @@ func ReadGlobalConfig() error {
 
 	source, err := os.ReadFile(globalConfigFile)
 	if err != nil {
-		return fmt.Errorf("Unable to read ddev global config file %s: %v", source, err)
+		return fmt.Errorf("unable to read ddev global config file %s: %v", source, err)
 	}
 
 	// ReadConfig config values from file.
-	DdevGlobalConfig = GlobalConfig{InternetDetectionTimeout: nodeps.InternetDetectionTimeoutDefault}
 	err = yaml.Unmarshal(source, &DdevGlobalConfig)
 	if err != nil {
 		return err
 	}
-	if DdevGlobalConfig.TableStyle == "" {
-		DdevGlobalConfig.TableStyle = "default"
-	}
-	if DdevGlobalConfig.ProjectList == nil {
-		DdevGlobalConfig.ProjectList = map[string]*ProjectInfo{}
-	}
-	// Set/read the CAROOT if it's unset or different from $CAROOT (perhaps $CAROOT changed)
+
 	caRootEnv := os.Getenv("CAROOT")
 	if GetCAROOT() == "" || !fileExists(filepath.Join(DdevGlobalConfig.MkcertCARoot, "rootCA.pem")) || (caRootEnv != "" && caRootEnv != DdevGlobalConfig.MkcertCARoot) {
 		DdevGlobalConfig.MkcertCARoot = readCAROOT()
 	}
-	// This is added just so we can see it in global; not checked.
-	// Make sure that LastStartedVersion always has a valid value
-	if DdevGlobalConfig.LastStartedVersion == "" {
-		DdevGlobalConfig.LastStartedVersion = "v0.0"
-	}
+
 	// If they set the internetdetectiontimeout below default, just reset to default
 	// and ignore the setting.
 	if DdevGlobalConfig.InternetDetectionTimeout < nodeps.InternetDetectionTimeoutDefault {
 		DdevGlobalConfig.InternetDetectionTimeout = nodeps.InternetDetectionTimeoutDefault
 	}
 
-	// For testing only, override NoBindMounts no matter what it's set to
-	if nodeps.NoBindMountsDefault == true {
-		DdevGlobalConfig.NoBindMounts = true
+	// It's possible to have had pre-existing `router_http_port: ""` or `traefik_monitor_port`, if
+	// so we have to override that.
+	if DdevGlobalConfig.RouterHTTPPort == "" {
+		DdevGlobalConfig.RouterHTTPPort = nodeps.DdevDefaultRouterHTTPPort
 	}
-	// For testing only, override UseTraefikDefault no matter what it's set to
-	if nodeps.UseTraefikDefault == true {
-		DdevGlobalConfig.UseTraefik = true
+	if DdevGlobalConfig.RouterHTTPSPort == "" {
+		DdevGlobalConfig.RouterHTTPSPort = nodeps.DdevDefaultRouterHTTPSPort
+	}
+	if DdevGlobalConfig.TraefikMonitorPort == "" {
+		DdevGlobalConfig.TraefikMonitorPort = nodeps.TraefikMonitorPortDefault
+	}
+
+	// Remove dba
+	if nodeps.ArrayContainsString(DdevGlobalConfig.OmitContainersGlobal, "dba") {
+		DdevGlobalConfig.OmitContainersGlobal = nodeps.RemoveItemFromSlice(DdevGlobalConfig.OmitContainersGlobal, "dba")
 	}
 
 	err = ValidateGlobalConfig()
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -214,23 +260,53 @@ func WriteGlobalConfig(config GlobalConfig) error {
 	if err != nil {
 		return err
 	}
-	cfgbytes, err := yaml.Marshal(config)
+
+	cfgCopy := config
+	// Remove some items that are defaults
+	if cfgCopy.RequiredDockerComposeVersion == versionconstants.RequiredDockerComposeVersionDefault {
+		cfgCopy.RequiredDockerComposeVersion = ""
+	}
+
+	// Overwrite PerformanceMode with effective value if empty.
+	if cfgCopy.PerformanceMode == configTypes.PerformanceModeEmpty {
+		cfgCopy.PerformanceMode = cfgCopy.GetPerformanceMode()
+	}
+
+	cfgbytes, err := yaml.Marshal(cfgCopy)
 	if err != nil {
 		return err
 	}
 
 	// Append current image information
 	instructions := `
-# You can turn off usage of the dba (phpmyadmin) container and/or
+# You can turn off usage of the
 # ddev-ssh-agent and ddev-router containers with
-# omit_containers["dba", "ddev-ssh-agent", "ddev-router"]
+# omit_containers["ddev-ssh-agent", "ddev-router"]
 
 # You can opt in or out of sending instrumentation to the ddev developers with
 # instrumentation_opt_in: true # or false
 #
-# You can enable nfs mounting for all projects with
-# nfs_mount_enabled: true
+# Maximum number of collected events in the local queue. If reached, collected
+# data is sent.
+# instrumentation_queue_size: 100
 #
+# Reporting interval in hours. If the last report was longer ago, collected
+# data is sent.
+# instrumentation_reporting_interval: 24
+
+# performance_mode: "<default for the OS>"
+# DDEV offers performance optimization strategies to improve the filesystem
+# performance depending on your host system. Can be overridden with the project
+# config.
+#
+# Possible values are:
+#   - "none":    disables performance optimization.
+#   - "mutagen": enables Mutagen.
+#   - "nfs":     enables NFS.
+#
+# See https://ddev.readthedocs.io/en/latest/users/install/performance/#mutagen
+# and https://ddev.readthedocs.io/en/latest/users/install/performance/#nfs.
+
 # You can set the global project_tld. This way any project will use this tld. If not
 # set the local project_tld is used, or the default of ddev.
 # project_tld: ""
@@ -250,12 +326,18 @@ func WriteGlobalConfig(config GlobalConfig) error {
 
 # In unusual cases the default value to wait to detect internet availability is too short.
 # You can adjust this value higher to make it less likely that ddev will declare internet
-# unavailable, but ddev may wait longer on some commands. This should not be set below the default 1000
+# unavailable, but ddev may wait longer on some commands. This should not be set below the default 3000
 # ddev will ignore low values, as they're not useful
-# internet_detection_timeout_ms: 1000
+# internet_detection_timeout_ms: 3000
 
 # You can enable 'ddev start' to be interrupted by a failing hook with
 # fail_on_hook_fail: true
+
+# router: traefik # or nginx-proxy
+# Traefik router is default, but you can switch to the legacy "nginx-proxy" router.
+
+# router_http_port: <port>  # Port to be used for http (defaults to 80)
+# router_https_port: <port> # Port for https (defaults to 443)
 
 # disable_http2: false
 # Disable http2 on ddev-router if true
@@ -263,11 +345,10 @@ func WriteGlobalConfig(config GlobalConfig) error {
 # instrumentation_user: <your_username> # can be used to give ddev specific info about who you are
 # developer_mode: true # (defaults to false) is not used widely at this time.
 # router_bind_all_interfaces: false  # (defaults to false)
-#    If true, ddev-router will bind http/s, PHPMyAdmin, and MailHog ports on all
+#    If true, ddev-router will bind http/s and MailHog ports on all
 #    network interfaces instead of just localhost, so others on your local network can
-#    access those ports. Note that this exposes the PHPMyAdmin and MailHog ports as well, which
-#    can be a major security issue, so choose wisely. Consider omit_containers[dba] to avoid
-#    exposing PHPMyAdmin.
+#    access those ports. Note that this exposes the MailHog ports as well, which
+#    can be a major security issue, so choose wisely.
 
 # use_hardened_images: false
 # With hardened images a container that is exposed to the internet is
@@ -310,6 +391,16 @@ func WriteGlobalConfig(config GlobalConfig) error {
 # fail_on_hook_fail: false
 # Decide whether 'ddev start' should be interrupted by a failing hook
 
+# traefik_monitor_port: 10999
+# Change this only if you're having conflicts with some 
+# service that needs port 10999
+
+# wsl2_no_windows_hosts_mgt: false
+# On WSL2 by default the Windows-side hosts file (normally C:\Windows\system32\drivers\etc\hosts)
+# is used for hosts file management, but doing that requires running sudo and ddev.exe on
+# Windows side; you may not want this if you're running your browser in WSL2 or for
+# various other reasons.
+
 # required_docker_compose_version: ""
 # This can be used to override the default required docker-compose version
 # It should normally be left alone, but can be set to, for example, "v2.1.1"
@@ -320,6 +411,18 @@ func WriteGlobalConfig(config GlobalConfig) error {
 # to ~/.ddev/bin/docker-compose.
 # Please don't use this unless directed to do so
 
+# messages:
+#   ticker_interval: 20 // Interval in hours to show ticker messages, -1 disables the ticker
+# Controls the display of the ticker messages.
+
+# remote_config: # Intended for debugging only, should not be changed.
+#   update_interval: 10 // Interval in hours to download the remote config
+#   remote:
+#     owner: ddev
+#     repo: remote-config
+#     ref: main
+#     filepath: remote-config.jsonc
+# Controls the download of the remote config. Please do not change.
 `
 	cfgbytes = append(cfgbytes, instructions...)
 
@@ -353,9 +456,10 @@ func GetGlobalDdevDir() string {
 		}
 	}
 	// config.yaml is not allowed in ~/.ddev, can only result in disaster
-	globalConfigYaml := filepath.Join(ddevDir, "config.yaml")
-	if _, err := os.Stat(globalConfigYaml); err == nil {
-		_ = os.Remove(filepath.Join(globalConfigYaml))
+	// so remove it if it happens to be discovered globally
+	badFile := filepath.Join(ddevDir, "config.yaml")
+	if _, err := os.Stat(badFile); err == nil {
+		_ = os.Remove(filepath.Join(badFile))
 	}
 	return ddevDir
 }
@@ -597,12 +701,13 @@ func IsInternetActive() bool {
 	return active
 }
 
+// IsTraefikRouter returns true if the router is traefik
+func (c *GlobalConfig) IsTraefikRouter() bool {
+	return c.Router == types.RouterTypeTraefik
+}
+
 // DockerComposeVersion is filled with the version we find for docker-compose
 var DockerComposeVersion = ""
-
-// This is var instead of const so it can be changed in test, but should not otherwise be touched.
-// Otherwise we can't test if the version on the machine is equal to version required
-var RequiredDockerComposeVersion = "v2.14.0"
 
 // GetRequiredDockerComposeVersion returns the version of docker-compose we need
 // based on the compiled version, or overrides in globalconfig, like
@@ -610,7 +715,7 @@ var RequiredDockerComposeVersion = "v2.14.0"
 // In the case of UseDockerComposeFromPath there is no required version, so this
 // will return empty string.
 func GetRequiredDockerComposeVersion() string {
-	v := RequiredDockerComposeVersion
+	v := DdevGlobalConfig.RequiredDockerComposeVersion
 	switch {
 	case DdevGlobalConfig.UseDockerComposeFromPath:
 		v = ""
@@ -624,8 +729,8 @@ func GetRequiredDockerComposeVersion() string {
 func GetRouterURL() string {
 	routerURL := ""
 	// Until we figure out how to configure this, use static value
-	if DdevGlobalConfig.UseTraefik {
-		routerURL = "http://localhost:9999"
+	if DdevGlobalConfig.IsTraefikRouter() {
+		routerURL = "http://127.0.0.1:" + DdevGlobalConfig.TraefikMonitorPort
 	}
 	return routerURL
 }

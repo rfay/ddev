@@ -2,14 +2,31 @@ package ddevapp
 
 import (
 	"embed"
-	"github.com/drud/ddev/pkg/fileutil"
-	"github.com/drud/ddev/pkg/globalconfig"
+	"path/filepath"
+
+	"github.com/ddev/ddev/pkg/fileutil"
+	"github.com/ddev/ddev/pkg/globalconfig"
 )
 
 // The bundled assets for the project .ddev directory are in directory dotddev_assets
 // And the global .ddev assets are in directory global_dotddev_assets
 //
-//go:embed dotddev_assets/* dotddev_assets/commands/.gitattributes global_dotddev_assets/* global_dotddev_assets/.gitignore global_dotddev_assets/commands/.gitattributes app_compose_template.yaml router_compose_template.yaml ssh_auth_compose_template.yaml traefik_config_template.yaml traefik_static_config_template.yaml traefik_global_config_template.yaml router_Dockerfile_template drupal/* magento/* wordpress/* typo3/* postgres/* healthcheck/*
+//go:embed dotddev_assets/* dotddev_assets/commands/.gitattributes
+//go:embed global_dotddev_assets/* global_dotddev_assets/.gitignore global_dotddev_assets/commands/.gitattributes
+//go:embed app_compose_template.yaml
+//go:embed router_compose_template.yaml
+//go:embed ssh_auth_compose_template.yaml
+//go:embed traefik_config_template.yaml
+//go:embed traefik_static_config_template.yaml
+//go:embed traefik_global_config_template.yaml
+//go:embed router_Dockerfile_template
+//go:embed django4/*
+//go:embed drupal/*
+//go:embed magento/*
+//go:embed wordpress/*
+//go:embed typo3/*
+//go:embed postgres/*
+//go:embed healthcheck/*
 var bundledAssets embed.FS
 
 // PopulateExamplesCommandsHomeadditions grabs embedded assets and
@@ -36,4 +53,17 @@ func PopulateExamplesCommandsHomeadditions(appName string) error {
 	}
 
 	return nil
+}
+
+func IsBundledCustomCommand(globalCommand bool, service, command string) bool {
+	var baseDir string
+	if globalCommand {
+		baseDir = "global_dotddev_assets"
+	} else {
+		baseDir = "dotddev_assets"
+	}
+
+	_, err := bundledAssets.ReadFile(filepath.Join(baseDir, "commands", service, command))
+
+	return err == nil
 }

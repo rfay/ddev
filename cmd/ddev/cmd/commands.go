@@ -3,20 +3,32 @@ package cmd
 import (
 	"bufio"
 	"fmt"
-	"github.com/drud/ddev/pkg/dockerutil"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
 
-	"github.com/drud/ddev/pkg/ddevapp"
-	"github.com/drud/ddev/pkg/exec"
-	"github.com/drud/ddev/pkg/fileutil"
-	"github.com/drud/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/ddevapp"
+	"github.com/ddev/ddev/pkg/exec"
+	"github.com/ddev/ddev/pkg/fileutil"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/util"
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 )
+
+const (
+	CustomCommand        = "customCommand"
+	BundledCustomCommand = "customCommand:bundled"
+)
+
+func IsUserDefinedCustomCommand(cmd *cobra.Command) bool {
+	_, customCommand := cmd.Annotations[CustomCommand]
+	_, bundledCustomCommand := cmd.Annotations[BundledCustomCommand]
+
+	return customCommand && !bundledCustomCommand
+}
 
 // addCustomCommands looks for custom command scripts in
 // ~/.ddev/commands/<servicename> etc. and
@@ -136,7 +148,7 @@ func addCustomCommands(rootCmd *cobra.Command) error {
 
 				// If OSTypes is specified and we aren't on one of the specified OSes, skip
 				if osTypes != "" {
-					if !strings.Contains(osTypes, runtime.GOOS) && !(strings.Contains(osTypes, "wsl2") && dockerutil.IsWSL2()) {
+					if !strings.Contains(osTypes, runtime.GOOS) && !(strings.Contains(osTypes, "wsl2") && nodeps.IsWSL2()) {
 						continue
 					}
 				}
@@ -225,6 +237,17 @@ func addCustomCommands(rootCmd *cobra.Command) error {
 						})
 					}
 				}
+
+				// Mark custom command
+				if commandToAdd.Annotations == nil {
+					commandToAdd.Annotations = map[string]string{}
+				}
+
+				commandToAdd.Annotations[CustomCommand] = "true"
+				if ddevapp.IsBundledCustomCommand(commandSet == copiedGlobalCommandPath, service, commandName) {
+					commandToAdd.Annotations[BundledCustomCommand] = "true"
+				}
+
 				// Add the command and mark as added
 				rootCmd.AddCommand(commandToAdd)
 				commandsAdded[commandName] = 1

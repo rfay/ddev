@@ -2,19 +2,19 @@ package ddevapp
 
 import (
 	"fmt"
-	"github.com/drud/ddev/pkg/dockerutil"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/output"
-	"github.com/drud/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/dockerutil"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/output"
+	"github.com/ddev/ddev/pkg/util"
 
 	"os"
 	"path"
 	"path/filepath"
 	"text/template"
 
-	"github.com/drud/ddev/pkg/fileutil"
+	"github.com/ddev/ddev/pkg/fileutil"
 
-	"github.com/drud/ddev/pkg/archive"
+	"github.com/ddev/ddev/pkg/archive"
 )
 
 // DrupalSettings encapsulates all the configurations for a Drupal site.
@@ -27,7 +27,6 @@ type DrupalSettings struct {
 	DatabaseHost     string
 	DatabaseDriver   string
 	DatabasePort     string
-	DatabasePrefix   string
 	HashSalt         string
 	Signature        string
 	SitePath         string
@@ -50,8 +49,7 @@ func NewDrupalSettings(app *DdevApp) *DrupalSettings {
 		DatabaseHost:     "db",
 		DatabaseDriver:   "mysql",
 		DatabasePort:     GetExposedPort(app, "db"),
-		DatabasePrefix:   "",
-		HashSalt:         util.RandString(64),
+		HashSalt:         util.HashSalt(app.Name),
 		Signature:        nodeps.DdevFileSignature,
 		SitePath:         path.Join("sites", "default"),
 		SiteSettings:     "settings.php",
@@ -251,13 +249,11 @@ if (getenv('IS_DDEV_PROJECT') == 'true') {
 	return nil
 }
 
-// getDrupalUploadDir will return a custom upload dir if defined, returning a default path if not.
-func getDrupalUploadDir(app *DdevApp) string {
-	if app.UploadDir == "" {
-		return "sites/default/files"
-	}
+// getDrupalUploadDirs will return the default paths.
+func getDrupalUploadDirs(_ *DdevApp) []string {
+	uploadDirs := []string{"sites/default/files"}
 
-	return app.UploadDir
+	return uploadDirs
 }
 
 // Drupal8Hooks adds a d8-specific hooks example for post-import-db
@@ -383,6 +379,10 @@ func drupal8PostStartAction(app *DdevApp) error {
 
 func drupalPostStartAction(app *DdevApp) error {
 	if isDrupal9App(app) || isDrupal10App(app) {
+		err := app.Wait([]string{nodeps.DBContainer})
+		if err != nil {
+			return err
+		}
 		// pg_trm extension is required in Drupal9.5+
 		if app.Database.Type == nodeps.Postgres {
 			stdout, stderr, err := app.Exec(&ExecOpts{
@@ -398,7 +398,7 @@ func drupalPostStartAction(app *DdevApp) error {
 		if app.Database.Type == nodeps.MariaDB || app.Database.Type == nodeps.MySQL {
 			stdout, stderr, err := app.Exec(&ExecOpts{
 				Service:   "db",
-				Cmd:       `mysql -e "SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;" 2>/dev/null`,
+				Cmd:       `mysql -uroot -proot -e "SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;"`,
 				NoCapture: false,
 			})
 			if err != nil {
@@ -550,8 +550,8 @@ func appendIncludeToDrupalSettingsFile(siteSettingsPath string, appType string) 
 }
 
 // drupalImportFilesAction defines the Drupal workflow for importing project files.
-func drupalImportFilesAction(app *DdevApp, importPath, extPath string) error {
-	destPath := app.GetHostUploadDirFullPath()
+func drupalImportFilesAction(app *DdevApp, uploadDir, importPath, extPath string) error {
+	destPath := app.calculateHostUploadDirFullPath(uploadDir)
 
 	// parent of destination dir should exist
 	if !fileutil.FileExists(filepath.Dir(destPath)) {

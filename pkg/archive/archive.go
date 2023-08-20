@@ -7,7 +7,7 @@ import (
 	"compress/bzip2"
 	"compress/gzip"
 	"fmt"
-	"github.com/drud/ddev/pkg/fileutil"
+	"github.com/ddev/ddev/pkg/fileutil"
 	"io"
 	"io/fs"
 	"os"
@@ -16,7 +16,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/drud/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/util"
 	"github.com/ulikunitz/xz"
 )
 
@@ -254,8 +254,6 @@ func Untar(source string, dest string, extractionDir string) error {
 			}
 
 		case tar.TypeReg:
-			fallthrough
-		case tar.TypeRegA:
 			// Always ensure the directory is created before trying to move the file.
 			fullPathDir := filepath.Dir(fullPath)
 			err = os.MkdirAll(fullPathDir, 0755)

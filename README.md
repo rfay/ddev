@@ -1,21 +1,21 @@
-# DDEV
-
-[![CircleCI](https://circleci.com/gh/drud/ddev.svg?style=shield)](https://circleci.com/gh/drud/ddev) ![project is maintained](https://img.shields.io/maintenance/yes/2023.svg)
-[![Gitpod Ready-to-Code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/drud/ddev)
-
 ![DDEV Logo](images/ddev-logo.svg)
 
-DDEV is an open source tool for running local PHP development environments in minutes. Its powerful, flexible per-project environment configurations can be extended, version controlled, and shared. DDEV allows development teams to adopt a consistent Docker workflow without the complexities of bespoke configuration.
+---
+
+[![CircleCI](https://circleci.com/gh/ddev/ddev.svg?style=shield)](https://circleci.com/gh/ddev/ddev) ![project is maintained](https://img.shields.io/maintenance/yes/2024.svg)
+[![Gitpod Ready-to-Code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/ddev/ddev) <a href="https://github.com/codespaces/new?hide_repo_select=true&amp;ref=20221220_codespaces&amp;repo=80669528&amp;machine=basicLinux32gb&amp;location=WestUs2"><img src="https://github.com/codespaces/badge.svg" alt="Open in GitHub Codespaces" style="max-width: 100%; height: 20px;"></a>
+
+DDEV is an open source tool for running local web development environments for PHP, Python and Node.js, ready in minutes. Its powerful, flexible per-project environment configurations can be extended, version controlled, and shared. DDEV allows development teams to adopt a consistent Docker workflow without the complexities of bespoke configuration.
 
 ## Get Started
 
-1. **Check [System Requirements](https://ddev.readthedocs.io/):** macOS (Intel and Apple Silicon), Windows 10/11, WSL2, Linux, and [Gitpod](https://www.gitpod.io).
+1. **Check [System Requirements](https://ddev.readthedocs.io/):** macOS (Intel and Apple Silicon), Windows 10/11, WSL2, Linux, [Gitpod](https://www.gitpod.io), and [GitHub Codespaces](https://github.com/codespaces).
 2. **Install [Docker/Colima and DDEV](https://ddev.readthedocs.io/en/latest/users/install/)**.
 3. **Try a [CMS Quick Start Guide](https://ddev.readthedocs.io/en/latest/users/quickstart/)**.
 
 If you need help, our friendly community provides [great support](https://ddev.readthedocs.io/en/latest/users/support).
 
-## Partial Features
+## Highlighted Features
 
 * Quickly create local web development environments based on code repositories, with minimal configuration.
 * Import a database to any of your local environments.
@@ -31,23 +31,14 @@ If you need help, our friendly community provides [great support](https://ddev.r
 * Enjoy effortless, trusted HTTPS support.
 * Extend and customize environments as much (or as little!) as you need to.
 
-Run `ddev` to see all the [commands](https://ddev.readthedocs.io/en/stable/users/basics/cli-usage/).
+Run `ddev` to see all the [commands](https://ddev.readthedocs.io/en/latest/users/usage/cli/).
 
 ## Contributing
 
-See “How can I contribute to DDEV?” in the [FAQ](https://ddev.readthedocs.io/en/latest/users/basics/faq/), and the [Contributing](CONTRIBUTING.md) page.
+See “How can I contribute to DDEV?” in the [FAQ](https://ddev.readthedocs.io/en/latest/users/usage/faq/), and the [Contributing](CONTRIBUTING.md) page.
+
+![Overview of GitHub contributions](https://repobeats.axiom.co/api/embed/941b040a17921e974655fc01d7735aa350a53603.svg "Repobeats analytics image")
 
 ## Wonderful Sponsors
 
-[<img src="images/Platformsh_Logo_DDEV.jpg" alt="Platform.sh" width="200">](https://platform.sh)
-[<img src="images/tag1-logo.svg" alt="Tag1" width="80">](https://tag1.com)
-[<img src="images/agaric-logo-stacked.svg" alt="Agaric" width="50"/>](https://agaric.coop/)
-[<img src="images/b13-logo.png" width="50" />](https://b13.com/) [<img src="images/gizra-logo.png" width="50" />](https://gizra.com/)
-[<img src="images/oliver-wand.jpeg" width="50" />](https://github.com/wandoliver)
-[<img src="images/centarro-logo.png" width="50" />](https://www.centarro.io/)
-[<img src="images/drupaleasy-logo.png" width="50" />](https://www.drupaleasy.com/) [<img src="images/redfin-logo.png" width="50" />](https://redfinsolutions.com/)
-[<img src="images/macstadium-logo.png" alt="MacStadium" width="100"/>](https://www.macstadium.com)
-[<img src="images/lullabot-lockup-logo.svg" alt="Lullabot" width="150"/>](https://www.lullabot.com)
-[<img src="images/craft-cms-logo.svg" alt="Craft CMS" width="150"/>](https://craftcms.com/)
-[<img src="images/undpaul_logo.svg" alt="undpaul" width=150/>](https://undpaul.de)
-[<img src="images/1X_Logo_RGB_Red_4.png" alt="1XInternet" width="150">](httpsZ://1xinternet.de)
+![DDEV featured sponsor logos](https://ddev.com/resources/featured-sponsors.svg)

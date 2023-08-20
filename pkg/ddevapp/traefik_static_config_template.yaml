@@ -26,9 +26,12 @@ providers:
 global:
   sendanonymoususage: false
 
+ping:
+  entryPoint: "traefik"
+
 entryPoints:
   traefik:
-    address: ":9999"
+    address: ":{{.TraefikMonitorPort}}"
   {{ range $port := .RouterPorts}}
   http-{{$port}}:
     address: ":{{$port}}"

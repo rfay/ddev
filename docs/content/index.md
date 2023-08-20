@@ -5,24 +5,25 @@ hide:
 
 # Get Started with DDEV
 
-[DDEV](https://github.com/drud/ddev) is an open source tool for launching local PHP development environments in minutes.
+[DDEV](https://github.com/ddev/ddev) is an open source tool for launching local web development environments in minutes. It supports PHP, Node.js, and Python (experimental).
 
-These environments can be extended, version controlled, and shared, so you can take advantage of a Docker workflow without Docker experience or bespoke configuration. Projects can be changed, powered down, or removed just as easily as they’re started.
+These environments can be extended, version controlled, and shared, so you can take advantage of a Docker workflow without Docker experience or bespoke configuration. Projects can be changed, powered down, or removed as easily as they’re started.
 
 ## System Requirements
 
 === "macOS"
 
     ### macOS
-    
+
     Runs natively on ARM64 (Apple Silicon) and AMD64 machines.
 
+    * macOS Big Sur (11) or higher, [mostly](./users/usage/faq.md#can-i-run-ddev-on-an-older-mac)
     * RAM: 8GB
     * Storage: 256GB
     * [Colima](https://github.com/abiosoft/colima) or [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-    * Docker Desktop requires macOS Catalina (10.15) or higher; Colima runs on older systems
 
 === "Windows WSL2"
+
     ### Windows WSL2
 
     * RAM: 8GB
@@ -48,8 +49,8 @@ These environments can be extended, version controlled, and shared, so you can t
     * RAM: 8GB
     * Storage: 256GB
 
-=== "Gitpod"
+=== "Gitpod & Codespaces"
 
-    ### Gitpod
+    ### Gitpod and GitHub Codespaces
 
-    With [Gitpod](https://www.gitpod.io) you don’t install anything; you only need a browser and an internet connection.
+    With [Gitpod](https://www.gitpod.io) and [GitHub Codespaces](https://github.com/features/codespaces) you don’t install anything; you only need a browser and an internet connection.

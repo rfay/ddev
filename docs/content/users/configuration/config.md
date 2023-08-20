@@ -5,13 +5,13 @@ DDEV configuration is stored in YAML files that come in two flavors:
 1. :octicons-file-directory-16: **Project** `.ddev/config.yaml` settings, with optional [environmental override](#environmental-overrides) variants.
 2. :octicons-globe-16: **Global** `$HOME/.ddev/global_config.yaml` settings that can apply to all projects.
 
-Most of these settings take effect when you run [`ddev start`](../basics/commands.md#start).
+Most of these settings take effect when you run [`ddev start`](../usage/commands.md#start).
 
 ## Managing Configuration
 
 ### Setting Options
 
-You can hand-edit the YAML files DDEV creates for you after running [`ddev config`](../basics/commands.md#config), and you can also define most settings with equivalent CLI arguments:
+You can hand-edit the YAML files DDEV creates for you after running [`ddev config`](../usage/commands.md#config), and you can also define most settings with equivalent CLI arguments:
 
 === "config.yaml"
 
@@ -28,9 +28,9 @@ You can hand-edit the YAML files DDEV creates for you after running [`ddev confi
 
 ### Environmental Overrides
 
-You can override the per-project `config.yaml` with files named `config.*.yaml`, which are gitignored by default and not checked in.
+You can override the per-project `config.yaml` with files named `config.*.yaml`, and files like this are often created by [DDEV add-ons](../extend/additional-services.md). For example, `config.elasticsearch.yaml` in [Elasticsearch add-on](https://github.com/ddev/ddev-elasticsearch) adds additional configuration related to Elasticsearch.
 
-Many teams use `config.local.yaml` for configuration that’s specific to one environment, and not checked into the team’s default `config.yaml`. You might [enable Mutagen](../install/performance.md#mutagen) or [enable NFS](../install/performance.md#nfs) for the project, for example, just on your machine. Or maybe use a different database type.
+Many teams use `config.local.yaml` for configuration that is specific to one environment, and not checked into the team’s default `config.yaml`. You might [enable Mutagen](../install/performance.md#mutagen) or [enable NFS](../install/performance.md#nfs) for the project, for example, only on your machine. Or maybe use a different database type. The file `config.local.yaml` is gitignored by default.
 
 For examples, see the [Extending and Customizing Environments](../extend/customization-extendibility.md#extending-configyaml-with-custom-configyaml-files) page.
 
@@ -71,7 +71,7 @@ The relative path, from the project root, to the directory containing `composer.
 
 ## `composer_version`
 
-Composer version for the web container and the [`ddev composer`](../basics/commands.md#composer) command.
+Composer version for the web container and the [`ddev composer`](../usage/commands.md#composer) command.
 
 | Type | Default | Usage
 | -- | -- | --
@@ -83,10 +83,7 @@ The type and version of the database engine the project should use.
 
 | Type | Default | Usage
 | -- | -- | --
-| :octicons-file-directory-16: project | MariaDB 10.4 | Can be MariaDB 5.5–10.7, MySQL 5.5–8.0, or PostgreSQL 9–15.<br>See [Database Server Types](../extend/database-types.md) for examples and caveats.
-
-!!!note
-    DDEV v1.18 and earlier used `mariadb_version` and `mysql_version`, which are now automatically converted to the `database` format.
+| :octicons-file-directory-16: project | MariaDB 10.4 | Can be MariaDB 5.5–10.8 or 10.11, MySQL 5.5–8.0, or PostgreSQL 9–15.<br>See [Database Server Types](../extend/database-types.md) for examples and caveats.
 
 ## `dbimage_extra_packages`
 
@@ -116,13 +113,13 @@ Not currently used.
 
 ## `disable_http2`
 
-Whether to disable http/2 listen in `ddev-router`.
+Whether to disable HTTP/2 listen in `ddev-router`.
 
 | Type | Default | Usage
 | -- | -- | --
 | :octicons-globe-16: global | `false` | Can be `true` or `false`.
 
-When `true`, nginx will not listen for http/2, but just use http/1.1 SSL. (Some browsers don’t work well with http/2.)
+Only available with legacy `router: nginx-proxy`, not the default `router: traefik`. When `true`, the router will not listen for HTTP/2, but use HTTP/1.1 SSL. (Some browsers don’t work well with HTTP/2.)
 
 ## `disable_settings_management`
 
@@ -134,6 +131,16 @@ Whether to disable CMS-specific settings file management.
 
 When `true`, DDEV will not create or update CMS-specific settings files.
 
+## `disable_upload_dirs_warning`
+
+Whether to disable the standard warning issued when a project is using `performance_mode: mutagen` but `upload_dirs` is not configured.
+
+| Type | Default | Usage
+| -- | -- | --
+| :octicons-file-directory-16: project | `false` | Can be `true` or `false`.
+
+When `true`, DDEV will not issue the normal warning on `ddev start`: "You have Mutagen enabled and your 'php' project type doesn't have `upload_dirs` set". See [Mutagen and User-Generated Uploads](../install/performance.md#mutagen-and-user-generated-uploads) for context on why DDEV avoids doing the Mutagen sync on `upload_dirs`.
+
 ## `docroot`
 
 Relative path to the document root containing `index.php` or `index.html`.
@@ -144,7 +151,7 @@ Relative path to the document root containing `index.php` or `index.html`.
 
 ## `fail_on_hook_fail`
 
-Whether [`ddev start`](../basics/commands.md#start) should be interrupted by a failing [hook](../configuration/hooks.md), on a single project or for all projects if used globally.
+Whether [`ddev start`](../usage/commands.md#start) should be interrupted by a failing [hook](../configuration/hooks.md), on a single project or for all projects if used globally.
 
 | Type | Default | Usage
 | -- | -- | --
@@ -166,9 +173,9 @@ Port for binding database server to localhost interface.
 | -- | -- | --
 | :octicons-file-directory-16: project | automatic |
 
-Not commonly used. Can be a specific port number for a fixed database port. If unset, the port will be assigned automatically and change each time [`ddev start`](../basics/commands.md#start) is run.
+Not commonly used. Can be a specific port number for a fixed database port. If unset, the port will be assigned automatically and change each time [`ddev start`](../usage/commands.md#start) is run.
 
-Can be a specific port number for a fixed database port, which can be useful for configuration of host-side database clients. (May still be easier to use [`ddev mysql`](../basics/commands.md#mysql), `ddev psql`, `ddev sequelpro`, etc., which handle changing ports automatically, as does the sample command `ddev mysqlworkbench`.)
+Can be a specific port number for a fixed database port, which can be useful for configuration of host-side database clients. (May still be easier to use [`ddev mysql`](../usage/commands.md#mysql), `ddev psql`, `ddev sequelace`, etc., which handle changing ports automatically, as does the sample command `ddev mysqlworkbench`.)
 
 ## `host_https_port`
 
@@ -178,7 +185,7 @@ Specific, persistent HTTPS port for direct binding to localhost interface.
 | -- | -- | --
 | :octicons-file-directory-16: project | automatic |
 
-Not commonly used. Can be a specific port number for a fixed HTTPS URL. If unset, the port will be assigned automatically and change each time [`ddev start`](../basics/commands.md#start) is run.
+Not commonly used. Can be a specific port number for a fixed HTTPS URL. If unset, the port will be assigned automatically and change each time [`ddev start`](../usage/commands.md#start) is run.
 
 Example: `59001` will have the project always use `https://127.0.0.1:59001` for the localhost URL—used less commonly than the named URL which is better to rely on.
 
@@ -190,39 +197,55 @@ Specific, persistent HTTP port for direct binding to localhost interface.
 | -- | -- | --
 | :octicons-file-directory-16: project | automatic |
 
-Not commonly used. Can be a specific port number for a fixed HTTP URL. If unset, the port will be assigned automatically and change each time [`ddev start`](../basics/commands.md#start) is run.
+Not commonly used. Can be a specific port number for a fixed HTTP URL. If unset, the port will be assigned automatically and change each time [`ddev start`](../usage/commands.md#start) is run.
 
 Example: `59000` will have the project always use `http://127.0.0.1:59000` for the localhost URL—used less commonly than the named URL which is better to rely on.
 
 ## `instrumentation_opt_in`
 
-Whether to allow [instrumentation reporting](../details/opting-in.md).
+Whether to allow [instrumentation reporting](../usage/diagnostics.md).
 
 | Type | Default | Usage
 | -- | -- | --
 | :octicons-globe-16: global | `true` | Can be `true` or `false`.
 
-When `true`, anonymous usage information is collected via [Segment](https://segment.com).
+When `true`, anonymous usage information is collected via [Amplitude](https://amplitude.com/).
+
+## `instrumentation_queue_size`
+
+Maximum number of locally collected events for [instrumentation reporting](../usage/diagnostics.md).
+
+| Type | Default | Usage
+| -- | -- | --
+| :octicons-globe-16: global | `100` | Can be any integer.
+
+## `instrumentation_reporting_interval`
+
+Reporting interval in hours for [instrumentation reporting](../usage/diagnostics.md).
+
+| Type | Default | Usage
+| -- | -- | --
+| :octicons-globe-16: global | `24` | Can be any integer.
 
 ## `internet_detection_timeout_ms`
 
 Internet detection timeout in milliseconds.
 
-| Type | Default | Usage
-| -- | -- | --
-| :octicons-globe-16: global | `1000` (1 second) | Can be any integer.
+| Type | Default            | Usage
+| -- |--------------------| --
+| :octicons-globe-16: global | `3000` (3 seconds) | Can be any integer.
 
-DDEV must detect whether the internet is working to determine whether to add hostnames to `/etc/hosts`. In rare cases, you may need to increase this value if you have slow but working internet. See [FAQ](../basics/faq.md) and [GitHub issue](https://github.com/drud/ddev/issues/2409#issuecomment-662448025).
+DDEV must detect whether the internet is working to determine whether to add hostnames to `/etc/hosts`. In rare cases, you may need to increase this value if you have slow but working internet. See [FAQ](../usage/faq.md) and [GitHub issue](https://github.com/ddev/ddev/issues/2409#issuecomment-662448025).
 
 ## `letsencrypt_email`
 
-Email associated with Let’s Encrypt feature. (Works in conjunction with [`use_letsencrypt`](#use_letsencrypt).)
+Email associated with Let’s Encrypt feature. (Works in conjunction with [`use_letsencrypt`](#use_letsencrypt).) (Not currently compatible with Traefik router.)
 
 | Type | Default | Usage
 | -- | -- | --
 | :octicons-globe-16: global | `` |
 
-Set with `ddev global --letsencrypt-email=me@example.com`. Used with the [casual hosting](../details/alternate-uses.md#casual-hosting) feature.
+Set with `ddev config global --letsencrypt-email=me@example.com`. Used with the [casual hosting](../topics/hosting.md) feature.
 
 ## `mailhog_https_port`
 
@@ -240,15 +263,27 @@ Port for project’s MailHog HTTP URL.
 | -- | -- | --
 | :octicons-file-directory-16: project | `8025` | Can be changed to avoid a port conflict.
 
-## `mutagen_enabled`
+## `messages`
 
-Whether to enable [Mutagen asynchronous caching](../install/performance.md#mutagen) for all projects.
+Configure messages like the Tip of the Day.
 
-| Type | Default | Usage
-| -- | -- | --
-| :octicons-file-directory-16: project<br>:octicons-globe-16: global | `false` | Can be `true` or `false`; only `true` has any effect.
+| Type | Default            | Usage
+| -- |--------------------| --
+| :octicons-globe-16: global | `ticker_interval:` | hours between ticker messages.
 
-This overrides NFS mounting as it’s incompatible with NFS.
+Example: Disable the "Tip of the Day" ticker in `~/.ddev/global_config.yaml`
+
+```yaml
+messages:
+  ticker_interval: -1
+```
+
+Example: Show the "Tip of the Day" ticket every two hours:
+
+```yaml`
+messages:
+  ticker_interval: 2
+``
 
 ## `name`
 
@@ -258,28 +293,18 @@ The URL-friendly name DDEV should use to reference the project.
 | -- | -- | --
 | :octicons-file-directory-16: project | enclosing directory name | Must be unique; no two projects can have the same name. It’s best if this matches the directory name. If this option is omitted, the project will take the name of the enclosing directory.
 
-## `nfs_mount_enabled`
-
-Whether to use [NFS](../install/performance.md#nfs) to mount the project into the container for performance. (Mostly superseded by [`mutagen_enabled`](#mutagen_enabled).)
-
-| Type | Default | Usage
-| -- | -- | --
-| :octicons-file-directory-16: project<br>:octicons-globe-16: global | `false` | Can be `true` or `false`; only `true` has any effect.
-
-!!!tip "Workstation configuration required!"
-    See the [NFS section](../install/performance.md#nfs) on the Performance page.
-
-This is typically a global setting. If it’s ever set in both places, the global config will override the project-specific value.
-
 ## `ngrok_args`
 
-Extra flags for [configuring ngrok](https://ngrok.com/docs/ngrok-agent/config) when [sharing projects](../topics/sharing.md) with the [`ddev share`](../basics/commands.md#share) command.
+Extra flags for [configuring ngrok](https://ngrok.com/docs/ngrok-agent/config) when [sharing projects](../topics/sharing.md) with the [`ddev share`](../usage/commands.md#share) command.
 
 | Type | Default | Usage
 | -- | -- | --
 | :octicons-file-directory-16: project | `` |
 
 Example: `--basic-auth username:pass1234`.
+
+!!!warning
+    Some ngrok flags, such as `--subdomain`, require a paid ngrok account.
 
 ## `no_bind_mounts`
 
@@ -308,9 +333,9 @@ Node.js version for the web container’s “system” version.
 
 | Type | Default | Usage
 | -- | -- | --
-| :octicons-file-directory-16: project | current LTS version | Can be `14`, `16`, or `18`.
+| :octicons-file-directory-16: project | current LTS version | Can be `14`, `16`, `18`, or `20`.
 
-`nvm` is also available inside the container and via [`ddev nvm`](../basics/commands.md#nvm), and can be set to any valid version including much older ones.
+`nvm` is also available inside the container and via [`ddev nvm`](../usage/commands.md#nvm), and can be set to any valid version including much older ones.
 
 ## `omit_containers`
 
@@ -318,9 +343,9 @@ Containers that should not be loaded automatically for one or more projects.
 
 | Type | Default | Usage
 | -- | -- | --
-| :octicons-file-directory-16: project<br>:octicons-globe-16: global | `[]` | **For projects**, can include `db`, `dba`, and `ddev-ssh-agent`.<br>**Globally**, can include `dba` and `ddev-ssh-agent` only.
+| :octicons-file-directory-16: project<br>:octicons-globe-16: global | `[]` | **For projects**, can include `db`, and `ddev-ssh-agent`.<br>**Globally**, can include `ddev-ssh-agent` only.
 
-Example: `omit_containers: [db, dba, ddev-ssh-agent]` starts the project without a `db` container, phpMyAdmin, and SSH agent. Some containers can be omitted globally in `~/.ddev/global_config.yaml` and the result is additive; all containers named in both places will be omitted.
+Example: `omit_containers: [db, ddev-ssh-agent]` starts the project without a `db` container and SSH agent. Some containers can be omitted globally in `~/.ddev/global_config.yaml` and the result is additive; all containers named in both places will be omitted.
 
 !!!warning
     Omitting the `db` container will cause database-dependent DDEV features to be unstable.
@@ -337,31 +362,28 @@ When `true`, the `config.*.yaml` file with the option will have its settings *ov
 
 See [Extending `config.yaml` with Custom `config.*.yaml` Files](../extend/customization-extendibility.md#extending-configyaml-with-custom-configyaml-files).
 
+## `performance_mode`
+
+Defines the performance optimization mode to be used. Currently [Mutagen asynchronous caching](../install/performance.md#mutagen) and [NFS](../install/performance.md#nfs) are supported. Mutagen is enabled by default on Mac and Windows.
+
+| Type | Default | Usage
+| -- | -- | --
+| :octicons-file-directory-16: project<br>:octicons-globe-16: global | `` | Can be `global`, `none`, `mutagen`, or `nfs`.
+
+This is typically a global setting. The project-specific value will override global config.
+
+!!!tip "Workstation configuration is required to use NFS!"
+    See the [NFS section](../install/performance.md#nfs) on the Performance page.
+
 ## `php_version`
 
 The PHP version the project should use.
 
 | Type | Default | Usage
-| -- | -- | --
-| :octicons-file-directory-16: project | `8.0` | Can be `5.6`, `7.0`, `7.1`, `7.2`, `7.3`, `7.4`, `8.0`, `8.1`, or `8.2`.
+| -- |---------| --
+| :octicons-file-directory-16: project | `8.1`   | Can be `5.6`, `7.0`, `7.1`, `7.2`, `7.3`, `7.4`, `8.0`, `8.1`, `8.2`, or `8.3`.
 
 You can only specify the major version (`7.3`), not a minor version (`7.3.2`), from those explicitly available.
-
-## `phpmyadmin_https_port`
-
-Port for project’s phpMyAdmin HTTPS URL.
-
-| Type | Default | Usage
-| -- | -- | --
-| :octicons-file-directory-16: project | `8037` | Can be changed to avoid a port conflict.
-
-## `phpmyadmin_port`
-
-Port for project’s phpMyAdmin HTTP URL.
-
-| Type | Default | Usage
-| -- | -- | --
-| :octicons-file-directory-16: project | `8036` | Can be changed to avoid a port conflict.
 
 ## `project_tld`
 
@@ -384,6 +406,16 @@ If set to `v2.8.0`, for example, it will download and use that version instead o
 !!!warning "Troubleshooting Only!"
     This should only be used in specific cases like troubleshooting. Best avoided otherwise.
 
+## `router`
+
+Whether to enable the default [Traefik router](../extend/traefik-router.md#traefik-router) or the legacy "nginx-proxy" router.
+
+| Type | Default   | Usage
+| -- |-----------| --
+| :octicons-globe-16: global | `traefik` | Can `traefik` or `nginx-proxy` (legacy).
+
+May also be set via `ddev config global --router=traefik` or `ddev config global --router=nginx-proxy`.
+
 ## `router_bind_all_interfaces`
 
 Whether to bind `ddev-router`'s ports on all network interfaces.
@@ -392,7 +424,7 @@ Whether to bind `ddev-router`'s ports on all network interfaces.
 | -- | -- | --
 | :octicons-globe-16: global | `false` | Can be `true` or `false`.
 
-When `true`, `ddev-router` will bind on all network interfaces instead of only `localhost`, exposing DDEV projects to your local network. If you set this to `true`, consider setting `omit_containers: ["dba"]` so phpMyAdmin is not available.
+When `true`, the router will bind on all network interfaces instead of only `localhost`, exposing DDEV projects to your local network. This is sometimes used to share projects on a local network, see [Sharing Your Project](../topics/sharing.md).
 
 ## `router_http_port`
 
@@ -400,9 +432,9 @@ Port for DDEV router’s HTTP traffic.
 
 | Type | Default | Usage
 | -- | -- | --
-| :octicons-file-directory-16: project | `80` | Usually changed only if there’s a conflicting process using that port.
+| :octicons-file-directory-16: project<br>:octicons-globe-16: global | `80` | Usually changed only if there’s a conflicting process using that port.
 
-See the [Troubleshooting](../basics/troubleshooting.md#web-server-ports-already-occupied) page for more on addressing port conflicts.
+See the [Troubleshooting](../usage/troubleshooting.md#web-server-ports-already-occupied) page for more on addressing port conflicts.
 
 ## `router_https_port`
 
@@ -410,23 +442,23 @@ Port for DDEV router’s HTTPS traffic.
 
 | Type | Default | Usage
 | -- | -- | --
-| :octicons-file-directory-16: project | `443` | Usually changed only if there’s a conflicting process using that port.
+| :octicons-file-directory-16: project<br>:octicons-globe-16: global | `443` | Usually changed only if there’s a conflicting process using that port.
 
-See the [Troubleshooting](../basics/troubleshooting.md#web-server-ports-already-occupied) page for more on addressing port conflicts.
+See the [Troubleshooting](../usage/troubleshooting.md#web-server-ports-already-occupied) page for more on addressing port conflicts.
 
 ## `simple-formatting`
 
-Whether to disable most [`ddev list`](../basics/commands.md#list) and [`ddev describe`](../basics/commands.md#describe) table formatting.
+Whether to disable most [`ddev list`](../usage/commands.md#list) and [`ddev describe`](../usage/commands.md#describe) table formatting.
 
 | Type | Default | Usage
 | -- | -- | --
 | :octicons-globe-16: global | `false` | Can be `true` or `false`.
 
-When `true`, turns off most table formatting in [`ddev list`](../basics/commands.md#list) and [`ddev describe`](../basics/commands.md#describe) and suppresses colorized text everywhere.
+When `true`, turns off most table formatting in [`ddev list`](../usage/commands.md#list) and [`ddev describe`](../usage/commands.md#describe) and suppresses colorized text everywhere.
 
 ## `table-style`
 
-Style for [`ddev list`](../basics/commands.md#list) and [`ddev describe`](../basics/commands.md#describe).
+Style for [`ddev list`](../usage/commands.md#list) and [`ddev describe`](../usage/commands.md#describe).
 
 | Type | Default | Usage
 | -- | -- | --
@@ -442,23 +474,31 @@ Timezone for container and PHP configuration.
 | -- | -- | --
 | :octicons-file-directory-16: project | `UTC` | Can be any [valid timezone](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones), like `Europe/Dublin` or `MST7MDT`.
 
+## `traefik_monitor_port`
+
+Specify an alternate port for the Traefik (ddev-router) monitor port. This defaults to 10999 and rarely needs to be changed, but can be changed in cases of port conflicts.
+
+| Type | Default | Usage
+| -- |---------| --
+| :octicons-globe-16: global | `10999` | Can be any unused port below 65535.
+
 ## `type`
 
 The DDEV-specific project type.
 
 | Type | Default | Usage
 | -- | -- | --
-| :octicons-file-directory-16: project | `php` | Can be `backdrop`, `craftcms`, `drupal6`, `drupal7`, `drupal8`, `drupal9`, `drupal10`,  `laravel`, `magento`, `magento2`, `php`, `shopware6`, `typo3`, or `wordpress`.
+| :octicons-file-directory-16: project | `php` | Can be `backdrop`, `craftcms`, `django4`, `drupal6`, `drupal7`, `drupal8`, `drupal9`, `drupal10`,  `laravel`, `magento`, `magento2`, `php`, `python`, `shopware6`, `silverstripe`, `typo3`, or `wordpress`.
 
-The `php` type doesn’t attempt [CMS configuration](../../users/quickstart.md) or settings file management and can work with any project.
+The `php` and `python` types don’t attempt [CMS configuration](../../users/quickstart.md) or settings file management and can work with any project.
 
-## `upload_dir`
+## `upload_dirs`
 
-Path from the project’s docroot to the user-generated files directory targeted by `ddev import-files`.
+Paths from the project’s docroot to the user-generated files directory targeted by `ddev import-files`. Can be outside the docroot but must be within the project directory e.g. `../private`. Some CMSes and frameworks have default `upload_dirs`, like Drupal's `sites/default/files`; `upload_dirs` will override the defaults, so if you want Drupal to use both `sites/default/files` and `../private` you would list both, `upload_dirs: ["sites/default/files", "../private"]`. `upload_dirs` is used for targeting `ddev import-files` and also, when Mutagen is enabled, to bind-mount those directories so their contents does not need to be synced into Mutagen.
 
 | Type | Default | Usage
 | -- | -- | --
-| :octicons-file-directory-16: project | |
+| :octicons-file-directory-16: project | | A list of directories.
 
 ## `use_dns_when_possible`
 
@@ -470,7 +510,7 @@ Whether to use DNS instead of editing `/etc/hosts`.
 
 When `false`, DDEV will always update the `/etc/hosts` file with the project hostname instead of using DNS for name resolution.
 
-See [Using DDEV Offline](../details/offline-usage.md).
+See [Using DDEV Offline](../usage/offline.md).
 
 ## `use_docker_compose_from_path`
 
@@ -493,17 +533,17 @@ Whether to use hardened images for internet deployment.
 | -- | -- | --
 | :octicons-globe-16: global | `false` | Can `true` or `false`.
 
-When `true`, more secure hardened images are used for an internet deployment. These do not include sudo in the web container, and the container is run without elevated privileges. Generally used with the [casual hosting](../details/alternate-uses.md#casual-hosting) feature.
+When `true`, more secure hardened images are used for an internet deployment. These do not include sudo in the web container, and the container is run without elevated privileges. Generally used with the [casual hosting](../topics/hosting.md) feature.
 
 ## `use_letsencrypt`
 
-Whether to enable Let’s Encrypt integration. (Works in conjunction with [`letsencrypt_email`](#letsencrypt_email).)
+Whether to enable Let’s Encrypt integration. (Works in conjunction with [`letsencrypt_email`](#letsencrypt_email).) (Not currently compatible with Traefik router.)
 
 | Type | Default | Usage
 | -- | -- | --
 | :octicons-globe-16: global | `false` | Can `true` or `false`.
 
-May also be set via `ddev global --use-letsencrypt` or `ddev global --use-letsencrypt=false`. When `true`, `letsencrypt_email` must also be set and the system must be available on the internet. Used with the [casual hosting](../details/alternate-uses.md#casual-hosting) feature.
+May also be set via `ddev config global --use-letsencrypt` or `ddev config global --use-letsencrypt=false`. When `true`, `letsencrypt_email` must also be set and the system must be available on the internet. Used with the [casual hosting](../topics/hosting.md) feature.
 
 ## `web_environment`
 
@@ -533,9 +573,9 @@ Additional named sets of ports to [expose via `ddev-router`](../extend/customiza
 
 The Docker image to use for the web server.
 
-| Type | Default | Usage
-| -- | -- | --
-| :octicons-file-directory-16: project | [`drud/ddev-webserver`](https://hub.docker.com/r/drud/ddev-webserver) | Specify your own image based on [drud/ddev-webserver](https://github.com/drud/ddev/tree/master/containers/ddev-webserver).
+| Type | Default                                                               | Usage
+| -- |-----------------------------------------------------------------------| --
+| :octicons-file-directory-16: project | [`ddev/ddev-webserver`](https://hub.docker.com/r/ddev/ddev-webserver) | Specify your own image based on [ddev/ddev-webserver](https://github.com/ddev/ddev/tree/master/containers/ddev-webserver).
 
 !!!warning "Proceed with caution"
     It’s unusual to change this, and we don’t recommend it without Docker experience and a good reason. Typically, this means additions to the existing web image using a `.ddev/web-build/Dockerfile.*`.
@@ -552,15 +592,23 @@ Example: `webimage_extra_packages: [php-yaml, php-bcmath]` will add the `php-yam
 
 ## `webserver_type`
 
-Whether Xdebug should be enabled for [step debugging](../debugging-profiling/step-debugging.md) or [profiling](../debugging-profiling/xdebug-profiling.md).
+Which available [web server type](../extend/customization-extendibility.md#changing-web-server-type) should be used.
 
 | Type | Default | Usage
 | -- | -- | --
-| :octicons-file-directory-16: project | `nginx-fpm` | Can be `nginx-fpm` or `apache-fpm`.
+| :octicons-file-directory-16: project | `nginx-fpm` | Can be `nginx-fpm`, `apache-fpm`, or `nginx-gunicorn`.
+
+To change from the default `nginx-fpm` to `apache-fpm`, for example, you would need to edit your project’s `.ddev/config.yaml` to include the following:
+
+```yaml
+webserver_type: apache-fpm
+```
+
+Then run the [`ddev restart`](../usage/commands.md#restart) command to have the change take effect.
 
 ## `working_dir`
 
-Working directories used by [`ddev exec`](../basics/commands.md#exec) and [`ddev ssh`](../basics/commands.md#ssh).
+Working directories used by [`ddev exec`](../usage/commands.md#exec) and [`ddev ssh`](../usage/commands.md#ssh).
 
 | Type | Default | Usage
 | -- | -- | --
@@ -568,13 +616,23 @@ Working directories used by [`ddev exec`](../basics/commands.md#exec) and [`ddev
 
 Example: `working_dir: { web: "/var/www", db: "/etc" }` sets the working directories for the `web` and `db` containers.
 
+## `wsl2_no_windows_hosts_mgt`
+
+(WSL2 only) Whether to disable the management and checking of the Windows hosts file. By default, when using WSL2, DDEV manages the system-wide hosts file on the Windows side (normally `C:\Windows\system32\drivers\etc\hosts`) by using `ddev.exe` installed on the *Windows* side. This normally works better for all applications, including browsers and IDEs. However, this behavior can be disabled by setting `wsl_no_windows_hosts_mgt: true`.
+
+| Type | Default | Usage
+| -- | -- | --
+| :octicons-globe-16: global | `false` | Can `true` or `false`.
+
+May also be set via `ddev config global --wsl2-no-windows-hosts-mgt` or `ddev config global --wsl2-no-windows-hosts-mgt=false`.
+
 ## `xdebug_enabled`
 
 Whether Xdebug should be enabled for [step debugging](../debugging-profiling/step-debugging.md) or [profiling](../debugging-profiling/xdebug-profiling.md).
 
 | Type | Default | Usage
 | -- | -- | --
-| :octicons-file-directory-16: project | `false` | Please leave this `false` in most cases. Most people use [`ddev xdebug`](../basics/commands.md#xdebug) and `ddev xdebug off` commands.
+| :octicons-file-directory-16: project | `false` | Please leave this `false` in most cases. Most people use [`ddev xdebug`](../usage/commands.md#xdebug) and `ddev xdebug off` commands.
 
 ## `xdebug_ide_location`
 
@@ -585,3 +643,9 @@ Adjust Xdebug listen location for WSL2 or in-container.
 | :octicons-globe-16: global | `""` | Can be empty (`""`), `"wsl2"`, `"container"`, or an explicit IP address.
 
 For PhpStorm running inside WSL2 (or JetBrains Gateway), use `"wsl2"`. For in-container like VS Code Language Server, set to `"container"`. It can also be set to an explicit IP address.
+
+Examples:
+
+* `xdebug_ide_location: 172.16.0.2` when you need to provide an explicit IP address where the IDE is listening.
+* `xdebug_ide_location: container` when the IDE is actually listening inside the `ddev-webserver` container.
+* `xdebug_ide_location: wsl2` when the IDE is running (or listening) in WSL2.

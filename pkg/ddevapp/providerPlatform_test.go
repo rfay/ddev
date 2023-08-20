@@ -2,18 +2,18 @@ package ddevapp_test
 
 import (
 	"fmt"
-	"github.com/drud/ddev/pkg/exec"
-	"github.com/drud/ddev/pkg/globalconfig"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/exec"
+	"github.com/ddev/ddev/pkg/globalconfig"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/util"
 	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	. "github.com/drud/ddev/pkg/ddevapp"
-	"github.com/drud/ddev/pkg/testcommon"
+	. "github.com/ddev/ddev/pkg/ddevapp"
+	"github.com/ddev/ddev/pkg/testcommon"
 	asrt "github.com/stretchr/testify/assert"
 )
 
@@ -26,12 +26,16 @@ import (
  * defined in the constants below.
  */
 
-const platformTestSiteID = "lago3j23xu2w6"
+const platformTestSiteID = "5bviezdszcmrg"
 const platformPullTestSiteEnvironment = "platform-pull"
 const platformPushTestSiteEnvironment = "platform-push"
 
-const platformPullSiteURL = "https://master-7rqtwti-lago3j23xu2w6.eu-3.platformsh.site/"
+const platformPullSiteURL = "https://platform-pull-7tsp6cq-5bviezdszcmrg.ca-1.platformsh.site/"
 const platformSiteExpectation = "Super easy vegetarian pasta"
+
+// Note that these tests won't run with GitHub actions on a forked PR.
+// Thie is a security feature, but means that PRs intended to test this
+// must be done in the ddev repo.
 
 // TestPlatformPull ensures we can pull backups from platform.sh for a configured environment.
 func TestPlatformPull(t *testing.T) {
@@ -90,7 +94,7 @@ func TestPlatformPull(t *testing.T) {
 	err = app.Start()
 	require.NoError(t, err)
 	err = app.Pull(provider, false, false, false)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.FileExists(filepath.Join(app.GetHostUploadDirFullPath(), "victoria-sponge-umami.jpg"))
 	out, err := exec.RunHostCommand("bash", "-c", fmt.Sprintf(`echo 'select COUNT(*) from users_field_data where mail="margaret.hopper@example.com";' | %s mysql -N`, DdevBin))

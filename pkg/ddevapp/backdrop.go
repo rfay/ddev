@@ -2,17 +2,17 @@ package ddevapp
 
 import (
 	"fmt"
-	"github.com/drud/ddev/pkg/dockerutil"
-	"github.com/drud/ddev/pkg/nodeps"
 	"os"
 	"path"
 	"path/filepath"
 	"text/template"
 
-	"github.com/drud/ddev/pkg/archive"
-	"github.com/drud/ddev/pkg/fileutil"
-	"github.com/drud/ddev/pkg/output"
-	"github.com/drud/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/archive"
+	"github.com/ddev/ddev/pkg/dockerutil"
+	"github.com/ddev/ddev/pkg/fileutil"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/output"
+	"github.com/ddev/ddev/pkg/util"
 )
 
 // BackdropSettings holds database connection details for Backdrop.
@@ -23,7 +23,6 @@ type BackdropSettings struct {
 	DatabaseHost     string
 	DatabaseDriver   string
 	DatabasePort     string
-	DatabasePrefix   string
 	HashSalt         string
 	Signature        string
 	SiteSettings     string
@@ -44,8 +43,7 @@ func NewBackdropSettings(app *DdevApp) *BackdropSettings {
 		DatabaseHost:     "ddev-" + app.Name + "-db",
 		DatabaseDriver:   "mysql",
 		DatabasePort:     GetExposedPort(app, "db"),
-		DatabasePrefix:   "",
-		HashSalt:         util.RandString(64),
+		HashSalt:         util.HashSalt(app.Name),
 		Signature:        nodeps.DdevFileSignature,
 		SiteSettings:     "settings.php",
 		SiteSettingsDdev: "settings.ddev.php",
@@ -91,7 +89,7 @@ func createBackdropSettingsFile(app *DdevApp) (string, error) {
 
 // writeBackdropSettingsDdevPHP dynamically produces a valid settings.ddev.php file
 // by combining a configuration object with a data-driven template.
-func writeBackdropSettingsDdevPHP(settings *BackdropSettings, filePath string, app *DdevApp) error {
+func writeBackdropSettingsDdevPHP(settings *BackdropSettings, filePath string, _ *DdevApp) error {
 	if fileutil.FileExists(filePath) {
 		// Check if the file is managed by ddev.
 		signatureFound, err := fileutil.FgrepStringInFile(filePath, nodeps.DdevFileSignature)
@@ -126,20 +124,13 @@ func writeBackdropSettingsDdevPHP(settings *BackdropSettings, filePath string, a
 	}
 	defer util.CheckClose(file)
 
-	if err := t.Execute(file, settings); err != nil {
-		return err
-	}
-
-	return nil
+	err = t.Execute(file, settings)
+	return err
 }
 
-// getBackdropUploadDir will return a custom upload dir if defined, returning a default path if not.
-func getBackdropUploadDir(app *DdevApp) string {
-	if app.UploadDir == "" {
-		return "files"
-	}
-
-	return app.UploadDir
+// getBackdropUploadDirs will return the default paths.
+func getBackdropUploadDirs(_ *DdevApp) []string {
+	return []string{"files"}
 }
 
 // getBackdropHooks for appending as byte array.
@@ -168,15 +159,15 @@ func isBackdropApp(app *DdevApp) bool {
 
 // backdropPostImportDBAction emits a warning about moving configuration into place
 // appropriately in order for Backdrop to function properly.
-func backdropPostImportDBAction(app *DdevApp) error {
+func backdropPostImportDBAction(_ *DdevApp) error {
 	util.Warning("Backdrop sites require your config JSON files to be located in your site's \"active\" configuration directory. Please refer to the Backdrop documentation (https://backdropcms.org/user-guide/moving-backdrop-site) for more information about this process.")
 	return nil
 }
 
 // backdropImportFilesAction defines the Backdrop workflow for importing project files.
 // The Backdrop workflow is currently identical to the Drupal import-files workflow.
-func backdropImportFilesAction(app *DdevApp, importPath, extPath string) error {
-	destPath := app.GetHostUploadDirFullPath()
+func backdropImportFilesAction(app *DdevApp, uploadDir, importPath, extPath string) error {
+	destPath := app.calculateHostUploadDirFullPath(uploadDir)
 
 	// parent of destination dir should exist
 	if !fileutil.FileExists(filepath.Dir(destPath)) {

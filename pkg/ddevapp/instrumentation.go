@@ -1,24 +1,22 @@
 package ddevapp
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"github.com/denisbrodbeck/machineid"
-	"github.com/drud/ddev/pkg/dockerutil"
-	"github.com/drud/ddev/pkg/globalconfig"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/output"
-	"github.com/drud/ddev/pkg/util"
-	"github.com/drud/ddev/pkg/version"
-	"github.com/drud/ddev/pkg/versionconstants"
-	"gopkg.in/segmentio/analytics-go.v3"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ddev/ddev/pkg/dockerutil"
+	"github.com/ddev/ddev/pkg/globalconfig"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/output"
+	"github.com/ddev/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/version"
+	"github.com/ddev/ddev/pkg/versionconstants"
+	"github.com/denisbrodbeck/machineid"
+	"gopkg.in/segmentio/analytics-go.v3"
 )
 
 var hashedHostID string
@@ -26,8 +24,8 @@ var hashedHostID string
 // SegmentNoopLogger defines a no-op logger to prevent Segment log messages from being emitted
 type SegmentNoopLogger struct{}
 
-func (n *SegmentNoopLogger) Logf(format string, args ...interface{})   {}
-func (n *SegmentNoopLogger) Errorf(format string, args ...interface{}) {}
+func (n *SegmentNoopLogger) Logf(_ string, _ ...interface{})   {}
+func (n *SegmentNoopLogger) Errorf(_ string, _ ...interface{}) {}
 
 // ReportableEvents is the list of events that we choose to report specifically.
 // Excludes non-ddev custom commands.
@@ -41,8 +39,7 @@ func GetInstrumentationUser() string {
 
 // SetInstrumentationBaseTags sets the basic always-used tags for Segment
 func SetInstrumentationBaseTags() {
-	runTime := util.TimeTrack(time.Now(), "SetInstrumentationBaseTags")
-	defer runTime()
+	defer util.TimeTrack()()
 
 	if globalconfig.DdevGlobalConfig.InstrumentationOptIn {
 		dockerVersion, _ := dockerutil.GetDockerVersion()
@@ -68,18 +65,9 @@ func SetInstrumentationBaseTags() {
 	}
 }
 
-// getProjectHash combines the machine ID and project name and then
-// hashes the result, so we can end up with a unique project id
-func getProjectHash(projectName string) string {
-	ph := hmac.New(sha256.New, []byte(GetInstrumentationUser()+projectName))
-	_, _ = ph.Write([]byte("phash"))
-	return hex.EncodeToString(ph.Sum(nil))
-}
-
 // SetInstrumentationAppTags creates app-specific tags for Segment
 func (app *DdevApp) SetInstrumentationAppTags() {
-	runTime := util.TimeTrack(time.Now(), "SetInstrumentationAppTags")
-	defer runTime()
+	defer util.TimeTrack()()
 
 	ignoredProperties := []string{"approot", "hostname", "hostnames", "name", "router_status_log", "shortroot"}
 
@@ -91,7 +79,7 @@ func (app *DdevApp) SetInstrumentationAppTags() {
 		}
 		nodeps.InstrumentationTags[key] = fmt.Sprintf("%v", val)
 	}
-	nodeps.InstrumentationTags["ProjectID"] = getProjectHash(app.Name)
+	nodeps.InstrumentationTags["ProjectID"] = app.ProtectedID()
 }
 
 // SegmentUser does the enqueue of the Identify action, identifying the user
@@ -138,8 +126,7 @@ func SegmentEvent(client analytics.Client, hashedID string, event string) error 
 
 // SendInstrumentationEvents does the actual send to segment
 func SendInstrumentationEvents(event string) {
-	runTime := util.TimeTrack(time.Now(), "SendInstrumentationEvents")
-	defer runTime()
+	defer util.TimeTrack()()
 
 	if globalconfig.DdevGlobalConfig.InstrumentationOptIn && globalconfig.IsInternetActive() {
 		client, _ := analytics.NewWithConfig(versionconstants.SegmentKey, analytics.Config{

@@ -16,7 +16,7 @@ hooks:
 
 ## Supported Command Hooks
 
-* `pre-start`: Hooks into [`ddev start`](../basics/commands.md#start). Execute tasks before the project environment starts.
+* `pre-start`: Hooks into [`ddev start`](../usage/commands.md#start). Execute tasks before the project environment starts.
 
     !!!tip
         Only `exec-host` tasks can run during `pre-start` because the containers are not yet running. See [Supported Tasks](#supported-tasks) below.
@@ -25,8 +25,8 @@ hooks:
 * `pre-import-db` and `post-import-db`: Execute tasks before or after database import.
 * `pre-import-files` and `post-import-files`: Execute tasks before or after files are imported.
 * `pre-composer` and `post-composer`: Execute tasks before or after the `composer` command.
-* `pre-stop`, `pre-config`, `post-config`, `pre-exec`, `post-exec`, `pre-pause`, `post-pause`, `pre-pull`, `post-pull`, `pre-push`, `post-push`, `pre-snapshot`, `post-snapshot`, `pre-restore-snapshot`, `post-restore-snapshot`: Execute as the name suggests.
-* `post-stop`: Hooks into [`ddev stop`](../basics/commands.md#stop). Execute tasks after the project environment stopped.
+* `pre-stop`, `pre-config`, `post-config`, `pre-exec`, `post-exec`, `pre-pull`, `post-pull`, `pre-push`, `post-push`, `pre-snapshot`, `post-snapshot`, `pre-restore-snapshot`, `post-restore-snapshot`: Execute as the name suggests.
+* `post-stop`: Hooks into [`ddev stop`](../usage/commands.md#stop). Execute tasks after the project environment stopped.
 
     !!!tip
         Only `exec-host` tasks can run during `post-stop`. See [Supported Tasks](#supported-tasks) below.
@@ -86,7 +86,7 @@ Advanced usages may require running commands directly with explicit arguments. T
 ```yaml
 hooks:
   post-start:
-  - exec: 
+  - exec:
     exec_raw: [ls, -lR, /var/www/html]
 ```
 

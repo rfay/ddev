@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/drud/ddev/pkg/fileutil"
-	"github.com/drud/ddev/pkg/globalconfig"
-	"github.com/drud/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/fileutil"
+	"github.com/ddev/ddev/pkg/globalconfig"
+	"github.com/ddev/ddev/pkg/nodeps"
 	"github.com/stretchr/testify/require"
 
 	"os"
@@ -16,11 +16,11 @@ import (
 
 	"fmt"
 
-	"github.com/drud/ddev/pkg/ddevapp"
-	"github.com/drud/ddev/pkg/exec"
-	"github.com/drud/ddev/pkg/testcommon"
+	"github.com/ddev/ddev/pkg/ddevapp"
+	"github.com/ddev/ddev/pkg/exec"
+	"github.com/ddev/ddev/pkg/testcommon"
 	asrt "github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // TestCmdConfigHooks tests that pre-config and post-config hooks run
@@ -73,7 +73,7 @@ func TestConfigDescribeLocation(t *testing.T) {
 	})
 	out, err := exec.RunHostCommand(DdevBin, "config", "--docroot=.", "--project-name="+t.Name())
 	assert.NoError(err)
-	assert.Contains(string(out), "Configuring unrecognized codebase as project type 'php'")
+	assert.Contains(string(out), "Configuring unrecognized codebase as project of type 'php'")
 
 	// Now see if we can detect it
 	out, err = exec.RunHostCommand(DdevBin, "config", "--show-config-location")
@@ -127,7 +127,7 @@ func TestConfigWithSitenameFlagDetectsDocroot(t *testing.T) {
 	defer func() {
 		_, _ = exec.RunCommand(DdevBin, []string{"delete", "-Oy", "config-with-sitename"})
 	}()
-	assert.Contains(string(out), "Configuring a drupal6 codebase with docroot", nodeps.AppTypeDrupal6)
+	assert.Contains(string(out), "Configuring a 'drupal6' codebase with docroot", nodeps.AppTypeDrupal6)
 }
 
 // TestConfigSetValues sets all available configuration values using command flags, then confirms that the
@@ -177,20 +177,18 @@ func TestConfigSetValues(t *testing.T) {
 	additionalHostnames := strings.Join(additionalHostnamesSlice, ",")
 	additionalFQDNsSlice := []string{"abc.com", "123.pizza", "xyz.co.uk"}
 	additionalFQDNs := strings.Join(additionalFQDNsSlice, ",")
-	omitContainersSlice := []string{"dba", "ddev-ssh-agent"}
+	omitContainersSlice := []string{"ddev-ssh-agent"}
 	omitContainers := strings.Join(omitContainersSlice, ",")
 	webimageExtraPackagesSlice := []string{"php-bcmath", "php7.3-tidy"}
 	webimageExtraPackages := strings.Join(webimageExtraPackagesSlice, ",")
 	dbimageExtraPackagesSlice := []string{"netcat", "ncdu"}
 	dbimageExtraPackages := strings.Join(dbimageExtraPackagesSlice, ",")
 
-	uploadDir := filepath.Join("custom", "config", "path")
+	uploadDirsSlice := []string{"custom", "config", "path"}
 	webserverType := nodeps.WebserverApacheFPM
 	webImage := "custom-web-image"
 	webWorkingDir := "/custom/web/dir"
 	dbWorkingDir := "/custom/db/dir"
-	dbaWorkingDir := "/custom/dba/dir"
-	phpMyAdminPort := "5000"
 	mailhogPort := "5001"
 	projectTLD := "nowhere.example.com"
 	useDNSWhenPossible := false
@@ -213,19 +211,17 @@ func TestConfigSetValues(t *testing.T) {
 		fmt.Sprintf("--no-project-mount=%t", noProjectMount),
 		"--additional-hostnames", additionalHostnames,
 		"--additional-fqdns", additionalFQDNs,
-		"--upload-dir", uploadDir,
+		"--upload-dirs=" + strings.Join(uploadDirsSlice, ","),
 		"--webserver-type", webserverType,
 		"--web-image", webImage,
 		"--web-working-dir", webWorkingDir,
 		"--db-working-dir", dbWorkingDir,
-		"--dba-working-dir", dbaWorkingDir,
 		"--omit-containers", omitContainers,
 		"--host-db-port", hostDBPort,
 		"--host-webserver-port", hostWebserverPort,
 		"--host-https-port", hostHTTPSPort,
 		"--webimage-extra-packages", webimageExtraPackages,
 		"--dbimage-extra-packages", dbimageExtraPackages,
-		"--phpmyadmin-port", phpMyAdminPort,
 		"--mailhog-port", mailhogPort,
 		"--project-tld", projectTLD,
 		"--web-environment", webEnv,
@@ -233,6 +229,7 @@ func TestConfigSetValues(t *testing.T) {
 		"--default-container-timeout", strconv.FormatInt(int64(defaultContainerTimeout), 10),
 		fmt.Sprintf("--use-dns-when-possible=%t", useDNSWhenPossible),
 		"--timezone", timezone,
+		"--disable-upload-dirs-warning",
 	}
 
 	out, err := exec.RunHostCommand(DdevBin, args...)
@@ -263,15 +260,13 @@ func TestConfigSetValues(t *testing.T) {
 	assert.Equal(noProjectMount, app.NoProjectMount)
 	assert.Equal(additionalHostnamesSlice, app.AdditionalHostnames)
 	assert.Equal(additionalFQDNsSlice, app.AdditionalFQDNs)
-	assert.Equal(uploadDir, app.UploadDir)
+	assert.Equal(uploadDirsSlice, app.GetUploadDirs())
 	assert.Equal(webserverType, app.WebserverType)
 	assert.Equal(webImage, app.WebImage)
 	assert.Equal(webWorkingDir, app.WorkingDir["web"])
 	assert.Equal(dbWorkingDir, app.WorkingDir["db"])
-	assert.Equal(dbaWorkingDir, app.WorkingDir["dba"])
 	assert.Equal(webimageExtraPackagesSlice, app.WebImageExtraPackages)
 	assert.Equal(dbimageExtraPackagesSlice, app.DBImageExtraPackages)
-	assert.Equal(phpMyAdminPort, app.PHPMyAdminPort)
 	assert.Equal(mailhogPort, app.MailhogPort)
 	assert.Equal(useDNSWhenPossible, app.UseDNSWhenPossible)
 	assert.Equal(projectTLD, app.ProjectTLD)
@@ -280,6 +275,7 @@ func TestConfigSetValues(t *testing.T) {
 	assert.Equal(webEnv, app.WebEnvironment[0])
 	assert.Equal(nodejsVersion, app.NodeJSVersion)
 	assert.Equal(strconv.Itoa(defaultContainerTimeout), app.DefaultContainerTimeout)
+	assert.Equal(true, app.DisableUploadDirsWarning)
 
 	// Test that container images, working dirs and composer root dir can be unset with default flags
 	args = []string{
@@ -287,10 +283,8 @@ func TestConfigSetValues(t *testing.T) {
 		"--composer-root-default",
 		"--web-image-default",
 		"--db-image-default",
-		"--dba-image-default",
 		"--web-working-dir-default",
 		"--db-working-dir-default",
-		"--dba-working-dir-default",
 	}
 
 	_, err = exec.RunHostCommand(DdevBin, args...)
@@ -313,7 +307,6 @@ func TestConfigSetValues(t *testing.T) {
 		"--web-image", webImage,
 		"--web-working-dir", webWorkingDir,
 		"--db-working-dir", dbWorkingDir,
-		"--dba-working-dir", dbaWorkingDir,
 	}
 
 	_, err = exec.RunHostCommand(DdevBin, args...)

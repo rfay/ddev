@@ -1,9 +1,9 @@
 package version
 
 import (
-	exec2 "github.com/drud/ddev/pkg/exec"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/versionconstants"
+	exec2 "github.com/ddev/ddev/pkg/exec"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/versionconstants"
 	"github.com/stretchr/testify/require"
 	"os"
 	"runtime"
@@ -32,8 +32,6 @@ func TestGetVersionInfo(t *testing.T) {
 	assert.Contains(v["web"], versionconstants.WebTag)
 	assert.Contains(v["db"], versionconstants.DBImg)
 	assert.Contains(v["db"], nodeps.MariaDBDefaultVersion)
-	assert.Contains(v["dba"], versionconstants.DBAImg)
-	assert.Contains(v["dba"], versionconstants.DBATag)
 	assert.Equal(runtime.GOOS, v["os"])
 	assert.Equal(versionconstants.BUILDINFO, v["build info"])
 	assert.NotEmpty(v["docker-compose"])

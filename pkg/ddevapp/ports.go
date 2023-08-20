@@ -1,8 +1,8 @@
 package ddevapp
 
 import (
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/util"
 )
 
 // GetExposedPort returns the internal exposed port (as a string) for the given service.
@@ -15,8 +15,6 @@ func GetExposedPort(app *DdevApp, service string) string {
 			return "5432"
 		}
 		return "3306"
-	case "dba":
-		return "80"
 	case "mailhog":
 		return "8025"
 	case "web":

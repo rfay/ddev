@@ -3,12 +3,12 @@ package ddevapp
 import (
 	"fmt"
 	"github.com/Masterminds/sprig/v3"
-	"github.com/drud/ddev/pkg/dockerutil"
-	"github.com/drud/ddev/pkg/exec"
-	"github.com/drud/ddev/pkg/fileutil"
-	"github.com/drud/ddev/pkg/globalconfig"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/dockerutil"
+	"github.com/ddev/ddev/pkg/exec"
+	"github.com/ddev/ddev/pkg/fileutil"
+	"github.com/ddev/ddev/pkg/globalconfig"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/util"
 	"os"
 	"path"
 	"path/filepath"
@@ -31,27 +31,30 @@ func detectAppRouting(app *DdevApp) ([]TraefikRouting, error) {
 	// app.ComposeYaml["services"];
 	var table []TraefikRouting
 	if services, ok := app.ComposeYaml["services"]; ok {
-		for serviceName, s := range services.(map[interface{}]interface{}) {
-			service := s.(map[interface{}]interface{})
-			if env, ok := service["environment"].(map[interface{}]interface{}); ok {
+		for serviceName, s := range services.(map[string]interface{}) {
+			service := s.(map[string]interface{})
+			if env, ok := service["environment"].(map[string]interface{}); ok {
 				var virtualHost string
 				var ok bool
 				if virtualHost, ok = env["VIRTUAL_HOST"].(string); ok {
 					util.Debug("VIRTUAL_HOST=%v for %s", virtualHost, serviceName)
 				}
+				if virtualHost == "" {
+					continue
+				}
 				hostnames := strings.Split(virtualHost, ",")
-				if httpExpose, ok := env["HTTP_EXPOSE"].(string); ok {
+				if httpExpose, ok := env["HTTP_EXPOSE"].(string); ok && httpExpose != "" {
 					util.Debug("HTTP_EXPOSE=%v for %s", httpExpose, serviceName)
-					routeEntries, err := processHTTPExpose(serviceName.(string), httpExpose, false, hostnames)
+					routeEntries, err := processHTTPExpose(serviceName, httpExpose, false, hostnames)
 					if err != nil {
 						return nil, err
 					}
 					table = append(table, routeEntries...)
 				}
 
-				if httpsExpose, ok := env["HTTPS_EXPOSE"].(string); ok {
+				if httpsExpose, ok := env["HTTPS_EXPOSE"].(string); ok && httpsExpose != "" {
 					util.Debug("HTTPS_EXPOSE=%v for %s", httpsExpose, serviceName)
-					routeEntries, err := processHTTPExpose(serviceName.(string), httpsExpose, true, hostnames)
+					routeEntries, err := processHTTPExpose(serviceName, httpsExpose, true, hostnames)
 					if err != nil {
 						return nil, err
 					}
@@ -147,19 +150,21 @@ func pushGlobalTraefikConfig() error {
 	}
 
 	type traefikData struct {
-		App              *DdevApp
-		Hostnames        []string
-		PrimaryHostname  string
-		TargetCertsPath  string
-		RouterPorts      []string
-		UseLetsEncrypt   bool
-		LetsEncryptEmail string
+		App                *DdevApp
+		Hostnames          []string
+		PrimaryHostname    string
+		TargetCertsPath    string
+		RouterPorts        []string
+		UseLetsEncrypt     bool
+		LetsEncryptEmail   string
+		TraefikMonitorPort string
 	}
 	templateData := traefikData{
-		TargetCertsPath:  targetCertsPath,
-		RouterPorts:      determineRouterPorts(),
-		UseLetsEncrypt:   globalconfig.DdevGlobalConfig.UseLetsEncrypt,
-		LetsEncryptEmail: globalconfig.DdevGlobalConfig.LetsEncryptEmail,
+		TargetCertsPath:    targetCertsPath,
+		RouterPorts:        determineRouterPorts(),
+		UseLetsEncrypt:     globalconfig.DdevGlobalConfig.UseLetsEncrypt,
+		LetsEncryptEmail:   globalconfig.DdevGlobalConfig.LetsEncryptEmail,
+		TraefikMonitorPort: globalconfig.DdevGlobalConfig.TraefikMonitorPort,
 	}
 
 	traefikYamlFile := filepath.Join(sourceConfigDir, "default_config.yaml")
@@ -241,6 +246,8 @@ func configureTraefikForApp(app *DdevApp) error {
 	if err != nil {
 		return err
 	}
+
+	// hostnames here should be used only for creating the cert.
 	hostnames := app.GetHostnames()
 	// There can possibly be VIRTUAL_HOST entries which are not configured hostnames.
 	for _, r := range routingTable {
@@ -331,12 +338,14 @@ func configureTraefikForApp(app *DdevApp) error {
 		UseLetsEncrypt:  globalconfig.DdevGlobalConfig.UseLetsEncrypt,
 	}
 
-	// Convert wildcards like `*.<anything>` to `.*\.anything`
-	for _, hostname := range app.GetHostnames() {
-		if strings.HasPrefix(hostname, `*.`) {
-			hostname = `{subdomain:.+}` + strings.TrimPrefix(hostname, `*`)
+	// Convert externalHostnames wildcards like `*.<anything>` to `{subdomain:.+}.wild.ddev.site`
+	for i, v := range routingTable {
+		for j, h := range v.ExternalHostnames {
+			if strings.HasPrefix(h, `*.`) {
+				h = `{subdomain:.+}` + strings.TrimPrefix(h, `*`)
+				routingTable[i].ExternalHostnames[j] = h
+			}
 		}
-		templateData.Hostnames = append(templateData.Hostnames, hostname)
 	}
 
 	traefikYamlFile := filepath.Join(sourceConfigDir, app.Name+".yaml")
@@ -355,7 +364,7 @@ func configureTraefikForApp(app *DdevApp) error {
 	} else {
 		f, err := os.Create(traefikYamlFile)
 		if err != nil {
-			util.Failed("failed to create traefik config file: %v", err)
+			return fmt.Errorf("failed to create traefik config file: %v", err)
 		}
 		t, err := template.New("traefik_config_template.yaml").Funcs(sprig.TxtFuncMap()).ParseFS(bundledAssets, "traefik_config_template.yaml")
 		if err != nil {

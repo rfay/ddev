@@ -1,15 +1,8 @@
 #!/bin/bash
 set -eu -o pipefail
 
-sudo apt update && sudo apt install -y curl wget xdg-utils
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://pkg.ddev.com/apt/gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/ddev.gpg > /dev/null
+echo "deb [signed-by=/etc/apt/keyrings/ddev.gpg] https://pkg.ddev.com/apt/ * *" | sudo tee /etc/apt/sources.list.d/ddev.list
+sudo apt update >/dev/null && sudo apt install -y ddev xdg-utils >/dev/null
 
-# This will eventually move to a simple apt install
-sudo apt remove ddev >/dev/null 2>&1 || true
-DDEV_URL=https://nightly.link/drud/ddev/actions/artifacts/485751722.zip
-echo "Installing DDEV"
-
-cd /tmp && curl -s -L -O ${DDEV_URL}
-zipball=$(basename ${DDEV_URL})
-unzip ${zipball}
-chmod +x ddev && sudo mv ddev /usr/local/bin
-rm -f ${zipball}

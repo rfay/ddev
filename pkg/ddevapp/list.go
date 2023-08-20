@@ -2,41 +2,63 @@ package ddevapp
 
 import (
 	"bytes"
-	"github.com/drud/ddev/pkg/globalconfig"
-	"github.com/drud/ddev/pkg/nodeps"
-	"github.com/drud/ddev/pkg/output"
-	"github.com/drud/ddev/pkg/styles"
-	"github.com/drud/ddev/pkg/util"
-	"github.com/drud/ddev/pkg/versionconstants"
+	"time"
+
+	"github.com/ddev/ddev/pkg/globalconfig"
+	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/output"
+	"github.com/ddev/ddev/pkg/styles"
+	"github.com/ddev/ddev/pkg/util"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"strings"
-	"time"
 )
+
+// ListCommandSettings conains all filters and settings of the `ddev list` command
+type ListCommandSettings struct {
+	// ActiveOnly, if set, shows only running projects
+	ActiveOnly bool
+
+	// Continuous, if set, makes list continuously output
+	Continuous bool
+
+	// WrapListTable allow that the text in the table of ddev list wraps instead of cutting it to fit the terminal width
+	WrapTableText bool
+
+	// ContinuousSleepTime is time to sleep between reads with --continuous
+	ContinuousSleepTime int
+
+	// TypeFilter contains the project type which is then used to filter the project list
+	TypeFilter string
+}
 
 // List provides the functionality for `ddev list`
 // activeOnly if true only shows projects that are currently docker containers
 // continuous if true keeps requesting and outputting continuously
 // wrapTableText if true the text is wrapped instead of truncated to fit the row length
 // continuousSleepTime is the time between reports
-func List(activeOnly bool, continuous bool, wrapTableText bool, continuousSleepTime int) {
-	runTime := util.TimeTrack(time.Now(), "ddev list")
-	defer runTime()
+func List(settings ListCommandSettings) {
+	defer util.TimeTrack()()
 
 	var out bytes.Buffer
 
 	for {
-		apps, err := GetProjects(activeOnly)
+		apps, err := GetProjects(settings.ActiveOnly)
 		if err != nil {
 			util.Failed("failed getting GetProjects: %v", err)
 		}
+
 		appDescs := make([]map[string]interface{}, 0)
 
 		if len(apps) < 1 {
 			output.UserOut.WithField("raw", appDescs).Println("No ddev projects were found.")
 		} else {
-			t := CreateAppTable(&out, wrapTableText)
+			t := CreateAppTable(&out, settings.WrapTableText)
 			for _, app := range apps {
+				// Filter by project type
+				if settings.TypeFilter != "" && settings.TypeFilter != app.Type {
+					continue
+				}
+
 				desc, err := app.Describe(true)
 				if err != nil {
 					util.Error("Failed to describe project %s: %v", app.GetName(), err)
@@ -50,11 +72,9 @@ func List(activeOnly bool, continuous bool, wrapTableText bool, continuousSleepT
 			if nodeps.ArrayContainsString(globalconfig.DdevGlobalConfig.OmitContainersGlobal, globalconfig.DdevRouterContainer) {
 				extendedRouterStatus = "disabled"
 			}
-			routerImage := versionconstants.GetRouterImage()
-			routerImage = strings.Replace(routerImage, ":", ": ", 1)
-			routerImage = strings.Replace(routerImage, "drud/ddev-router", "original", 1)
+			router := globalconfig.DdevGlobalConfig.Router
 			t.AppendFooter(table.Row{
-				"Router", routerStatus, "~/.ddev", globalconfig.GetRouterURL(), routerImage},
+				"Router", routerStatus, "~/.ddev", globalconfig.GetRouterURL(), router},
 			)
 			t.Render()
 			output.UserOut.WithField("raw", appDescs).Print(out.String())
@@ -69,11 +89,11 @@ func List(activeOnly bool, continuous bool, wrapTableText bool, continuousSleepT
 			}
 		}
 
-		if !continuous {
+		if !settings.Continuous {
 			break
 		}
 
-		time.Sleep(time.Duration(continuousSleepTime) * time.Second)
+		time.Sleep(time.Duration(settings.ContinuousSleepTime) * time.Second)
 	}
 }
 
