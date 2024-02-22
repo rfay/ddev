@@ -4,8 +4,10 @@ import (
 	"github.com/ddev/ddev/cmd/ddev/cmd"
 	"github.com/ddev/ddev/pkg/amplitude"
 	"github.com/ddev/ddev/pkg/util"
+	"net/http"
 	"os"
 	"runtime"
+	"runtime/pprof"
 )
 
 func main() {
@@ -28,8 +30,8 @@ func main() {
 	//	panic(err)
 	//}
 	//defer f.Close()
-	//
-	//// Start CPU profiling
+
+	// Start CPU profiling
 	//if err := pprof.StartCPUProfile(f); err != nil {
 	//	panic(err)
 	//}
@@ -38,8 +40,13 @@ func main() {
 	defer func() {
 		numGoroutines := runtime.NumGoroutine()
 		util.Debug("number of goroutines at exit: %v", numGoroutines)
-		//_ = pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
+		p := pprof.Lookup("goroutine")
+		c := p.Count()
+		util.Debug("c=%v", c)
+		_ = p.WriteTo(os.Stdout, 1)
 	}()
+
+	http.DefaultTransport.(*http.Transport).DisableKeepAlives = true
 
 	// Initialization is currently done before via init() func somewhere while
 	// creating the ddevapp. This should be cleaned up.

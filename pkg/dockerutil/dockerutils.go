@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"runtime/pprof"
 	"sort"
 	"strconv"
 	"strings"
@@ -674,12 +675,14 @@ func ComposeCmd(cmd *ComposeCmdOpts) (string, string, error) {
 		close(stopOut)
 	}()
 
-	go func() {
-		for inErr.Scan() {
-			chanErr <- inErr.Text()
-		}
-		close(stopErr)
-	}()
+	pprof.Do(context.Background(), pprof.Labels("item", "ComposeCmd", "stream", "stderr", "args", strings.Join(arg, " ")), func(ctx context.Context) {
+		go func(ctx context.Context) {
+			for inErr.Scan() {
+				chanErr <- inErr.Text()
+			}
+			close(stopErr)
+		}(ctx)
+	})
 
 	for !endOut || !endErr {
 		select {

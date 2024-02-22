@@ -368,7 +368,8 @@ func GetLocalHTTPResponse(t *testing.T, rawurl string, timeoutSecsAry ...int) (s
 	// Use ServerName: fakeHost to verify basic usage of certificate.
 	// This technique is from https://stackoverflow.com/a/47169975/215713
 	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{ServerName: fakeHost},
+		TLSClientConfig:   &tls.Config{ServerName: fakeHost},
+		DisableKeepAlives: true,
 	}
 
 	// Do not follow redirects, https://stackoverflow.com/a/38150816/215713
