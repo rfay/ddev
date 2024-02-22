@@ -29,7 +29,11 @@ func NewAmplitudeHTTPClient(
 		payloadOptions: payloadOptions,
 		httpClient: &http.Client{
 			Timeout: connectionTimeout,
+			Transport: &http.Transport{
+				DisableKeepAlives: true,
+			},
 		},
+
 	}
 }
 
