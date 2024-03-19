@@ -1,0 +1,78 @@
+name: Add download link to PR
+on:
+  workflow_run:
+    workflows: ['PR Build']
+    types: [completed]
+env:
+  HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  pr_comment:
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          # This snippet is public-domain, combined from
+          # https://github.com/oprypin/nightly.link/blob/master/.github/workflows/pr-comment.yml
+          # https://github.com/AKSW/submission.d2r2.aksw.org/blob/main/.github/workflows/pr-comment.yml
+          script: |
+            // get a PR number
+            const {owner, repo} = context.repo;
+            const pullHeadSHA = '${{github.event.workflow_run.head_sha}}';
+            const prNumber = await (async () => {
+              for await (const {data} of github.paginate.iterator(github.rest.pulls.list, {owner, repo})) {
+                for (const pull of data) {
+                  if (pull.head.sha === pullHeadSHA) {
+                    return pull.number;
+                  }
+                }
+              }
+            })();
+            if (!prNumber) {
+              return core.error("This workflow doesn't match any pull requests!");
+            }
+
+            // collect all artifacts
+            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id,
+            });
+            if (!(allArtifacts && allArtifacts.data && allArtifacts.data.artifacts && allArtifacts.data.artifacts.length)) {
+              return core.error(`No artifacts found`);
+            }
+
+            let body = allArtifacts.data.artifacts.reduce((acc, item) => {
+              if (item.name === "assets") return acc;
+              acc += `\n* [${item.name}.zip](https://nightly.link/${context.repo.owner}/${context.repo.repo}/actions/artifacts/${item.id}.zip)`;
+              return acc;
+            }, 'Download the artifacts for this pull request:\n');
+
+            body += `\n\n See [Testing a PR](https://ddev.readthedocs.io/en/latest/developers/building-contributing/#testing-a-pr)` + `.`;
+
+            body += `\n\n You can also [test this PR on Gitpod](https://gitpod.io/?autostart=true#https://github.com/${{context.repo_name}}/pull/${{ github.event.pull_request.number }}` + `.`;
+
+            // insert or update a bot comment
+            async function upsertComment(owner, repo, issue_number, purpose, body) {
+              const {data: comments} = await github.rest.issues.listComments(
+                {owner, repo, issue_number});
+
+              const marker = `<!-- bot: ${purpose} -->`;
+              body = marker + "\n" + body;
+
+              const existing = comments.filter((c) => c.body.includes(marker));
+              if (existing.length > 0) {
+                const last = existing[existing.length - 1];
+                core.info(`Updating comment ${last.id}`);
+                await github.rest.issues.updateComment({
+                  owner, repo,
+                  body,
+                  comment_id: last.id,
+                });
+              } else {
+                core.info(`Creating a comment in issue / PR #${issue_number}`);
+                await github.rest.issues.createComment({issue_number, body, owner, repo});
+              }
+            }
+            await upsertComment(owner, repo, prNumber, "nightly-link", body);
