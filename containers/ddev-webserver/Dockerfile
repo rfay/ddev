@@ -24,15 +24,6 @@ RUN /sbin/mkhomedir_helper www-data
 # symfony cli
 RUN curl -1sLf 'https://dl.cloudsmith.io/public/symfony/stable/setup.deb.sh' | bash
 
-RUN apt-get -qq update
-RUN DEBIAN_FRONTEND=noninteractive apt-get -qq install -y -o Dpkg::Options::="--force-confold" --no-install-recommends --no-install-suggests -y libcap2-bin locales-all pv supervisor symfony-cli
-
-RUN DEBIAN_FRONTEND=noninteractive apt-get -qq install -t trixie -o Dpkg::Options::="--force-confold" --no-install-recommends --no-install-suggests -y sqlite3
-
-# Arbitrary user needs to be able to bind to privileged ports (for nginx and apache2)
-RUN setcap CAP_NET_BIND_SERVICE=+eip /usr/sbin/nginx
-RUN setcap CAP_NET_BIND_SERVICE=+eip /usr/sbin/apache2
-
 # magerun and magerun2 for magento
 RUN curl --fail -sSL https://files.magerun.net/n98-magerun-latest.phar -o /usr/local/bin/magerun && chmod 777 /usr/local/bin/magerun
 RUN curl --fail -sSL https://raw.githubusercontent.com/netz98/n98-magerun/develop/res/autocompletion/bash/n98-magerun.phar.bash -o /etc/bash_completion.d/n98-magerun.phar
@@ -46,6 +37,16 @@ ADD ddev-webserver-base-scripts /
 
 # /usr/local/bin may need to be updated by start.sh, etc
 RUN chmod -f ugo+rwx /usr/local/bin /usr/local/bin/composer
+
+RUN apt-get -qq update
+RUN DEBIAN_FRONTEND=noninteractive apt-get -qq install -y -o Dpkg::Options::="--force-confold" --no-install-recommends --no-install-suggests -y libcap2-bin locales-all pv supervisor symfony-cli
+# Add from trixie/debian testing
+RUN DEBIAN_FRONTEND=noninteractive apt-get -qq install -t trixie -o Dpkg::Options::="--force-confold" --no-install-recommends --no-install-suggests -y sqlite3
+
+# Arbitrary user needs to be able to bind to privileged ports (for nginx and apache2)
+RUN setcap CAP_NET_BIND_SERVICE=+eip /usr/sbin/nginx
+RUN setcap CAP_NET_BIND_SERVICE=+eip /usr/sbin/apache2
+
 # END ddev-webserver-base
 
 
@@ -86,7 +87,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -qq install -o Dpkg::Options::="--for
     python3-psycopg2 \
     python3-venv \
     rsync \
-    sqlite3 \
     sudo \
     telnet \
     unzip \
@@ -222,7 +222,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -qq install -o Dpkg::Options::="--for
     openssh-client \
     patch \
     rsync \
-    sqlite3 \
     unzip \
     zip
 
