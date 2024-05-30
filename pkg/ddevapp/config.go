@@ -557,7 +557,7 @@ func (app *DdevApp) DockerComposeFullRenderedYAMLPath() string {
 	return app.GetConfigPath(".ddev-docker-compose-full.yaml")
 }
 
-// GetHostname returns the primary hostname of the app.
+// GetHostname returns the primary FQDN/hostname of the app.
 func (app *DdevApp) GetHostname() string {
 	return strings.ToLower(app.Name) + "." + app.ProjectTLD
 }
@@ -1396,7 +1396,7 @@ func PrepDdevDirectory(app *DdevApp) error {
 
 		log.WithFields(log.Fields{
 			"directory": dir,
-		}).Debug("Config Directory does not exist, attempting to create.")
+		}).Debug("Creating new project .ddev directory")
 
 		err = os.MkdirAll(dir, 0755)
 		if err != nil {

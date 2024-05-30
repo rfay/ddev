@@ -59,8 +59,19 @@ func getRequestedProjectsExtended(names []string, all bool, withNonExisting bool
 		// Otherwise, error.
 		if requestedProjectsMap[name], exists = allProjectMap[name]; !exists {
 			p := globalconfig.GetProject(name)
+			app := &ddevapp.DdevApp{Name: name}
+			if p.AppRoot != "" {
+				app, _ = ddevapp.NewApp(p.AppRoot, true)
+			}
+			switch {
+			// The odd case where name has been changed in config.yaml
+			// but not in global project_list.yaml
+			case app.Name != name:
+
+			}
 			if p != nil && p.AppRoot != "" {
-				requestedProjectsMap[name] = &ddevapp.DdevApp{Name: name, AppRoot: p.AppRoot}
+				app, _ := ddevapp.NewApp(p.AppRoot, true)
+				requestedProjectsMap[name] = app
 			} else if withNonExisting {
 				requestedProjectsMap[name] = &ddevapp.DdevApp{Name: name}
 			} else {
