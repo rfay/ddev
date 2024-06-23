@@ -3,6 +3,7 @@
 # are responsible for maintaining this file. DDEV will not then
 # update it, for example if you add `additional_hostnames`, etc.
 
+{{$top := .}}
 http:
   routers:
     {{ $appname := .App.Name}}{{ range $s := .RoutingTable }}
