@@ -2,6 +2,11 @@
 # If you remove the ddev-generated line above you
 # are responsible for maintaining this file. DDEV will not then
 # update it, for example if you add `additional_hostnames`, etc.
+# However, it is now unnecessary and imprudent to take control of
+# this file, as there is now a dynamic merge mechanism. To use it
+# create <project>/.ddev/traefik/dynamic_config.*.yaml files which
+# will then be merged in alphanumeric order. See the readme in the
+# /traefik directory for more information
 
 http:
   routers:
@@ -16,10 +21,9 @@ http:
       rule: Host({{ range $i, $h := $s.ExternalHostnames }}{{if $i}}, {{end}}`^{{$h | replace "." "\\."}}$`{{end}})
       {{ end }}
       service: "{{$appname}}-{{$s.Service.InternalServiceName}}-{{$s.Service.InternalServicePort}}"
+      middlewares: []
       ruleSyntax: v3
       tls: false
-      # middlewares:
-      #   - "{{ $.App.Name }}-redirectHttps"
     {{ end }}{{ end }}
     {{ range $s := .RoutingTable }}
       {{- if $s.HTTPS -}}
@@ -32,6 +36,7 @@ http:
       rule: Host({{ range $i, $h := $s.ExternalHostnames }}{{- if $i -}}, {{- end -}}`^{{$h | replace "." "\\."}}$`{{end}})
       {{ end }}
       service: "{{$appname}}-{{$s.Service.InternalServiceName}}-{{$s.Service.InternalServicePort}}"
+      middlewares: []
       ruleSyntax: v3
       {{ if not $.UseLetsEncrypt }}
       tls: true
@@ -42,10 +47,6 @@ http:
     {{ end }}
 
   middlewares:
-    {{ $.App.Name }}-redirectHttps:
-      redirectScheme:
-        scheme: https
-        permanent: true
 
   services:
     {{$appname := .App.Name}}
