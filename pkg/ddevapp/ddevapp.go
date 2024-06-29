@@ -1626,7 +1626,7 @@ func (app *DdevApp) CheckExistingAppInApproot() error {
 	pList := globalconfig.GetGlobalProjectList()
 	for name, v := range pList {
 		if app.AppRoot == v.AppRoot && name != app.Name {
-			return fmt.Errorf(`this project root '%s' already contains a project named '%s'. You may want to remove the existing project with "ddev stop --unlist %s"`, v.AppRoot, name, name)
+			return fmt.Errorf(`this project root '%s' already contains a project named '%s'. You may want to remove the existing project with "ddev stop --unlist %s"`, v.AppRoot, app.Name, app.Name)
 		}
 	}
 	return nil
