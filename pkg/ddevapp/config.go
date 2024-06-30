@@ -257,12 +257,6 @@ func (app *DdevApp) WriteConfig() error {
 		return err
 	}
 
-	// Allow project-specific post-config action
-	err = appcopy.PostConfigAction()
-	if err != nil {
-		return err
-	}
-
 	// Write example Dockerfiles into build directories
 	contents := []byte(`
 #ddev-generated
@@ -289,6 +283,27 @@ RUN echo "Built on $(date)" > /build-date.txt
 		return err
 	}
 
+	
+	//write example Traefik .middleware-template.yaml.example. These two configurations are for turning absolute static resource urls into relative paths
+	data, err := bundledAssets.ReadFile("traefik_dynamic_middleware_template.yaml")
+	if err != nil {
+		// Handle error (e.g., file not found in embedded FS)
+		log.Fatal(err)
+	}
+
+	err = os.WriteFile(app.GetConfigPath(".middleware-template.yaml.example"), data, 0644)
+	if err != nil {
+		return err
+	}
+	
+	// Allow project-specific post-config action
+	err = appcopy.PostConfigAction()
+	if err != nil {
+		return err
+	}
+
+	
+	
 	return nil
 }
 
