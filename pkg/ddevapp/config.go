@@ -285,8 +285,18 @@ RUN echo "Built on $(date)" > /build-date.txt
 
 	
 	//write example Traefik .middleware-template.yaml.example. These two configurations are for turning absolute static resource urls into relative paths
-	
-	contents = []byte(`{{ $webEnv := .App.WebEnvironment }}
+	data, err := bundledAssets.ReadFile("traefik_dynamic_middleware_template.yaml")
+	if err != nil {
+		// Handle error (e.g., file not found in embedded FS)
+		log.Fatal(err)
+	}
+
+	err = os.WriteFile(app.GetConfigPath(".middleware-template.yaml.example"), data, 0644)
+	if err != nil {
+		return err
+	}
+
+	/* contents = []byte(`{{ $webEnv := .App.WebEnvironment }}
 relative-location-header:
   plugin:
     rewrite-response-headers:
@@ -328,12 +338,12 @@ relative-urls-body:
         # checkContentEncoding is a boolean. If true, the Content-Encoding header will be checked for the encoding
         checkContentEncoding: true
 
-`)
+`) */
 	
-	err = os.WriteFile(app.GetConfigPath(".middleware-template.yaml.example"), contents, 0644)
+	/* err = os.WriteFile(app.GetConfigPath(".middleware-template.yaml.example"), contents, 0644)
 	if err != nil {
 		return err
-	}
+	} */
 	
 	
 	// Allow project-specific post-config action
