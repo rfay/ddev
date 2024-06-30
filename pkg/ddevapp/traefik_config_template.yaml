@@ -3,6 +3,7 @@
 # are responsible for maintaining this file. DDEV will not then
 # update it, for example if you add `additional_hostnames`, etc.
 
+{{$top := .}}
 http:
   routers:
     {{ $appname := .App.Name}}{{ range $s := .RoutingTable }}
@@ -17,8 +18,10 @@ http:
       {{ end }}
       service: "{{$appname}}-{{$s.Service.InternalServiceName}}-{{$s.Service.InternalServicePort}}"
       tls: false
-      # middlewares:
+      middlewares:
       #   - "{{ $.App.Name }}-redirectHttps"
+      {{- range $top.Middlewares.Middleware}}
+        - {{$appname}}-{{.Name}}{{ end -}}
     {{ end }}{{ end }}
     {{ range $s := .RoutingTable }}
       {{- if $s.HTTPS -}}
@@ -44,6 +47,9 @@ http:
       redirectScheme:
         scheme: https
         permanent: true
+    {{-range .Middlewares.Middleware}}
+    {{ $.App.Name }}-{{.Name}}:
+      {{.Body}}{{end}}
 
   services:
     {{$appname := .App.Name}}
