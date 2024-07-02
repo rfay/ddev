@@ -361,15 +361,15 @@ func configureTraefikForApp(app *DdevApp) error {
 		}
 	}
 
-	// Middleware holds the name and the body (as a YAML string) of a plugin configuration.
-	type Middleware struct {
+	// Extension holds the name and the body (as a YAML string) of a plugin configuration.
+	type Extension struct {
 		Name string
 		Body string
 	}
-
-	// Middlewares holds all plugin configurations.
-	type Middlewares struct {
-		Middleware []Middleware
+	
+	type ExtensionsConfig struct {
+		MiddlewareAssignments map[string]interface{} `yaml:"middlewareAssignments"`
+		MiddlewareDefinitions map[string]interface{} `yaml:"middlewareDefinitions"`
 	}
 	
 	type traefikData struct {
@@ -379,7 +379,7 @@ func configureTraefikForApp(app *DdevApp) error {
 		TargetCertsPath 	string
 		RoutingTable    	[]TraefikRouting
 		UseLetsEncrypt  	bool
-		Middlewares   		Middlewares
+		Extensions   		ExtensionsConfig
 	}
 	templateData := traefikData{
 		App:             	app,
@@ -391,73 +391,66 @@ func configureTraefikForApp(app *DdevApp) error {
 	}
 	
 
-	// The following block reads the project/.ddev/middleware.yaml file, fills any template placeholders, and populates the Middleware struct. Will later be added to templateData, to be used in generating the final .ddev/traefik/config/project.yaml file. This ultimately allows traefik middleware plugins to be seamlessly used in the DDEV Traefik Router on a per-project basis. Add-ons can inject their middlewares as-needed
+	// The following block reads the project/.ddev/traefik/traefik-dynamic-config-extensions-template.yaml file, fills any template placeholders in it with templateData, and populates the Extension struct. Will later be added to templateData, to be used in generating the final .ddev/traefik/config/project.yaml file. This ultimately allows traefik extension plugins to be seamlessly used in the DDEV Traefik Router on a per-project basis. Add-ons can inject their extensions as-needed
 	
-	middlewareYamlFilePath := templateData.App.AppRoot + "/.ddev/.middleware-template.yaml"
+	extensionsYamlFilePath := projectTraefikDir + "/.traefik-dynamic-config-extensions-template.yaml"
 
-	//Read middleware.yaml
-	rawMiddlewareData, err := os.ReadFile(middlewareYamlFilePath)
+	//Read extension.yaml file
+	rawExtensionsData, err := os.ReadFile(extensionsYamlFilePath)
 	if err != nil {
-		fmt.Printf("Failed to read Middleware YAML file: %s\n", err)
-		os.Exit(1)
-	}
-	
-	// Create a new template and parse the YAML string into it
-	tmpl, err := template.New("middleware").Funcs(getTemplateFuncMap()).Parse(string(rawMiddlewareData))
-	if err != nil {
-		fmt.Printf("Error parsing template: %s\n", err)
-		os.Exit(1)
-	}
-	
-	// Execute the template with the replacement data
-	var processedYAML bytes.Buffer
-	err = tmpl.Execute(&processedYAML, templateData)
-	if err != nil {
-		fmt.Printf("Error executing template: %s\n", err)
-		os.Exit(1)
-	}
-
-	// Unmarshal yaml plugin configs to intermediate map
-	rawMiddlewareConfig := make(map[string]interface{})
-	err = yaml.Unmarshal(processedYAML.Bytes(), &rawMiddlewareConfig)
-	if err != nil {
-		fmt.Printf("Error unmarshaling YAML: %s\n", err)
-		os.Exit(1)
-	}
-	
-	var middlewareData Middlewares
-	
-	for name, body := range rawMiddlewareConfig {
-		
-		// Marshal the body back to a YAML string.
-		bodyYAML, err := yaml.Marshal(body)
+		fmt.Printf("Failed to read Extension YAML file. Probably doesn't exist: %s\n", err)
+	} else {
+		// Create a new template and parse the YAML string into it
+		tmpl, err := template.New("extensions").Funcs(getTemplateFuncMap()).Parse(string(rawExtensionsData))
 		if err != nil {
-			fmt.Printf("Error marshaling plugin body: %s\n", err)
-			continue
+			return fmt.Errorf("error parsing template: %s", err)
 		}
 		
+		// Execute the template with the replacement data
+		var processedYAML bytes.Buffer
+		err = tmpl.Execute(&processedYAML, templateData)
+		if err != nil {
+			return fmt.Errorf("error executing template: %s", err)
+		}
 		
-		// Prepend each line with 4 spaces for indentation. Kludge to solve weird issue with lines 2+ losing an indent
-		lines := strings.Split(string(bodyYAML), "\n")
-		for i, line := range lines {
-			if i > 0 {
-				lines[i] = "    " + line
+		// Unmarshal yaml plugin configs to intermediate map
+		var extensionsConfig ExtensionsConfig
+		err = yaml.Unmarshal(processedYAML.Bytes(), &extensionsConfig)
+		if err != nil {
+			return fmt.Errorf("error unmarshaling YAML: %s", err)
+		}
+
+		for name, body := range extensionsConfig.MiddlewareDefinitions {
+			
+			// Marshal the body back to a YAML string.
+			bodyYAML, err := yaml.Marshal(body)
+			if err != nil {
+				fmt.Printf("Error marshaling plugin body: %s\n", err)
+				continue
 			}
+			
+			// Prepend each line with 4 spaces for indentation. Kludge to solve weird issue with lines 2+ losing an indent
+			lines := strings.Split(string(bodyYAML), "\n")
+			for i, line := range lines {
+				if i > 0 {
+					lines[i] = "    " + line
+				}
+			}
+			
+			// Join the lines back into a single string.
+			indentedBodyYAML := strings.Join(lines, "\n")
+			
+			pluginConfig := Extension{
+				Name: name,
+				Body: string(indentedBodyYAML),
+			}
+			
+			extensionsConfig.MiddlewareDefinitions[name] = pluginConfig
 		}
-
-		// Join the lines back into a single string.
-		indentedBodyYAML := strings.Join(lines, "\n")
-
-		pluginConfig := Middleware{
-			Name: name,
-			Body: string(indentedBodyYAML),
-		}
-		middlewareData.Middleware = append(middlewareData.Middleware, pluginConfig)
+		
+		// Add the extracted, template-populated and manipulated extension.yaml data to the templateData struct
+		templateData.Extensions = extensionsConfig
 	}
-	
-	// Add the extracted, template-populated and manipulated middleware.yaml to the templateData struct
-	templateData.Middlewares = middlewareData
-	
 
 	// Convert externalHostnames wildcards like `*.<anything>` to `{subdomain:.+}.wild.ddev.site`
 	for i, v := range routingTable {

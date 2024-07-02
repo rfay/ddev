@@ -8,7 +8,8 @@ http:
   routers:
     {{ $appname := .App.Name}}{{ range $s := .RoutingTable }}
     {{- if not $s.HTTPS -}}
-    {{ $appname }}-{{ $s.Service.InternalServiceName }}-{{ $s.Service.InternalServicePort }}-http:
+    {{ $routerName := print $appname "-" $s.Service.InternalServiceName "-" $s.Service.InternalServicePort "-http" }}
+    {{ $routerName }}:
       entrypoints:
         - http-{{$s.ExternalPort}}
       {{- if not $.UseLetsEncrypt -}}{{/* Let's Encrypt only works with Host(), but we need HostRegexp() for wildcards*/}}
@@ -17,13 +18,20 @@ http:
       rule: Host({{ range $i, $h := $s.ExternalHostnames }}{{if $i}}, {{end}}`{{$h}}`{{end}})
       {{ end }}
       service: "{{$appname}}-{{$s.Service.InternalServiceName}}-{{$s.Service.InternalServicePort}}"
+      middlewares:
+      {{- $middlewares := index $top.Extensions.MiddlewareAssignments $routerName }}
+      {{- if $middlewares }}
+        {{- range $middlewares }}
+        - {{ . }}
+        {{- end }}
+      {{- else }} []
+      {{- end }}
       tls: false
-      # middlewares:
-      #   - "{{ $.App.Name }}-redirectHttps"
     {{ end }}{{ end }}
     {{ range $s := .RoutingTable }}
       {{- if $s.HTTPS -}}
-    {{$appname}}-{{$s.Service.InternalServiceName}}-{{$s.Service.InternalServicePort}}-https:
+    {{ $routerName := print $appname "-" $s.Service.InternalServiceName "-" $s.Service.InternalServicePort "-https" }}
+    {{ $routerName }}:
       entrypoints:
         - http-{{$s.ExternalPort}}
       {{- if not $.UseLetsEncrypt -}}{{/* Let's Encrypt only works with Host(), but we need HostRegexp() for wildcards*/}}
@@ -33,6 +41,14 @@ http:
       {{ end }}
       service: "{{$appname}}-{{$s.Service.InternalServiceName}}-{{$s.Service.InternalServicePort}}"
       {{ if not $.UseLetsEncrypt }}
+      middlewares:
+      {{- $middlewares := index $top.Extensions.MiddlewareAssignments $routerName }}
+      {{- if $middlewares }}
+        {{- range $middlewares }}
+        - {{ . }}
+        {{- end }}
+      {{- else }} []
+      {{- end }}
       tls: true
       {{ else }}
       tls:
@@ -41,10 +57,10 @@ http:
     {{ end }}
 
   middlewares:
-    {{ $.App.Name }}-redirectHttps:
-      redirectScheme:
-        scheme: https
-        permanent: true
+    {{- range .Extensions.MiddlewareDefinitions}}
+    {{.Name}}:
+      {{.Body -}}
+    {{- end}}
 
   services:
     {{$appname := .App.Name}}

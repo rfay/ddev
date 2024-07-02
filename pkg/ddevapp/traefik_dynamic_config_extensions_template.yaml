@@ -1,0 +1,62 @@
+# In order to use Traefik Middleware plugins that are defined globally in ~/.ddev/traefik/static_config.middleware_plugins.yaml you must insert here the dynamic YAML config provided by the plugin page->Install Plugin at https://plugins.traefik.io/plugins 
+# You can remove or change the examples here. But it is crucial to follow their format
+# In particular, within the middlewareAssignments section, you must add the plugin name to the routers that you want to use it in. Make sure to include the {{ .App.Name }}- portion as that will target the current project's routers
+# Likewise, you must prepend {{ .App.Name }}- to the plugin name within the middlewareDefinitions: section. These will be added in their entirety to the http.middlewares node in the /.ddev/traefik/config/<project>.yaml file that is dynamically re-generated at `ddev start`
+# You can try just running the examples as-is and inspect the <project>.yaml file that is generated to see what the final outcome should look like
+# Finally, you can debug it by going to http://localhost:10999/dashboard/ and seeing if there were any errors for Routers or Middleware. You can click on any that are red to see the error message. 
+
+{{ $webEnv := .App.WebEnvironment }}
+middlewareAssignments:
+  {{ .App.Name }}-web-80-http:
+      - {{ .App.Name }}-redirectHttps
+      - {{ .App.Name }}-relative-location-header
+      - {{ .App.Name }}-relative-body-urls
+  {{ .App.Name }}-web-80-https:
+      - {{ .App.Name }}-relative-location-header
+      - {{ .App.Name }}-relative-body-urls
+
+middlewareDefinitions:
+  {{ .App.Name }}-redirectHttps:
+    redirectScheme:
+      scheme: https
+      permanent: true
+  {{ .App.Name }}-relative-location-header:
+    plugin:
+      rewriteResponseHeaders:
+        rewrites:
+          - header: Location {{ range $index, $element := $webEnv }}{{ $keyVal := splitList "=" $element }}{{ if eq (index $keyVal 0) "WPURL" }}
+            regex: (https?)?(%3A|:)?(%2F|\/|\\/|\\%2F)(%2F|\/|\\/|\\%2F){{ index $keyVal 1 }}(%2F|\/|\\\/|\\%2F)?(.*?)?
+            # {RequestHost} token is available to be used in the replacement. e.g. replacement: https://{RequestHost}/$2
+            replacement: $4$6 {{ end }}{{ end }} #uses $4$6 so as to add a slash if there's nothing in the path. $3$4 are separated so as to allow for the single slash. The various permutations of / came up through trial and error across different pages and resource requests.
+  {{ .App.Name }}-relative-body-urls:
+    plugin:
+      rewriteResponseBody:
+        # Keep Last-Modified header returned by the HTTP service.
+        # By default, the Last-Modified header is removed.
+        lastModified: "true"
+        rewrites: {{ range $index, $element := $webEnv }}{{ $keyVal := splitList "=" $element }}{{ if eq (index $keyVal 0) "WPURL" }}
+          - regex: (https?)?(%3A|:)?(%2F|\/|\\/|\\%2F)(%2F|\/|\\/|\\%2F){{ index $keyVal 1 }}(%2F|\/|\\\/|\\%2F)?(.*?)?
+            replacement: $4$6 {{ end }}{{ end }}
+        # Available logLevels: (Trace: -2, Debug: -1, Info: 0, Warning: 1, Error: 2)
+        logLevel: 0
+        # monitoring is optional, defaults to below configuration
+        # monitoring configuration limits the HTTP queries that are checked for regex replacement.
+        monitoring:
+          # methods is a string list. Options are standard HTTP Methods. Entries MUST be ALL CAPS
+          # For a list of options: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods
+          methods:
+            - GET
+            - POST
+          # types is a string list. Options are HTTP Content Types. Entries should match standard formatting
+          # For a list of options: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types
+          # Wildcards(*) are not supported!
+          types:
+            - text/html
+          # checkMimeAccept is a boolean. If true, the Accept header will be checked for the MIME type
+          checkMimeAccept: true
+          # checkMimeContentType is a boolean. If true, the Content-Type header will be checked for the MIME type
+          checkMimeContentType: true
+          # checkAcceptEncoding is a boolean. If true, the Accept-Encoding header will be checked for the encoding
+          checkAcceptEncoding: true
+          # checkContentEncoding is a boolean. If true, the Content-Encoding header will be checked for the encoding
+          checkContentEncoding: true
