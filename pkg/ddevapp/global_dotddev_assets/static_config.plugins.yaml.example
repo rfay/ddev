@@ -12,9 +12,9 @@ experimental:
     fail2ban:
       moduleName: "github.com/tomMoulard/fail2ban"
       version: "v0.8.1"
-    rewriteResponseBody:
+    rewrite-response-body:
       moduleName: "github.com/the-ccsn/traefik-plugin-rewritebody"
       version: "v0.1.3"
-    rewriteResponseHeaders:
-      moduleName: "github.com/jamesmcroft/traefik-plugin-rewriteResponseHeaders"
+    rewrite-response-headers:
+      moduleName: "github.com/jamesmcroft/traefik-plugin-rewrite-response-headers"
       version: "v1.1.2"
