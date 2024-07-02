@@ -1260,7 +1260,7 @@ RUN chmod 777 /run/php /var/log
 	return WriteImageDockerfile(fullpath, []byte(contents))
 }
 
-// WriteImageDockerfile creates a directory at the fullpath and writes a file there
+// WriteImageDockerfile writes a dockerfile at the fullpath (including the filename)
 func WriteImageDockerfile(fullpath string, contents []byte) error {
 	err := os.MkdirAll(filepath.Dir(fullpath), 0755)
 	if err != nil {
