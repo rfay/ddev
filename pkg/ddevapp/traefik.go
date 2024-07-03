@@ -360,12 +360,6 @@ func configureTraefikForApp(app *DdevApp) error {
 			}
 		}
 	}
-
-	// Extension holds the name and the body (as a YAML string) of a plugin configuration.
-	type Extension struct {
-		Name string
-		Body string
-	}
 	
 	type ExtensionsConfig struct {
 		MiddlewareAssignments map[string]interface{} `yaml:"middlewareAssignments"`
@@ -419,17 +413,18 @@ func configureTraefikForApp(app *DdevApp) error {
 		if err != nil {
 			return fmt.Errorf("error unmarshaling YAML: %s", err)
 		}
-
+		
+		// extract the middleware definitions from the extensions yaml file and re-format them to be usable by the traefik_config_template.yaml template, via the templateData struct
 		for name, body := range extensionsConfig.MiddlewareDefinitions {
 			
-			// Marshal the body back to a YAML string.
+			// Marshal the body back to a YAML string, so that it can be injected into the YAML file as-is
 			bodyYAML, err := yaml.Marshal(body)
 			if err != nil {
 				fmt.Printf("Error marshaling plugin body: %s\n", err)
 				continue
 			}
 			
-			// Prepend each line with 4 spaces for indentation. Kludge to solve weird issue with lines 2+ losing an indent
+			// Prepend each line with 4 spaces for indentation. Kludge to solve weird issue with lines 2+ losing an indent, no matter what is tried
 			lines := strings.Split(string(bodyYAML), "\n")
 			for i, line := range lines {
 				if i > 0 {
@@ -440,14 +435,15 @@ func configureTraefikForApp(app *DdevApp) error {
 			// Join the lines back into a single string.
 			indentedBodyYAML := strings.Join(lines, "\n")
 			
-			pluginConfig := Extension{
+			//add them back as a struct that can be used in the template
+			extensionsConfig.MiddlewareDefinitions[name] = struct {
+				Name string
+				Body string
+			}{
 				Name: name,
 				Body: string(indentedBodyYAML),
 			}
-			
-			extensionsConfig.MiddlewareDefinitions[name] = pluginConfig
 		}
-		
 		// Add the extracted, template-populated and manipulated extension.yaml data to the templateData struct
 		templateData.Extensions = extensionsConfig
 	}

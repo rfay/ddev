@@ -24,7 +24,7 @@ middlewareDefinitions:
     plugin:
       rewrite-response-headers:
         rewrites:
-          - header: Location {{ range $index, $element := $webEnv }}{{ $keyVal := splitList "=" $element }}{{ if eq (index $keyVal 0) "WPURL" }}
+          - header: Location {{ range $index, $element := $webEnv }}{{ $keyVal := splitList "=" $element }}{{ if eq (index $keyVal 0) "SITEURL" }}
             regex: (https?)?(%3A|:)?(%2F|\/|\\/|\\%2F)(%2F|\/|\\/|\\%2F){{ index $keyVal 1 }}(%2F|\/|\\\/|\\%2F)?(.*?)?
             # {RequestHost} token is available to be used in the replacement. e.g. replacement: https://{RequestHost}/$2
             replacement: $4$6 {{ end }}{{ end }} #uses $4$6 so as to add a slash if there's nothing in the path. $3$4 are separated so as to allow for the single slash. The various permutations of / came up through trial and error across different pages and resource requests.
@@ -34,7 +34,7 @@ middlewareDefinitions:
         # Keep Last-Modified header returned by the HTTP service.
         # By default, the Last-Modified header is removed.
         lastModified: "true"
-        rewrites: {{ range $index, $element := $webEnv }}{{ $keyVal := splitList "=" $element }}{{ if eq (index $keyVal 0) "WPURL" }}
+        rewrites: {{ range $index, $element := $webEnv }}{{ $keyVal := splitList "=" $element }}{{ if eq (index $keyVal 0) "SITEURL" }}
           - regex: (https?)?(%3A|:)?(%2F|\/|\\/|\\%2F)(%2F|\/|\\/|\\%2F){{ index $keyVal 1 }}(%2F|\/|\\\/|\\%2F)?(.*?)?
             replacement: $4$6 {{ end }}{{ end }}
         # Available logLevels: (Trace: -2, Debug: -1, Info: 0, Warning: 1, Error: 2)
