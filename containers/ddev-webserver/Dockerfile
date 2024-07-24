@@ -43,6 +43,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -qq install -y -o Dpkg::Options::="--
     pv \
     supervisor \
     symfony-cli \
+    autojump \
     xz-utils
 
 # Arbitrary user needs to be able to bind to privileged ports (for nginx and apache2)
