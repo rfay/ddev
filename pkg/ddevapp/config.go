@@ -751,6 +751,7 @@ type composeYAMLVars struct {
 	Name                            string
 	Plugin                          string
 	AppType                         string
+	PHPVersion                      string
 	MailpitPort                     string
 	HostMailpitPort                 string
 	DBType                          string
@@ -845,6 +846,7 @@ func (app *DdevApp) RenderComposeYAML() (string, error) {
 		Name:                      app.Name,
 		Plugin:                    "ddev",
 		AppType:                   app.Type,
+		PHPVersion:                app.PHPVersion,
 		MailpitPort:               GetExposedPort(app, "mailpit"),
 		HostMailpitPort:           app.HostMailpitPort,
 		DBType:                    app.Database.Type,
