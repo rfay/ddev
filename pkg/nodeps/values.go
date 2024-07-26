@@ -41,6 +41,7 @@ const (
 	WebserverNginxFPM      = "nginx-fpm"
 	WebserverApacheFPM     = "apache-fpm"
 	WebserverNginxGunicorn = "nginx-gunicorn"
+	WebserverNginxNodeJS   = "nginx-nodejs"
 )
 
 // ValidOmitContainers is the list of things that can be omitted
@@ -85,6 +86,7 @@ var ValidWebserverTypes = map[string]bool{
 	WebserverNginxFPM:      true,
 	WebserverApacheFPM:     true,
 	WebserverNginxGunicorn: true,
+	WebserverNginxNodeJS:   true,
 }
 
 // App types
@@ -101,6 +103,7 @@ const (
 	AppTypeDrupal10     = "drupal10"
 	AppTypeDrupal       = "drupal"
 	AppTypeLaravel      = "laravel"
+	AppTypeNodeJS       = "nodejs"
 	AppTypeSilverstripe = "silverstripe"
 	AppTypeMagento      = "magento"
 	AppTypeMagento2     = "magento2"
