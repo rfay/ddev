@@ -752,6 +752,7 @@ type composeYAMLVars struct {
 	Plugin                          string
 	AppType                         string
 	PHPVersion                      string
+	WebserverType                   string
 	MailpitPort                     string
 	HostMailpitPort                 string
 	DBType                          string
@@ -847,6 +848,7 @@ func (app *DdevApp) RenderComposeYAML() (string, error) {
 		Plugin:                    "ddev",
 		AppType:                   app.Type,
 		PHPVersion:                app.PHPVersion,
+		WebserverType:             app.WebserverType,
 		MailpitPort:               GetExposedPort(app, "mailpit"),
 		HostMailpitPort:           app.HostMailpitPort,
 		DBType:                    app.Database.Type,
@@ -951,7 +953,7 @@ func (app *DdevApp) RenderComposeYAML() (string, error) {
 	// The db-build and web-build directories are used for context
 	// so must exist. They usually do.
 
-	for _, d := range []string{".webimageBuild", ".dbimageBuild"} {
+	for _, d := range []string{".webimageBuild", ".dbimageBuild", ".phpimageBuild"} {
 		err = os.MkdirAll(app.GetConfigPath(d), 0755)
 		if err != nil {
 			return "", err
@@ -972,14 +974,22 @@ func (app *DdevApp) RenderComposeYAML() (string, error) {
 		return "", err
 	}
 
-	extraWebContent := "\nRUN mkdir -p /home/$username && chown $username /home/$username && chmod 600 /home/$username/.pgpass"
-	extraWebContent = extraWebContent + "\nENV NVM_DIR=/home/$username/.nvm"
+	err = os.MkdirAll(app.GetConfigPath("php-build"), 0755)
+	if err != nil {
+		return "", err
+	}
+
+	extraPHPContent := "\nRUN echo '*:*:db:db:db' > /home/${username}/.pgpass && chown ${uid}:${gid} /home/${username}/.pgpass"
+
+	extraWebContent := "\nRUN mkdir -p /home/${username} && chown ${username} /home/${username} && chmod 600 /home/${username}/.pgpass"
+	extraWebContent = extraWebContent + "\nENV NVM_DIR=/home/${username}/.nvm"
 	if app.NodeJSVersion != nodeps.NodeJSDefault {
 		extraWebContent = extraWebContent + "\nRUN npm install -g n"
 		extraWebContent = extraWebContent + fmt.Sprintf("\nRUN n install %s && ln -sf /usr/local/bin/node /usr/local/bin/nodejs", app.NodeJSVersion)
 	}
+	extraPHPContent = extraPHPContent + "\n" + extraWebContent
 	if app.CorepackEnable {
-		extraWebContent = extraWebContent + "\nRUN corepack enable"
+		extraPHPContent = extraPHPContent + "\nRUN corepack enable"
 	}
 	if app.Type == nodeps.AppTypeDrupal {
 		// TODO: When ddev-webserver has required drupal 11+ sqlite version we can remove this.
@@ -987,7 +997,7 @@ func (app *DdevApp) RenderComposeYAML() (string, error) {
 		// when we need them.
 		drupalVersion, err := GetDrupalVersion(app)
 		if err == nil && drupalVersion == "11" {
-			extraWebContent = extraWebContent + "\n" + fmt.Sprintf(`
+			extraPHPContent = extraPHPContent + "\n" + fmt.Sprintf(`
 ### Drupal 11+ requires a minimum sqlite3 version (3.45 currently)
 ARG SQLITE_VERSION=%s
 RUN ( mkdir -p /tmp/sqlite3 && \
@@ -1031,14 +1041,19 @@ redirect_stderr=true
 	}
 	// For MySQL 5.5+ we'll install the matching mysql client (and mysqldump) in the ddev-webserver
 	if app.Database.Type == nodeps.MySQL {
-		extraWebContent = extraWebContent + "\nRUN mysql-client-install.sh || true\n"
+		extraPHPContent = extraPHPContent + "\nRUN mysql-client-install.sh || true\n"
 	}
 	// Some MariaDB versions may have their own client in the ddev-webserver
 	if app.Database.Type == nodeps.MariaDB {
-		extraWebContent = extraWebContent + "\nRUN mariadb-client-install.sh || true\n"
+		extraPHPContent = extraPHPContent + "\nRUN mariadb-client-install.sh || true\n"
 	}
 
 	err = WriteBuildDockerfile(app, app.GetConfigPath(".webimageBuild/Dockerfile"), app.GetConfigPath("web-build"), app.WebImageExtraPackages, app.ComposerVersion, extraWebContent)
+	if err != nil {
+		return "", err
+	}
+
+	err = WriteBuildDockerfile(app, app.GetConfigPath(".phpimageBuild/Dockerfile"), app.GetConfigPath("php-build"), app.PHPImageExtraPackages, app.ComposerVersion, extraPHPContent)
 	if err != nil {
 		return "", err
 	}

@@ -253,7 +253,7 @@ services:
       {{- end }}
       timeout: "70s"
 
-# TODO: Only include if nginx-fpm or apache-fpm
+  {{ if hasSuffix "-fpm" .WebserverType }}
   php:
     container_name: {{ .Plugin }}-${DDEV_SITENAME}-php
     build:
@@ -261,13 +261,13 @@ services:
       # .ddev/php-build
       context: '{{ .WebBuildContext }}'
       args:
-        BASE_IMAGE: php{{ .PHPVersion }}-fpm
+        BASE_IMAGE: php:{{ .PHPVersion }}-fpm-bookworm
         username: '{{ .Username }}'
         uid: '{{ .UID }}'
         gid: '{{ .GID }}'
         DDEV_PHP_VERSION: ${DDEV_PHP_VERSION}
         DDEV_DATABASE: ${DDEV_DATABASE}
-    image: php{{ .PHPVersion }}-fpm-${DDEV_SITENAME}-built
+    image: php:{{ .PHPVersion }}-fpm-bookworm-${DDEV_SITENAME}-built
     command: /pre-start.sh
     {{ if .EnvFile }}
     env_file: '{{ .EnvFile }}'
@@ -413,7 +413,7 @@ services:
       start_interval: "1s"
       {{- end }}
       timeout: "70s"
-
+  {{ end }}
 networks:
   ddev_default:
     name: ddev_default

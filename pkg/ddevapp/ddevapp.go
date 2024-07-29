@@ -117,6 +117,7 @@ type DdevApp struct {
 	HostMailpitPort           string                 `yaml:"host_mailpit_port,omitempty"`
 	WebImageExtraPackages     []string               `yaml:"webimage_extra_packages,omitempty,flow"`
 	DBImageExtraPackages      []string               `yaml:"dbimage_extra_packages,omitempty,flow"`
+	PHPImageExtraPackages     []string               `yaml:"phpimage_extra_packages,omitempty,flow"`
 	ProjectTLD                string                 `yaml:"project_tld,omitempty"`
 	UseDNSWhenPossible        bool                   `yaml:"use_dns_when_possible"`
 	MkcertEnabled             bool                   `yaml:"-"`
