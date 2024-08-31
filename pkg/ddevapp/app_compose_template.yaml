@@ -59,6 +59,8 @@ services:
       - DOCKER_IP={{ .DockerIP }}
       - GOARCH
       - GOOS
+      #TODO: This hack setting HOME shouldn't be required and isn't correct
+      - HOME=/home/{{ .Username }}
       - HOST_DOCKER_INTERNAL_IP={{ .HostDockerInternalIP }}
       - IS_DDEV_PROJECT=true
       - LINES
