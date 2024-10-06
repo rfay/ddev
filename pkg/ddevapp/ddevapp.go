@@ -1055,7 +1055,7 @@ func (app *DdevApp) ImportFiles(uploadDir, importPath, extractPath string) error
 
 // ComposeFiles returns a list of compose files for a project.
 // It has to put the .ddev/docker-compose.*.y*ml first
-// It has to put the docker-compose.override.y*l last
+// It has to put the .ddev/docker-compose.override.y*ml last
 func (app *DdevApp) ComposeFiles() ([]string, error) {
 	origDir, _ := os.Getwd()
 	defer func() {
@@ -1095,6 +1095,42 @@ func (app *DdevApp) ComposeFiles() ([]string, error) {
 		orderedFiles = append(orderedFiles, app.GetConfigPath(overrides[0]))
 	}
 	return orderedFiles, nil
+}
+
+// EnvFiles returns a list of env files for a project.
+// It has to put the .ddev/.env first
+// It has to put the .ddev/.env.* second
+// Env files ending with .example are ignored.
+func (app *DdevApp) EnvFiles() ([]string, error) {
+	origDir, _ := os.Getwd()
+	defer func() {
+		_ = os.Chdir(origDir)
+	}()
+	err := os.Chdir(app.AppConfDir())
+	if err != nil {
+		return nil, err
+	}
+	envFiles, err := filepath.Glob(".env.*")
+	if err != nil {
+		return []string{}, fmt.Errorf(".env.* in %s: err=%v", app.AppConfDir(), err)
+	}
+
+	var orderedEnvFiles []string
+
+	webEnvFile := app.GetConfigPath(".env")
+	if fileutil.FileExists(webEnvFile) {
+		orderedEnvFiles = append(orderedEnvFiles, webEnvFile)
+	}
+
+	for _, file := range envFiles {
+		// Skip .example files
+		if strings.HasSuffix(file, ".example") {
+			continue
+		}
+		orderedEnvFiles = append(orderedEnvFiles, app.GetConfigPath(file))
+	}
+
+	return orderedEnvFiles, nil
 }
 
 // ProcessHooks executes Tasks defined in Hooks
@@ -1448,8 +1484,35 @@ Fix with 'ddev config global --required-docker-compose-version="" --use-docker-c
 	if globalconfig.DdevVerbose {
 		util.Debug("docker-compose build output:\n%s\n\n", out)
 	}
+
+	_, logStderrOutput, err := dockerutil.RunSimpleContainer(ddevImages.GetWebImage()+"-"+app.Name+"-built", "log-stderr-"+app.Name+"-"+util.RandString(6), []string{"sh", "-c", "log-stderr.sh --show 2>/dev/null || true"}, []string{}, []string{}, nil, uid, true, false, map[string]string{"com.ddev.site-name": ""}, nil, nil)
+	// If the web image is dirty, try to rebuild it immediately
+	if err == nil && strings.TrimSpace(logStderrOutput) != "" && globalconfig.IsInternetActive() {
+		util.Debug("Executing docker-compose -f %s build web --progress=%s --no-cache", app.DockerComposeFullRenderedYAMLPath(), progress)
+		out, stderr, err = dockerutil.ComposeCmd(&dockerutil.ComposeCmdOpts{
+			ComposeFiles: []string{app.DockerComposeFullRenderedYAMLPath()},
+			Action:       []string{"--progress=" + progress, "build", "web", "--no-cache"},
+			Progress:     true,
+		})
+		if err != nil {
+			return fmt.Errorf("docker-compose build web --no-cache failed: %v, output='%s', stderr='%s'", err, out, stderr)
+		}
+		if globalconfig.DdevVerbose {
+			util.Debug("docker-compose build web --no-cache output:\n%s\n\n", out)
+		}
+	}
+
 	buildDuration := util.FormatDuration(buildDurationStart())
 	util.Success("Project images built in %s.", buildDuration)
+
+	util.Debug("Removing dangling images for the project %s", app.GetComposeProjectName())
+	danglingImages, err := dockerutil.FindImagesByLabels(map[string]string{"com.ddev.buildhost": "", "com.docker.compose.project": app.GetComposeProjectName()}, true)
+	if err != nil {
+		return fmt.Errorf("unable to get dangling images for the project %s: %v", app.GetComposeProjectName(), err)
+	}
+	for _, danglingImage := range danglingImages {
+		_ = dockerutil.RemoveImage(danglingImage.ID)
+	}
 
 	util.Debug("Executing docker-compose -f %s up -d", app.DockerComposeFullRenderedYAMLPath())
 	_, _, err = dockerutil.ComposeCmd(&dockerutil.ComposeCmdOpts{
@@ -1622,19 +1685,19 @@ Fix with 'ddev config global --required-docker-compose-version="" --use-docker-c
 		}
 	}
 
-	output.UserOut.Printf("Waiting for additional project containers to become ready...")
 	waitLabels := map[string]string{"com.ddev.site-name": app.GetName()}
 	containersAwaited, err := dockerutil.FindContainersByLabels(waitLabels)
 	if err != nil {
 		return err
 	}
-	containerNames := dockerutil.GetContainerNames(containersAwaited)
-	output.UserOut.Printf("Waiting %ds for additional project containers %v to become ready...", app.GetMaxContainerWaitTime(), containerNames)
+	containerNames := dockerutil.GetContainerNames(containersAwaited, []string{GetContainerName(app, "web"), GetContainerName(app, "db")})
+	if len(containerNames) > 0 {
+		output.UserOut.Printf("Waiting %ds for additional project containers %v to become ready...", app.GetMaxContainerWaitTime(), containerNames)
+	}
 	err = app.WaitByLabels(waitLabels)
 	if err != nil {
 		return err
 	}
-	output.UserOut.Printf("All project containers are now ready.")
 
 	if _, err = app.CreateSettingsFile(); err != nil {
 		return fmt.Errorf("failed to write settings file %s: %v", app.SiteDdevSettingsFile, err)
@@ -1648,6 +1711,14 @@ Fix with 'ddev config global --required-docker-compose-version="" --use-docker-c
 	err = app.ProcessHooks("post-start")
 	if err != nil {
 		return err
+	}
+
+	if logStderr != "" {
+		util.Warning(`Some components of the project %s were not installed properly.
+The project is running anyway, but see the warnings above for details.
+If offline, run 'ddev restart' once you are back online.
+If online, check your connection and run 'ddev restart' later.
+If this seems to be a config issue, update it accordingly.`, app.Name)
 	}
 
 	return nil

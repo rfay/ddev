@@ -444,15 +444,32 @@ Example:
 ddev debug nfsmount
 ```
 
-### `debug refresh`
+### `debug rebuild`
 
-Refreshes the project’s Docker cache.
+*Aliases: `debug refresh`.*
+
+Rebuilds the project’s Docker cache with verbose output.
+
+Flags:
+
+* `--all`, `-a`: Rebuild all services.
+* `--cache`: Keep Docker cache.
+* `--service`, `-s`: Rebuild specified service. (default `web`)
 
 Example:
 
 ```shell
-# Refresh the current project’s Docker cache
-ddev debug refresh
+# Rebuild the current project’s web service without cache
+ddev debug rebuild
+
+# Rebuild the current project’s web service with cache
+ddev debug rebuild --cache
+
+# Rebuild the current project’s db service without cache
+ddev debug rebuild --service db
+
+# Rebuild the current project’s all services without cache
+ddev debug rebuild --all
 ```
 
 ### `debug router-nginx-config`
@@ -706,6 +723,45 @@ ddev add-on list --installed
 
 # List installed add-ons for a specific project
 ddev add-on list --installed --project my-project
+```
+
+## `dotenv`
+
+Commands for managing the contents of `.env` files.
+
+### `dotenv get`
+
+Get the value of an environment variable from a .env file. Provide the path relative to the project root when specifying the file.
+
+Example:
+
+```shell
+# Get the value of APP_KEY from the $DDEV_APPROOT/.env file
+ddev dotenv get .env --app-key
+
+# Get the value of ENV_KEY from the $DDEV_APPROOT/.ddev/.env file
+ddev dotenv get .ddev/.env --env-key
+```
+
+### `dotenv set`
+
+Create or update a `.env` file with values specified via long flags from the command line.
+Flags in the format `--env-key=value` will be converted to environment variable names
+like `ENV_KEY="value"`. The .env file should be named `.env` or `.env.<servicename>` or `.env.<something>`
+All environment variables can be used and expanded in `.ddev/docker-compose.*.yaml` files.
+Provide the path relative to the project root when specifying the file.
+
+Example:
+
+```shell
+# Create or update $DDEV_APPROOT/.env file with APP_KEY="value"
+ddev dotenv set .env --app-key=value
+
+# Create or update $DDEV_APPROOT/.ddev/.env file with EXTRA="value" and ANOTHER_KEY="extra value"
+ddev dotenv set .ddev/.env --extra value --another-key "extra value"
+
+# Create or update $DDEV_APPROOT/.ddev/.env.redis file with REDIS_TAG="7-bookworm"
+ddev dotenv set .ddev/.env.redis --redis-tag 7-bookworm
 ```
 
 ## `heidisql`

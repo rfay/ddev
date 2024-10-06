@@ -27,7 +27,7 @@ const ConfigInstructions = `
 #   version: <version> # database version, like "10.11" or "8.0"
 #   MariaDB versions can be 5.5-10.8, 10.11, and 11.4.
 #   MySQL versions can be 5.5-8.0.
-#   PostgreSQL versions can be 9-16.
+#   PostgreSQL versions can be 9-17.
 
 # router_http_port: <port>  # Port to be used for http (defaults to global configuration, usually 80)
 # router_https_port: <port> # Port for https (defaults to global configuration, usually 443)
@@ -42,7 +42,7 @@ const ConfigInstructions = `
 # "ddev xhprof" to enable Xhprof and "ddev xhprof off" to disable it work better,
 # as leaving Xhprof enabled all the time is a big performance hit.
 
-# webserver_type: nginx-fpm, apache-fpm, or nginx-gunicorn
+# webserver_type: nginx-fpm, apache-fpm, nginx-nodejs, nginx-gunicorn
 
 # timezone: Europe/Berlin
 # If timezone is unset, DDEV will attempt to derive it from the host system timezone
@@ -66,7 +66,7 @@ const ConfigInstructions = `
 #   - preview
 #   - snapshot
 # Alternatively, an explicit Composer version may be specified, for example "2.2.18".
-# To reinstall Composer after the image was built, run "ddev debug refresh".
+# To reinstall Composer after the image was built, run "ddev debug rebuild".
 
 # nodejs_version: "20"
 # change from the default system Node.js version to any other version.

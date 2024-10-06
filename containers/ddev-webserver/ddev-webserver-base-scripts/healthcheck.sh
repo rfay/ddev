@@ -32,6 +32,7 @@ phpstatus="false"
 htmlaccess="false"
 gunicornstatus="false"
 mailpit="false"
+nodestatus="false"
 
 if ls /var/www/html >/dev/null; then
     htmlaccess="true"
@@ -69,6 +70,12 @@ if [ "${DDEV_WEBSERVER_TYPE#*-}" = "fpm" ]; then
   else
     printf "phpstatus:FAILED "
   fi
+fi
+
+if [ "${DDEV_WEBSERVER_TYPE#*-}" = "nodejs" ]; then
+  gunicornstatus="true"
+  phpstatus="true"
+  nodestatus="true"
 fi
 
 if [ "${phpstatus}" = "true" ] && [ "${gunicornstatus}" = "true" ] && [ "${htmlaccess}" = "true" ] && [ "${mailpit}" = "true" ]; then
