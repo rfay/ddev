@@ -2376,7 +2376,12 @@ func (app *DdevApp) DockerEnv() {
 	// DDEV_DATABASE_FAMILY can be use for connection URLs
 	// Eg. mysql://db@db:3033/db
 	dbFamily := "mysql"
-	if app.Database.Type == "postgres" {
+	dbTypeVersion := app.Database.Type + ":" + app.Database.Version
+	switch {
+	case slices.Contains(app.GetOmittedContainers(), "db"):
+		dbFamily = ""
+		dbTypeVersion = ""
+	case app.Database.Type == "postgres":
 		// 'postgres' & 'postgresql' are both valid, but we'll go with the shorter one.
 		dbFamily = "postgres"
 	}
@@ -2395,7 +2400,7 @@ func (app *DdevApp) DockerEnv() {
 		"DDEV_APPROOT":                   app.AppRoot,
 		"DDEV_COMPOSER_ROOT":             app.GetComposerRoot(true, false),
 		"DDEV_DATABASE_FAMILY":           dbFamily,
-		"DDEV_DATABASE":                  app.Database.Type + ":" + app.Database.Version,
+		"DDEV_DATABASE":                  dbTypeVersion,
 		"DDEV_FILES_DIR":                 app.GetContainerUploadDir(),
 		"DDEV_FILES_DIRS":                strings.Join(app.GetContainerUploadDirs(), ","),
 
@@ -2415,6 +2420,7 @@ func (app *DdevApp) DockerEnv() {
 		"DDEV_UID":                 uidStr,
 		"DDEV_GID":                 gidStr,
 		"DDEV_MUTAGEN_ENABLED":     strconv.FormatBool(app.IsMutagenEnabled()),
+		"DDEV_OMITTED_CONTAINERS":  strings.Join(app.GetOmittedContainers(), ","),
 		"DDEV_PHP_VERSION":         app.PHPVersion,
 		"DDEV_WEBSERVER_TYPE":      app.WebserverType,
 		"DDEV_PROJECT_TYPE":        app.Type,
