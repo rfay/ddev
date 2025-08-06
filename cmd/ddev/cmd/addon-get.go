@@ -214,7 +214,12 @@ ddev add-on get /path/to/tarball.tar.gz
 			util.Success("\nExecuting pre-install actions:")
 		}
 		for i, action := range s.PreInstallActions {
-			err = ddevapp.ProcessAddonAction(injectedEnv+"; "+action, dict, bash, verbose)
+			// For PHP actions, don't prepend bash environment setup
+			if strings.HasPrefix(strings.TrimSpace(action), "<?php") {
+				err = ddevapp.ProcessAddonActionWithImage(action, dict, bash, verbose, s.Image, app)
+			} else {
+				err = ddevapp.ProcessAddonActionWithImage(injectedEnv+"; "+action, dict, bash, verbose, s.Image, app)
+			}
 			if err != nil {
 				desc := ddevapp.GetAddonDdevDescription(action)
 				if err != nil {
@@ -290,7 +295,12 @@ ddev add-on get /path/to/tarball.tar.gz
 			util.Success("\nExecuting post-install actions:")
 		}
 		for i, action := range s.PostInstallActions {
-			err = ddevapp.ProcessAddonAction(injectedEnv+"; "+action, dict, bash, verbose)
+			// For PHP actions, don't prepend bash environment setup
+			if strings.HasPrefix(strings.TrimSpace(action), "<?php") {
+				err = ddevapp.ProcessAddonActionWithImage(action, dict, bash, verbose, s.Image, app)
+			} else {
+				err = ddevapp.ProcessAddonActionWithImage(injectedEnv+"; "+action, dict, bash, verbose, s.Image, app)
+			}
 			desc := ddevapp.GetAddonDdevDescription(action)
 			if err != nil {
 				if !verbose {

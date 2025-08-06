@@ -12,6 +12,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/ddev/ddev/pkg/dockerutil"
 	"github.com/ddev/ddev/pkg/exec"
 	"github.com/ddev/ddev/pkg/fileutil"
 	github2 "github.com/ddev/ddev/pkg/github"
@@ -36,6 +37,7 @@ type InstallDesc struct {
 	PostInstallActions    []string          `yaml:"post_install_actions,omitempty"`
 	RemovalActions        []string          `yaml:"removal_actions,omitempty"`
 	YamlReadFiles         map[string]string `yaml:"yaml_read_files"`
+	Image                 string            `yaml:"image,omitempty"`
 }
 
 // format of the add-on manifest file
@@ -116,6 +118,20 @@ func GetInstalledAddonProjectFiles(app *DdevApp) []string {
 
 // ProcessAddonAction takes a stanza from yaml exec section and executes it.
 func ProcessAddonAction(action string, dict map[string]interface{}, bashPath string, verbose bool) error {
+	return ProcessAddonActionWithImage(action, dict, bashPath, verbose, "", nil)
+}
+
+// ProcessAddonActionWithImage takes a stanza from yaml exec section and executes it, optionally in a container.
+func ProcessAddonActionWithImage(action string, dict map[string]interface{}, bashPath string, verbose bool, image string, app *DdevApp) error {
+	// Check if the action starts with <?php
+	if strings.HasPrefix(strings.TrimSpace(action), "<?php") {
+		if app == nil {
+			return fmt.Errorf("app is required for PHP actions")
+		}
+		return processPHPAction(action, dict, image, verbose, app)
+	}
+
+	// Default behavior for bash actions
 	action = "set -eu -o pipefail\n" + action
 	t, err := template.New("ProcessAddonAction").Funcs(getTemplateFuncMap()).Parse(action)
 	if err != nil {
@@ -164,6 +180,63 @@ func ProcessAddonAction(action string, dict map[string]interface{}, bashPath str
 		util.Warning(out)
 	}
 	return err
+}
+
+// processPHPAction executes a PHP action in a container
+func processPHPAction(action string, dict map[string]interface{}, image string, verbose bool, app *DdevApp) error {
+	// Use a default PHP image if none specified
+	if image == "" {
+		image = "ddev/ddev-webserver:latest"
+	}
+
+	// Prepare container run arguments
+	containerName := "ddev-addon-php-" + util.RandString(6)
+
+	// Create a shell script that writes the PHP script then executes it
+	shellScript := fmt.Sprintf(`
+cat > /tmp/addon-script.php << 'DDEV_PHP_EOF'
+%s
+DDEV_PHP_EOF
+
+php /tmp/addon-script.php
+`, action)
+
+	cmd := []string{"sh", "-c", shellScript}
+
+	// Bind mount the .ddev directory into the container at /mnt/ddev_config
+	var binds []string
+	binds = append(binds, fmt.Sprintf("%s:/mnt/ddev_config", app.AppConfDir()))
+
+	var env []string
+	if verbose {
+		env = append(env, "DDEV_VERBOSE=true")
+	}
+
+	// Run the container
+	_, output, err := dockerutil.RunSimpleContainer(
+		image,
+		containerName,
+		cmd,
+		nil, // entrypoint
+		env,
+		binds,
+		"",    // uid
+		true,  // removeContainerAfterRun
+		false, // detach
+		nil,   // labels
+		nil,   // portBindings
+		nil,   // healthConfig
+	)
+
+	if len(output) > 0 {
+		util.Success(output)
+	}
+
+	if err != nil {
+		return fmt.Errorf("PHP script failed: %v", err)
+	}
+
+	return nil
 }
 
 // GetAddonDdevDescription returns what follows #ddev-description: in any line in action

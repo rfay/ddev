@@ -108,6 +108,7 @@ DDEV uses YAML configuration files:
 - Integration tests in `pkg/ddevapp/` test full workflows
 - Container tests validate Docker functionality
 - Documentation tests use bats framework
+- **Prefer `require` over `assert` in tests** - Use `require.NoError(t, err)`, `require.Contains(t, ...)`, etc. instead of `assert` equivalents. This ensures tests fail fast when preconditions aren't met, making debugging easier.
 
 ### Docker Integration
 

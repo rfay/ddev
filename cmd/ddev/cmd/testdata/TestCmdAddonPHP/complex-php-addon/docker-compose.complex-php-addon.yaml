@@ -1,0 +1,6 @@
+#ddev-generated
+# This file will be overwritten by the PHP script during installation
+services:
+  complex-php-addon:
+    image: ddev/ddev-utilities
+    command: echo "This should be replaced by PHP"

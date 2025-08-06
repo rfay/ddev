@@ -222,3 +222,102 @@ func getManifestMapFromLogs(t *testing.T, jsonOut string) map[string]map[string]
 	}
 	return masterMap
 }
+
+// TestCmdAddonPHP tests the new PHP execution functionality in addons
+func TestCmdAddonPHP(t *testing.T) {
+	origDir, _ := os.Getwd()
+	site := TestSites[0]
+	err := os.Chdir(site.Dir)
+	require.NoError(t, err)
+	app, err := ddevapp.GetActiveApp("")
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		// Clean up all test addons
+		_, _ = exec.RunHostCommand(DdevBin, "add-on", "remove", "basic-php-test")
+		_, _ = exec.RunHostCommand(DdevBin, "add-on", "remove", "complex-php-test")
+		_, _ = exec.RunHostCommand(DdevBin, "add-on", "remove", "mixed-test")
+		_, _ = exec.RunHostCommand(DdevBin, "add-on", "remove", "custom-image-test")
+
+		err = os.Chdir(origDir)
+		require.NoError(t, err)
+	})
+
+	// Test basic PHP addon
+	t.Run("BasicPHPAddon", func(t *testing.T) {
+		basicAddonDir := filepath.Join(origDir, "testdata", "TestCmdAddonPHP", "basic-php-addon")
+		out, err := exec.RunHostCommand(DdevBin, "add-on", "get", basicAddonDir, "--verbose")
+		require.NoError(t, err, "failed to install basic PHP addon: %v, output: %s", err, out)
+
+		// Check that PHP output is present
+		require.Contains(t, out, "PHP: Setting up project:")
+		require.Contains(t, out, "PHP: Global config accessible")
+		require.Contains(t, out, "PHP: Created test file")
+		require.Contains(t, out, "Bash: This is a regular bash action after PHP")
+		require.Contains(t, out, "PHP: Post-install PHP action executed")
+
+		// Verify the PHP-created file exists
+		require.FileExists(t, app.GetConfigPath("php-test-created.txt"))
+	})
+
+	// Test complex PHP addon with yaml_read_files
+	t.Run("ComplexPHPAddon", func(t *testing.T) {
+		complexAddonDir := filepath.Join(origDir, "testdata", "TestCmdAddonPHP", "complex-php-addon")
+
+		// First create the test config file
+		testConfigContent := `database:
+  version: "8.0"
+services:
+  redis:
+    enabled: true`
+		err := fileutil.TemplateStringToFile(testConfigContent, nil, app.GetConfigPath("test-config.yaml"))
+		require.NoError(t, err)
+
+		out, err := exec.RunHostCommand(DdevBin, "add-on", "get", complexAddonDir, "--verbose")
+		require.NoError(t, err, "failed to install complex PHP addon: %v, output: %s", err, out)
+
+		// Check that PHP processed the YAML config
+		require.Contains(t, out, "PHP: Database version from config: 8.0")
+		require.Contains(t, out, "PHP: Service redis configured")
+		require.Contains(t, out, "PHP: Generated docker-compose.php-generated.yaml")
+
+		// Verify the generated docker-compose file exists and has expected content
+		composePath := app.GetConfigPath("docker-compose.php-generated.yaml")
+		require.FileExists(t, composePath)
+
+		content, err := os.ReadFile(composePath)
+		require.NoError(t, err)
+		require.Contains(t, string(content), "php-generated-service")
+		require.Contains(t, string(content), "PROJECT_NAME")
+		require.Contains(t, string(content), "PROJECT_TYPE")
+
+		// Clean up test config
+		_ = os.Remove(app.GetConfigPath("test-config.yaml"))
+	})
+
+	// Test mixed bash/PHP addon
+	t.Run("MixedAddon", func(t *testing.T) {
+		mixedAddonDir := filepath.Join(origDir, "testdata", "TestCmdAddonPHP", "mixed-addon")
+		out, err := exec.RunHostCommand(DdevBin, "add-on", "get", mixedAddonDir, "--verbose")
+		require.NoError(t, err, "failed to install mixed addon: %v, output: %s", err, out)
+
+		// Check that both bash and PHP actions executed in correct order
+		require.Contains(t, out, "Bash: Starting mixed addon installation")
+		require.Contains(t, out, "PHP: Mixed addon PHP action")
+		require.Contains(t, out, "Bash: Continuing after PHP")
+		require.Contains(t, out, fmt.Sprintf("PHP: Project name is %s", app.Name))
+		require.Contains(t, out, "Bash: Final bash action")
+	})
+
+	// Test custom PHP image
+	t.Run("CustomImageAddon", func(t *testing.T) {
+		customImageAddonDir := filepath.Join(origDir, "testdata", "TestCmdAddonPHP", "custom-image-addon")
+		out, err := exec.RunHostCommand(DdevBin, "add-on", "get", customImageAddonDir, "--verbose")
+		require.NoError(t, err, "failed to install custom image addon: %v, output: %s", err, out)
+
+		// Check that custom PHP image (8.1-cli-alpine) was used
+		require.Contains(t, out, "PHP: Running on 8.1")
+		require.Contains(t, out, "PHP: OS info:")
+		require.Contains(t, out, fmt.Sprintf("PHP: Custom image working for project: %s", app.Name))
+	})
+}
