@@ -11,6 +11,8 @@ pre_install_actions:
         // Simple parsing to get project name
         if (preg_match('/^name:\s*(.+)$/m', $configContent, $matches)) {
             $projectName = trim($matches[1]);
+            $out = shell_exec("uname -a");
+            echo "uname: $out\n";
             echo "PHP: Setting up project: $projectName\n";
         }
     }
@@ -22,11 +24,9 @@ pre_install_actions:
     
     file_put_contents('/mnt/ddev_config/php-test-created.txt', "Created by PHP at " . date('Y-m-d H:i:s') . "\n");
     echo "PHP: Created test file\n";
-    ?>
 
 post_install_actions:
   - "echo 'Bash: This is a regular bash action after PHP'"
   - |
     <?php
     echo "PHP: Post-install PHP action executed\n";
-    ?>

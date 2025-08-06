@@ -27,22 +27,40 @@ pre_install_actions:
     
     echo "PHP: Processing complex addon for $projectName ($projectType)\n";
     
-    // Test yaml_read_files functionality - read test-config.yaml directly
+    // Test yaml_read_files functionality - read test-config.yaml with proper YAML parsing
     $testConfigPath = '/mnt/ddev_config/test-config.yaml';
     if (file_exists($testConfigPath)) {
-        $testConfigContent = file_get_contents($testConfigPath);
-        
-        // Simple YAML parsing for database version
-        if (preg_match('/database:\s*\n\s*version:\s*["\']?([^"\'\n]+)["\']?/m', $testConfigContent, $matches)) {
-            $dbVersion = trim($matches[1]);
-            echo "PHP: Database version from config: $dbVersion\n";
-        }
-        
-        // Parse services
-        if (preg_match('/services:\s*\n((?:\s+\w+:[^\n]*\n?)*)/m', $testConfigContent, $matches)) {
-            preg_match_all('/^\s+(\w+):/m', $matches[1], $serviceMatches);
-            foreach ($serviceMatches[1] as $service) {
-                echo "PHP: Service $service configured\n";
+        // Check if YAML extension is available
+        if (function_exists('yaml_parse_file')) {
+            $testConfig = yaml_parse_file($testConfigPath);
+            
+            // Access database version directly from parsed YAML
+            if (isset($testConfig['database']['version'])) {
+                $dbVersion = $testConfig['database']['version'];
+                echo "PHP: Database version from config: $dbVersion\n";
+            }
+            
+            // Access services directly from parsed YAML
+            if (isset($testConfig['services'])) {
+                foreach ($testConfig['services'] as $serviceName => $serviceConfig) {
+                    echo "PHP: Service $serviceName configured\n";
+                }
+            }
+        } else {
+            echo "PHP: YAML extension not available, using fallback parsing\n";
+            // Fallback to manual parsing if YAML extension not available
+            $testConfigContent = file_get_contents($testConfigPath);
+            if (preg_match('/database:\s*\n\s*version:\s*["\']?([^"\'\n]+)["\']?/m', $testConfigContent, $matches)) {
+                $dbVersion = trim($matches[1]);
+                echo "PHP: Database version from config: $dbVersion\n";
+            }
+            
+            // Parse services with fallback regex
+            if (preg_match('/services:\s*\n((?:\s+\w+:[^\n]*\n?)*)/m', $testConfigContent, $matches)) {
+                preg_match_all('/^\s+(\w+):/m', $matches[1], $serviceMatches);
+                foreach ($serviceMatches[1] as $service) {
+                    echo "PHP: Service $service configured\n";
+                }
             }
         }
     }
@@ -61,4 +79,5 @@ pre_install_actions:
     echo "PHP: Generated docker-compose.complex-php-addon.yaml\n";
     ?>
 
-project_files: []
+project_files:
+  - config.complex-php-addon.yaml
