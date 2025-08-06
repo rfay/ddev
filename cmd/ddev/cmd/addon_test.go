@@ -279,15 +279,15 @@ services:
 		// Check that PHP processed the YAML config
 		require.Contains(t, out, "PHP: Database version from config: 8.0")
 		require.Contains(t, out, "PHP: Service redis configured")
-		require.Contains(t, out, "PHP: Generated docker-compose.php-generated.yaml")
+		require.Contains(t, out, "PHP: Generated docker-compose.complex-php-addon.yaml")
 
 		// Verify the generated docker-compose file exists and has expected content
-		composePath := app.GetConfigPath("docker-compose.php-generated.yaml")
+		composePath := app.GetConfigPath("docker-compose.complex-php-addon.yaml")
 		require.FileExists(t, composePath)
 
 		content, err := os.ReadFile(composePath)
 		require.NoError(t, err)
-		require.Contains(t, string(content), "php-generated-service")
+		require.Contains(t, string(content), "complex-php-addon")
 		require.Contains(t, string(content), "PROJECT_NAME")
 		require.Contains(t, string(content), "PROJECT_TYPE")
 

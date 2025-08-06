@@ -3,13 +3,13 @@ name: mixed-test
 image: ddev/ddev-webserver:latest
 
 pre_install_actions:
-  - echo "Bash: Starting mixed addon installation"
+  - "echo 'Bash: Starting mixed addon installation'"
   - |
     <?php
     #ddev-description: PHP action in mixed addon
     echo "PHP: Mixed addon PHP action\n";
     ?>
-  - echo "Bash: Continuing after PHP"
+  - "echo 'Bash: Continuing after PHP'"
   - |
     <?php
     #ddev-description: Another PHP action
@@ -23,6 +23,6 @@ pre_install_actions:
     }
     echo "PHP: Project name is $projectName\n";
     ?>
-  - echo "Bash: Final bash action"
+  - "echo 'Bash: Final bash action'"
 
-project_files:
+project_files: []

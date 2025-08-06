@@ -2,31 +2,31 @@ name: basic-php-test
 image: ddev/ddev-webserver:latest
 
 pre_install_actions:
-- |
-  <?php
-  // Access config.yaml directly from the mounted .ddev directory
-  $configPath = '/mnt/ddev_config/config.yaml';
-  if (file_exists($configPath)) {
-      $configContent = file_get_contents($configPath);
-      // Simple parsing to get project name
-      if (preg_match('/^name:\s*(.+)$/m', $configContent, $matches)) {
-          $projectName = trim($matches[1]);
-          echo "PHP: Setting up project: $projectName\n";
-      }
-  }
-  
-  // Check if we can access the mounted .ddev directory
-  if (file_exists('/mnt/ddev_config')) {
-      echo "PHP: Global config accessible\n";
-  }
-  
-  file_put_contents('/mnt/ddev_config/php-test-created.txt', "Created by PHP at " . date('Y-m-d H:i:s') . "\n");
-  echo "PHP: Created test file\n";
-  ?>
+  - |
+    <?php
+    // Access config.yaml directly from the mounted .ddev directory
+    $configPath = '/mnt/ddev_config/config.yaml';
+    if (file_exists($configPath)) {
+        $configContent = file_get_contents($configPath);
+        // Simple parsing to get project name
+        if (preg_match('/^name:\s*(.+)$/m', $configContent, $matches)) {
+            $projectName = trim($matches[1]);
+            echo "PHP: Setting up project: $projectName\n";
+        }
+    }
+    
+    // Check if we can access the mounted .ddev directory
+    if (file_exists('/mnt/ddev_config')) {
+        echo "PHP: Global config accessible\n";
+    }
+    
+    file_put_contents('/mnt/ddev_config/php-test-created.txt', "Created by PHP at " . date('Y-m-d H:i:s') . "\n");
+    echo "PHP: Created test file\n";
+    ?>
 
 post_install_actions:
-- echo "Bash: This is a regular bash action after PHP"
-- |
-  <?php
-  echo "PHP: Post-install PHP action executed\n";
-  ?>
+  - "echo 'Bash: This is a regular bash action after PHP'"
+  - |
+    <?php
+    echo "PHP: Post-install PHP action executed\n";
+    ?>

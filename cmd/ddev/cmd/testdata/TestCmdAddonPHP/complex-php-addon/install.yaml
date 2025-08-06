@@ -61,5 +61,4 @@ pre_install_actions:
     echo "PHP: Generated docker-compose.complex-php-addon.yaml\n";
     ?>
 
-project_files:
-  - docker-compose.complex-php-addon.yaml
+project_files: []
