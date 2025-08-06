@@ -12,6 +12,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/ddev/ddev/pkg/docker"
 	"github.com/ddev/ddev/pkg/dockerutil"
 	"github.com/ddev/ddev/pkg/exec"
 	"github.com/ddev/ddev/pkg/fileutil"
@@ -186,7 +187,7 @@ func ProcessAddonActionWithImage(action string, dict map[string]interface{}, bas
 func processPHPAction(action string, dict map[string]interface{}, image string, verbose bool, app *DdevApp) error {
 	// Use a default PHP image if none specified
 	if image == "" {
-		image = "ddev/ddev-webserver:latest"
+		image = docker.GetWebImage()
 	}
 
 	// Prepare container run arguments

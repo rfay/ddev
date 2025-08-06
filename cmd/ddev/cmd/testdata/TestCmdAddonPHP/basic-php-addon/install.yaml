@@ -1,5 +1,5 @@
 name: basic-php-test
-image: ddev/ddev-webserver:latest
+image: ddev/ddev-webserver:20250806_rfay_php_addon
 
 pre_install_actions:
   - |

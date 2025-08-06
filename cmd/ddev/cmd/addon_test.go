@@ -320,4 +320,58 @@ services:
 		require.Contains(t, out, "PHP: OS info:")
 		require.Contains(t, out, fmt.Sprintf("PHP: Custom image working for project: %s", app.Name))
 	})
+
+	// Test Varnish PHP addon - demonstrates real-world addon conversion
+	t.Run("VarnishPHPAddon", func(t *testing.T) {
+		varnishAddonDir := filepath.Join(origDir, "testdata", "TestCmdAddonPHP", "varnish-php-addon")
+
+		out, err := exec.RunHostCommand(DdevBin, "add-on", "get", varnishAddonDir, "--verbose")
+		require.NoError(t, err, "failed to install varnish PHP addon: %v, output: %s", err, out)
+
+		// Check that PHP processed the DDEV config and handled installation
+		require.Contains(t, out, fmt.Sprintf("PHP: Installing Varnish for project: %s", app.Name))
+		require.Contains(t, out, "PHP: Static files (docker-compose.varnish.yaml, varnish/, commands/) will be installed")
+		require.Contains(t, out, "PHP: Generated docker-compose.varnish_extras.yaml")
+		require.Contains(t, out, "PHP: Varnish installation complete!")
+
+		// Verify the generated docker-compose file exists and has expected content
+		varnishComposePath := app.GetConfigPath("docker-compose.varnish.yaml")
+		require.FileExists(t, varnishComposePath)
+
+		content, err := os.ReadFile(varnishComposePath)
+		require.NoError(t, err)
+		require.Contains(t, string(content), "ddev-${DDEV_SITENAME}-varnish")
+		require.Contains(t, string(content), "varnish:6.0")
+		require.Contains(t, string(content), "./varnish:/etc/varnish")
+
+		// Verify varnish directory and VCL file were created
+		varnishDir := app.GetConfigPath("varnish")
+		require.DirExists(t, varnishDir)
+
+		vclPath := app.GetConfigPath("varnish/default.vcl")
+		require.FileExists(t, vclPath)
+
+		vclContent, err := os.ReadFile(vclPath)
+		require.NoError(t, err)
+		require.Contains(t, string(vclContent), "#ddev-generated")
+		require.Contains(t, string(vclContent), "vcl 4.1")
+		require.Contains(t, string(vclContent), `backend default`)
+
+		// Verify varnish_extras file was created
+		extrasPath := app.GetConfigPath("docker-compose.varnish_extras.yaml")
+		require.FileExists(t, extrasPath)
+
+		extrasContent, err := os.ReadFile(extrasPath)
+		require.NoError(t, err)
+		require.Contains(t, string(extrasContent), "novarnish.${DDEV_HOSTNAME}")
+		require.Contains(t, string(extrasContent), "#ddev-generated")
+
+		// Verify commands directory was installed
+		commandsDir := app.GetConfigPath("commands/varnish")
+		require.DirExists(t, commandsDir)
+
+		// Check for some key varnish commands
+		require.FileExists(t, app.GetConfigPath("commands/varnish/varnishadm"))
+		require.FileExists(t, app.GetConfigPath("commands/varnish/varnishlog"))
+	})
 }

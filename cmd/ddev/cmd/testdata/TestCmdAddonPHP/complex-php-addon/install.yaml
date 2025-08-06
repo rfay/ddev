@@ -1,6 +1,6 @@
 #ddev-generated
 name: complex-php-test
-image: ddev/ddev-webserver:latest
+image: ddev/ddev-webserver:20250806_rfay_php_addon
 
 yaml_read_files:
   test_config: "test-config.yaml"
@@ -30,7 +30,7 @@ pre_install_actions:
     // Test yaml_read_files functionality - read test-config.yaml with proper YAML parsing
     $testConfigPath = '/mnt/ddev_config/test-config.yaml';
     if (file_exists($testConfigPath)) {
-        // Check if YAML extension is available
+        // Use YAML extension if available (after container rebuild), otherwise fallback
         if (function_exists('yaml_parse_file')) {
             $testConfig = yaml_parse_file($testConfigPath);
             
@@ -47,8 +47,7 @@ pre_install_actions:
                 }
             }
         } else {
-            echo "PHP: YAML extension not available, using fallback parsing\n";
-            // Fallback to manual parsing if YAML extension not available
+            // Fallback parsing until YAML extension is available
             $testConfigContent = file_get_contents($testConfigPath);
             if (preg_match('/database:\s*\n\s*version:\s*["\']?([^"\'\n]+)["\']?/m', $testConfigContent, $matches)) {
                 $dbVersion = trim($matches[1]);

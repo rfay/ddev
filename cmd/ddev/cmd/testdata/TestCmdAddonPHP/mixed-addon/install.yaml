@@ -1,6 +1,6 @@
 #ddev-generated
 name: mixed-test
-image: ddev/ddev-webserver:latest
+image: ddev/ddev-webserver:20250806_rfay_php_addon
 
 pre_install_actions:
   - "echo 'Bash: Starting mixed addon installation'"
