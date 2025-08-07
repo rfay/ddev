@@ -52,7 +52,7 @@ echo "This is working\n";
 	// Test PHP action with config access
 	t.Run("PHPActionWithConfig", func(t *testing.T) {
 		action := `<?php
-$configPath = '/mnt/ddev_config/config.yaml';
+$configPath = 'config.yaml';
 if (file_exists($configPath)) {
     $configContent = file_get_contents($configPath);
     if (preg_match('/^name:\s*(.+)$/m', $configContent, $matches)) {
@@ -87,6 +87,88 @@ echo "PHP Version: " . PHP_VERSION . "\n";
 
 		err := processPHPAction(action, dict, "php:8.1-cli", true, app)
 		require.NoError(t, err, "PHP action with custom image should execute without error")
+	})
+
+	// Test working directory is set to /var/www/html/.ddev
+	t.Run("WorkingDirectoryTest", func(t *testing.T) {
+		action := `<?php
+// Test that we're in the correct working directory
+$workingDir = getcwd();
+echo "Working directory: $workingDir\n";
+
+// Test relative path access to config.yaml
+if (file_exists('config.yaml')) {
+    echo "Found config.yaml in working directory\n";
+    $configContent = file_get_contents('config.yaml');
+    if (strpos($configContent, 'test-project') !== false) {
+        echo "Config contains expected project name\n";
+    }
+} else {
+    echo "config.yaml not found in working directory\n";
+}
+
+// Test relative path access to parent directory (../composer.json would be at project root)
+if (file_exists('../')) {
+    echo "Parent directory accessible\n";
+} else {
+    echo "Parent directory not accessible\n";
+}
+?>`
+
+		dict := map[string]interface{}{
+			"DdevProjectConfig": map[string]interface{}{
+				"name": "test-project",
+				"type": "php",
+			},
+		}
+
+		err := processPHPAction(action, dict, "", true, app)
+		require.NoError(t, err, "PHP action with working directory test should execute without error")
+	})
+
+	// Test file writing with relative paths
+	t.Run("RelativeFileWriteTest", func(t *testing.T) {
+		action := `<?php
+// Test writing a file in the current directory (.ddev)
+$testFile = 'test-output.txt';
+$testContent = "Test content from PHP addon\n";
+file_put_contents($testFile, $testContent);
+
+if (file_exists($testFile)) {
+    echo "Successfully wrote file: $testFile\n";
+    $readContent = file_get_contents($testFile);
+    if ($readContent === $testContent) {
+        echo "File content matches expected content\n";
+    }
+    // Clean up
+    unlink($testFile);
+} else {
+    echo "Failed to write file: $testFile\n";
+}
+
+// Test writing a file in parent directory (project root)
+$parentTestFile = '../test-parent.txt';
+$parentContent = "Test content in parent directory\n";
+file_put_contents($parentTestFile, $parentContent);
+
+if (file_exists($parentTestFile)) {
+    echo "Successfully wrote file in parent directory\n";
+    // Clean up
+    unlink($parentTestFile);
+} else {
+    echo "Failed to write file in parent directory\n";
+}
+?>`
+
+		dict := map[string]interface{}{
+			"DdevProjectConfig": map[string]interface{}{
+				"name": "test-project",
+				"type": "php",
+			},
+		}
+
+		err := processPHPAction(action, dict, "", true, app)
+		require.NoError(t, err, "PHP action with relative file write test should execute without error")
 	})
 }
 

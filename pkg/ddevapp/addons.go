@@ -202,6 +202,7 @@ cat > /tmp/addon-script.php << 'DDEV_PHP_EOF'
 %s
 DDEV_PHP_EOF
 
+cd /var/www/html/.ddev
 php /tmp/addon-script.php
 `, action)
 

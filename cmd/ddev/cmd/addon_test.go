@@ -253,7 +253,7 @@ func TestCmdAddonPHP(t *testing.T) {
 
 		// Check that PHP output is present
 		require.Contains(t, out, "PHP: Setting up project:")
-		require.Contains(t, out, "PHP: Global config accessible")
+		require.Contains(t, out, "PHP: Config directory accessible")
 		require.Contains(t, out, "PHP: Created test file")
 		require.Contains(t, out, "Bash: This is a regular bash action after PHP")
 		require.Contains(t, out, "PHP: Post-install PHP action executed")

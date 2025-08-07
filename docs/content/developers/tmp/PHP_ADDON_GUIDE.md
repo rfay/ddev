@@ -16,7 +16,7 @@ PHP-based add-ons allow you to write installation and configuration logic in PHP
 
 DDEV automatically detects PHP actions by looking for scripts that start with `<?php`. When found, these actions are executed in a PHP container with access to:
 
-- Your project's `.ddev` directory mounted at `/mnt/ddev_config/`
+- Your project's `.ddev` directory as the working directory (`/var/www/html/.ddev`)
 - The php-yaml extension for parsing YAML files
 - All standard PHP functionality for file manipulation, string processing, etc.
 
@@ -47,7 +47,7 @@ pre_install_actions:
     #ddev-description: Process project configuration
     
     // Read DDEV config with proper YAML parsing
-    $config = yaml_parse_file('/mnt/ddev_config/config.yaml');
+    $config = yaml_parse_file('config.yaml');
     $projectName = $config['name'] ?? 'unknown';
     echo "Setting up project: $projectName\n";
     
@@ -56,7 +56,7 @@ pre_install_actions:
         'name' => $projectName,
         'type' => 'addon-config'
     ];
-    file_put_contents('/mnt/ddev_config/my-addon-config.yaml', 
+    file_put_contents('my-addon-config.yaml', 
         yaml_emit($addonConfig));
     ?>
 ```
@@ -75,7 +75,7 @@ pre_install_actions:
 
 - Run inside a PHP container
 - Limited to PHP and basic container tools
-- Project `.ddev` directory mounted at `/mnt/ddev_config/`
+- Working directory is `/var/www/html/.ddev` (the project's .ddev directory)
 - **Full project repository mounted at `/var/www/html/`** (read/write access)
 
 ### 2. File Access
@@ -93,9 +93,9 @@ echo "content" > web/sites/default/settings.php
 
 ```php
 <?php
-// Access .ddev directory via mount
-$config = file_get_contents('/mnt/ddev_config/config.yaml');
-file_put_contents('/mnt/ddev_config/output.txt', 'data');
+// Access .ddev directory with relative paths (working directory: /var/www/html/.ddev)
+$config = file_get_contents('config.yaml');
+file_put_contents('output.txt', 'data');
 
 // Access full project repository 
 $projectFiles = scandir('/var/www/html');
@@ -120,7 +120,7 @@ fi
 ```php
 <?php
 #ddev-description: Check if file exists
-if (!file_exists('/mnt/ddev_config/config.yaml')) {
+if (!file_exists('config.yaml')) {
     echo "Config file not found!\n";
     exit(1);
 }
@@ -141,7 +141,7 @@ DB_VERSION=$(grep "database:" -A 2 .ddev/config.yaml | grep "version:" | cut -d:
 ```php
 <?php
 // Full YAML parsing with php-yaml
-$config = yaml_parse_file('/mnt/ddev_config/config.yaml');
+$config = yaml_parse_file('config.yaml');
 $dbVersion = $config['database']['version'] ?? 'default';
 
 // Generate complex YAML structures
@@ -155,7 +155,7 @@ $newConfig = [
         ]
     ]
 ];
-file_put_contents('/mnt/ddev_config/docker-compose.myservice.yaml', 
+file_put_contents('docker-compose.myservice.yaml', 
     "#ddev-generated\n" . yaml_emit($newConfig));
 ?>
 ```
@@ -173,7 +173,7 @@ pre_install_actions:
     <?php
     #ddev-description: Generate environment-specific configuration
     
-    $config = yaml_parse_file('/mnt/ddev_config/config.yaml');
+    $config = yaml_parse_file('config.yaml');
     $projectType = $config['type'] ?? 'php';
     
     // Generate different configs based on project type
@@ -202,7 +202,7 @@ pre_install_actions:
         'services' => $services
     ];
     
-    file_put_contents('/mnt/ddev_config/docker-compose.conditional.yaml',
+    file_put_contents('docker-compose.conditional.yaml',
         "#ddev-generated\n" . yaml_emit($composeContent));
         
     echo "Generated configuration for $projectType project\n";
@@ -224,7 +224,7 @@ pre_install_actions:
     #ddev-description: Transform Platform.sh config to DDEV format
     
     // This would be populated by yaml_read_files
-    $platformConfig = '/mnt/ddev_config/.platform.app.yaml';
+    $platformConfig = '.platform.app.yaml';
     
     if (file_exists($platformConfig)) {
         $platform = yaml_parse_file($platformConfig);
@@ -250,7 +250,7 @@ pre_install_actions:
             'hooks' => $hooks
         ];
         
-        file_put_contents('/mnt/ddev_config/config.platform.yaml',
+        file_put_contents('config.platform.yaml',
             "#ddev-generated\n" . yaml_emit($ddevConfig));
             
         echo "Transformed Platform.sh config (PHP $phpVersion)\n";
@@ -269,7 +269,7 @@ pre_install_actions:
     <?php
     #ddev-description: Configure project settings files
     
-    $config = yaml_parse_file('/mnt/ddev_config/config.yaml');
+    $config = yaml_parse_file('config.yaml');
     $projectType = $config['type'] ?? 'php';
     
     // Create appropriate settings files based on project type
@@ -349,7 +349,7 @@ pre_install_actions:
     <?php
     #ddev-description: Process configuration files  
     // PHP is better for data processing
-    $config = yaml_parse_file('/mnt/ddev_config/config.yaml');
+    $config = yaml_parse_file('config.yaml');
     $projectName = $config['name'];
     echo "Processing config for: $projectName\n";
     ?>
@@ -466,7 +466,7 @@ Shows full project repository access capabilities:
 
 When migrating existing bash actions to PHP, consider:
 
-1. **File paths:** Change `.ddev/file` to `/mnt/ddev_config/file`
+1. **File paths:** Change `.ddev/file` to relative paths like `file` (working directory is `/var/www/html/.ddev`)
 2. **Project files:** Change `./file` to `/var/www/html/file`
 3. **YAML parsing:** Replace grep/sed with `yaml_parse_file()`
 4. **Variables:** Convert `$DDEV_PROJECT` style to reading config files

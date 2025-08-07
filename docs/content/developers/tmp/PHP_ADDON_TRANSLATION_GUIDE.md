@@ -40,7 +40,7 @@ post_install_actions:
   - |
     <?php
     #ddev-description:Install redis settings for Drupal 9+ if applicable
-    include '/mnt/ddev_config/redis/scripts/setup-drupal-settings.php';
+    include 'redis/scripts/setup-drupal-settings.php';
     ?>
 ```
 
@@ -92,7 +92,7 @@ $globalConfig = ddev_get_global_config();
 
 ```php
 // INSTEAD OF: shell_exec('ddev debug configyaml')
-$config = yaml_parse_file('/mnt/ddev_config/config.yaml');
+$config = yaml_parse_file('config.yaml');
 
 // INSTEAD OF: shell_exec('ddev dotenv get .ddev/.env.redis --redis-optimized')
 if (file_exists('/var/www/html/.ddev/.env.redis')) {
@@ -111,11 +111,11 @@ if (file_exists('/var/www/html/.ddev/.env.redis')) {
 **Path Mappings**:
 
 ```php
-// Bash context -> PHP container context
-.ddev/config.yaml -> /mnt/ddev_config/config.yaml
-.ddev/redis/file.conf -> /mnt/ddev_config/redis/file.conf
-./project/file -> /var/www/html/project/file
-$DDEV_APPROOT/.ddev/ -> /var/www/html/.ddev/
+// Bash context -> PHP container context (working directory: /var/www/html/.ddev)
+.ddev/config.yaml -> config.yaml (relative path from working directory)
+.ddev/redis/file.conf -> redis/file.conf (relative path from working directory)
+./project/file -> ../project/file (relative to project root)
+$DDEV_APPROOT/.ddev/ -> . (current working directory)
 ```
 
 ### 3. Environment Variable Handling
@@ -126,7 +126,7 @@ $DDEV_APPROOT/.ddev/ -> /var/www/html/.ddev/
 
 ```php
 // INSTEAD OF: $DDEV_APPROOT, $DDEV_DOCROOT
-$config = yaml_parse_file('/mnt/ddev_config/config.yaml');
+$config = yaml_parse_file('config.yaml');
 $docroot = $config['docroot'] ?? 'web';
 $projectName = $config['name'] ?? 'default';
 
@@ -228,7 +228,7 @@ copy($source, $dest);           // Instead of: cp
 
 ```php
 // Leverage php-yaml for robust parsing
-$config = yaml_parse_file('/mnt/ddev_config/config.yaml');
+$config = yaml_parse_file('config.yaml');
 
 // Generate clean YAML output
 $dockerConfig = [
@@ -239,7 +239,7 @@ $dockerConfig = [
         ]
     ]
 ];
-file_put_contents('/var/www/html/.ddev/docker-compose.redis.yaml', 
+file_put_contents('docker-compose.redis.yaml', 
     "#ddev-generated\n" . yaml_emit($dockerConfig));
 ```
 
@@ -386,24 +386,24 @@ $_ENV['DDEV_SITENAME']    // Project name
 $_ENV['DDEV_HOSTNAME']    // Primary hostname
 
 // ELIMINATES CURRENT WORKAROUND:
-// $config = yaml_parse_file('/mnt/ddev_config/config.yaml');
+// $config = yaml_parse_file('config.yaml');
 // $docroot = $config['docroot'] ?? 'web';
 ```
 
-### 2. Consistent Working Directory (HIGH PRIORITY)
+### 2. Consistent Working Directory (COMPLETED ✅)
 
 **Implementation**: Execute all PHP actions in `/var/www/html/.ddev` directory.
 
-**Required Changes**:
+**Completed Changes**:
 
-- Set working directory in `processPHPAction()` before script execution
-- Match bash action execution context
+- ✅ Set working directory in `processPHPAction()` before script execution
+- ✅ Match bash action execution context
 
-**Benefits**:
+**Benefits Achieved**:
 
-- Enables relative path usage: `file_put_contents('docker-compose.redis.yaml', $content)`
-- Matches bash action expectations
-- Simplifies file operations
+- ✅ Enables relative path usage: `file_put_contents('docker-compose.redis.yaml', $content)`
+- ✅ Matches bash action expectations
+- ✅ Simplifies file operations
 
 ### 3. Processed Configuration Access (MEDIUM PRIORITY)
 
@@ -449,9 +449,9 @@ These improvements would significantly simplify the Redis PHP translation:
 
 ```php
 // Complex path management
-$config = yaml_parse_file('/mnt/ddev_config/config.yaml');
-$targetDir = '/var/www/html/' . ($config['docroot'] ?? 'web') . '/sites/default';
-$extraDockerFile = '/var/www/html/.ddev/docker-compose.redis_extra.yaml';
+$config = yaml_parse_file('config.yaml');
+$targetDir = '../' . ($config['docroot'] ?? 'web') . '/sites/default';
+$extraDockerFile = 'docker-compose.redis_extra.yaml';
 
 // Manual environment variable extraction
 $projectType = $config['type'] ?? 'php';

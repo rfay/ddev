@@ -10,8 +10,8 @@ pre_install_actions:
     <?php
     #ddev-description: Process complex PHP addon configuration
     
-    // Read project config from mounted .ddev directory
-    $configPath = '/mnt/ddev_config/config.yaml';
+    // Read project config from .ddev directory (using relative path)
+    $configPath = 'config.yaml';
     $projectName = 'unknown';
     $projectType = 'unknown';
     
@@ -26,7 +26,7 @@ pre_install_actions:
     }
     
     // Test yaml_read_files functionality - read test-config.yaml with proper YAML parsing
-    $testConfigPath = '/mnt/ddev_config/test-config.yaml';
+    $testConfigPath = 'test-config.yaml';
     if (file_exists($testConfigPath)) {
         // Use YAML extension if available (after container rebuild), otherwise fallback
         if (function_exists('yaml_parse_file')) {
@@ -71,7 +71,7 @@ pre_install_actions:
     $yamlContent .= "      PROJECT_NAME: \"$projectName\"\n";
     $yamlContent .= "      PROJECT_TYPE: \"$projectType\"\n";
     
-    file_put_contents('/mnt/ddev_config/docker-compose.complex-php-addon.yaml', $yamlContent);
+    file_put_contents('docker-compose.complex-php-addon.yaml', $yamlContent);
     
     echo "PHP: Generated docker-compose.complex-php-addon.yaml\n";
     ?>

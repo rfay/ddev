@@ -215,7 +215,8 @@ ddev add-on get /path/to/tarball.tar.gz
 		}
 		for i, action := range s.PreInstallActions {
 			// For PHP actions, don't prepend bash environment setup
-			if strings.HasPrefix(strings.TrimSpace(action), "<?php") {
+			trimmedAction := strings.TrimSpace(action)
+			if strings.HasPrefix(trimmedAction, "<?php") {
 				err = ddevapp.ProcessAddonActionWithImage(action, dict, bash, verbose, s.Image, app)
 			} else {
 				err = ddevapp.ProcessAddonActionWithImage(injectedEnv+"; "+action, dict, bash, verbose, s.Image, app)
@@ -296,7 +297,8 @@ ddev add-on get /path/to/tarball.tar.gz
 		}
 		for i, action := range s.PostInstallActions {
 			// For PHP actions, don't prepend bash environment setup
-			if strings.HasPrefix(strings.TrimSpace(action), "<?php") {
+			trimmedAction := strings.TrimSpace(action)
+			if strings.HasPrefix(trimmedAction, "<?php") {
 				err = ddevapp.ProcessAddonActionWithImage(action, dict, bash, verbose, s.Image, app)
 			} else {
 				err = ddevapp.ProcessAddonActionWithImage(injectedEnv+"; "+action, dict, bash, verbose, s.Image, app)

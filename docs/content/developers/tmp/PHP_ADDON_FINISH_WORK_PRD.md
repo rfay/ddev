@@ -64,10 +64,10 @@ PHP actions currently lack access to standard DDEV environment variables that ba
 #### Success Criteria
 
 - PHP scripts can access `$_ENV['DDEV_APPROOT']` and all other standard variables
-- No more manual `yaml_parse_file('/mnt/ddev_config/config.yaml')` calls needed
+- No more manual `yaml_parse_file('config.yaml')` calls needed (using relative paths from /var/www/html/.ddev)
 - Environment variables match values available to bash actions
 
-### 2. Consistent Working Directory (HIGH PRIORITY)
+### 2. Consistent Working Directory (COMPLETED ✅)
 
 #### Working Directory Problem
 
@@ -111,11 +111,11 @@ PHP actions can only access raw config.yaml files, not the processed configurati
 
 #### Preferred Approach
 
-Mount processed configuration as JSON file at `/mnt/ddev_processed_config.json`:
+Mount processed configuration as JSON files accessible via relative paths:
 
 ```php
-$processedConfig = json_decode(file_get_contents('/mnt/ddev_processed_config.json'), true);
-$globalConfig = json_decode(file_get_contents('/mnt/ddev_global_config.json'), true);
+$processedConfig = json_decode(file_get_contents('ddev_processed_config.json'), true);
+$globalConfig = json_decode(file_get_contents('ddev_global_config.json'), true);
 ```
 
 #### Configuration Access Success Criteria
@@ -259,14 +259,14 @@ Some add-ons require user interaction (e.g., ddev-php-patch-build asking for PHP
 
 PHP add-on implementation is complete when:
 
-1. ✅ All environment variables available to bash actions are available to PHP actions
+1. ⏳ All environment variables available to bash actions are available to PHP actions
 2. ✅ PHP actions execute in consistent working directory with relative path support
-3. ✅ PHP actions can access processed configuration data
-4. ✅ #ddev-nodisplay directive works correctly
-5. ✅ Error handling and reporting matches bash action behavior
+3. ⏳ PHP actions can access processed configuration data
+4. ⏳ #ddev-nodisplay directive works correctly
+5. ⏳ Error handling and reporting matches bash action behavior
 6. ✅ All existing PHP add-on tests continue to pass
 7. ✅ Documentation is updated with new capabilities
-8. ✅ Interactive input feasibility is documented (implementation optional)
+8. ⏳ Interactive input feasibility is documented (implementation optional)
 
 ## Appendix
 
