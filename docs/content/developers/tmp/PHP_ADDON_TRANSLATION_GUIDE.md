@@ -48,7 +48,37 @@ Create separate PHP script files for complex logic while keeping simple operatio
 
 ## Key Challenges and Solutions
 
-### 1. Container Environment Limitations
+### 1. Environment Variable and Context Limitations
+
+**Challenge**: PHP actions lack standard environment variables and consistent execution context.
+
+**Current Issues**:
+
+- No access to standard DDEV environment variables (`DDEV_APPROOT`, `DDEV_DOCROOT`, etc.)
+- PHP scripts execute in unpredictable working directories
+- Requires absolute paths for all file operations
+- Manual config parsing instead of processed configuration access
+
+**Required Solutions**:
+
+```php
+// NEEDED: Standard environment variables (like bash actions)
+$_ENV['DDEV_APPROOT']     // '/var/www/html'  
+$_ENV['DDEV_DOCROOT']     // 'web' or configured docroot
+$_ENV['DDEV_PROJECT_TYPE'] // 'drupal', 'laravel', etc.
+$_ENV['DDEV_SITENAME']    // Project name
+$_ENV['DDEV_HOSTNAME']    // Primary hostname
+
+// NEEDED: Consistent working directory execution
+// All PHP actions should execute in: /var/www/html/.ddev
+// This enables relative path usage like bash actions
+
+// NEEDED: Access to processed configuration
+$processedConfig = ddev_get_processed_config();
+$globalConfig = ddev_get_global_config();
+```
+
+### 2. Container Environment Limitations
 
 **Challenge**: PHP actions execute in containers without access to host `ddev` commands.
 
@@ -58,7 +88,7 @@ Create separate PHP script files for complex logic while keeping simple operatio
 - `ddev dotenv get` - Environment file access is container-restricted  
 - Host filesystem operations - Limited to mounted directories
 
-**Solutions**:
+**Current Workarounds**:
 
 ```php
 // INSTEAD OF: shell_exec('ddev debug configyaml')
@@ -71,7 +101,7 @@ if (file_exists('/var/www/html/.ddev/.env.redis')) {
 }
 
 // INSTEAD OF: accessing global config via ddev commands
-// Need alternative approach - currently limitation
+// Currently requires manual file parsing
 ```
 
 ### 2. File Path Translation
@@ -104,7 +134,36 @@ $projectName = $config['name'] ?? 'default';
 $projectType = $config['type'] ?? 'php';
 ```
 
-### 4. Configuration Access Patterns
+### 4. Output Control and User Feedback
+
+**Challenge**: PHP actions need proper output control and user interaction handling.
+
+**Current Issues**:
+
+- `#ddev-nodisplay` directive not implemented for PHP actions
+- No mechanism to suppress step output when requested
+- Error handling and reporting inconsistent with bash actions
+- Interactive user input not supported
+
+**Required Solutions**:
+
+```php
+// NEEDED: Respect #ddev-nodisplay directive
+#ddev-nodisplay:Skip Redis optimization prompts
+// This action should run silently without progress output
+
+// NEEDED: Consistent error reporting
+if (!$success) {
+    ddev_error("Failed to configure Redis: $errorMessage");
+    exit(1);
+}
+
+// NEEDED: Interactive input handling
+$version = ddev_prompt("Enter PHP version to build:", "8.2");
+$confirmed = ddev_confirm("Proceed with build?", true);
+```
+
+### 5. Configuration Access Patterns
 
 **Challenge**: Complex configuration queries that bash handles with ddev commands.
 
@@ -307,9 +366,16 @@ Based on the translation experience, several enhancements would improve PHP add-
 
 **Current Status**: The dynamic artifact approach successfully enables comprehensive testing of PHP add-ons, with all 10 test scenarios consistently using the correct DDEV version (`v1.23.5-478-ga611e2155`) and passing validation.
 
-### 1. Standard Environment Variables
+## Priority Implementation Tasks
 
-**Implementation**: Provide the same environment variables that bash actions receive.
+### 1. Standard Environment Variables (HIGH PRIORITY)
+
+**Implementation**: Pass the same environment variables to PHP containers that bash actions receive.
+
+**Required Changes**:
+
+- Modify `processPHPAction()` to set environment variables before container execution
+- Provide all standard DDEV environment variables
 
 ```php
 // SHOULD BE AVAILABLE (like in bash actions):
@@ -319,66 +385,61 @@ $_ENV['DDEV_PROJECT_TYPE'] // 'drupal', 'laravel', etc.
 $_ENV['DDEV_SITENAME']    // Project name
 $_ENV['DDEV_HOSTNAME']    // Primary hostname
 
-// CURRENT WORKAROUND:
-$config = yaml_parse_file('/mnt/ddev_config/config.yaml');
-$docroot = $config['docroot'] ?? 'web';
-$projectType = $config['type'] ?? 'php';
-$siteName = $config['name'] ?? 'default';
+// ELIMINATES CURRENT WORKAROUND:
+// $config = yaml_parse_file('/mnt/ddev_config/config.yaml');
+// $docroot = $config['docroot'] ?? 'web';
 ```
 
-### 2. Consistent Execution Context
+### 2. Consistent Working Directory (HIGH PRIORITY)
 
-**Implementation**: Execute PHP scripts in a known directory, matching bash behavior.
+**Implementation**: Execute all PHP actions in `/var/www/html/.ddev` directory.
 
-```bash
-# Bash actions execute in: $DDEV_APPROOT/.ddev
-# PHP actions should execute in: /var/www/html/.ddev
-```
+**Required Changes**:
+
+- Set working directory in `processPHPAction()` before script execution
+- Match bash action execution context
 
 **Benefits**:
 
-- Consistent relative path behavior  
+- Enables relative path usage: `file_put_contents('docker-compose.redis.yaml', $content)`
 - Matches bash action expectations
-- Simplifies file access patterns
+- Simplifies file operations
 
-```php
-// WITH CONSISTENT DIRECTORY:
-file_put_contents('docker-compose.redis.yaml', $content);
-// Instead of: file_put_contents('/var/www/html/.ddev/docker-compose.redis.yaml', $content);
+### 3. Processed Configuration Access (MEDIUM PRIORITY)
 
-// Access project files with consistent relative paths
-$projectFile = '../composer.json';  // /var/www/html/composer.json
-$configFile = 'config.yaml';        // /var/www/html/.ddev/config.yaml
-```
+**Implementation**: Provide resolved configuration data to PHP environment.
 
-### 3. Enhanced Container Context
+**Required Changes**:
+
+- Mount processed config as JSON/YAML files in container
+- Create PHP helper functions for config access
 
 ```php
 // NEEDED: Access to processed configuration
 $globalConfig = ddev_get_global_config();
 $processedConfig = ddev_get_processed_config();
-
-// NEEDED: Runtime environment information  
-$containerInfo = ddev_get_container_info();
-$hostInfo = ddev_get_host_info();
 ```
 
-### 4. Configuration Bridge
+### 4. Output Control Implementation (MEDIUM PRIORITY)
 
-Mount additional configuration data into PHP containers:
+**Implementation**: Support `#ddev-nodisplay` and proper error handling.
 
-- Processed global configuration
-- Runtime environment variables
-- Host system information
-- Network configuration details
+**Required Changes**:
 
-### 5. Debugging Support
+- Parse `#ddev-nodisplay` directive in `processPHPAction()`
+- Suppress step output when directive is present
+- Implement consistent error reporting and exit code handling
+- Test failure scenarios match bash action behavior
 
-```php
-// NEEDED: Debug utilities
-ddev_debug("Processing optimization config");
-ddev_log_info("Created docker-compose file");
-```
+### 5. Interactive Input Support (LOW PRIORITY)
+
+**Implementation**: Enable user interaction for PHP actions.
+
+**Required Changes**:
+
+- Research existing bash addon examples (ddev-php-patch-build)
+- Design PHP-compatible input mechanism
+- Consider container environment limitations for interactive prompts
 
 ### Impact on Current Translation
 
