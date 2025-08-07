@@ -3,16 +3,20 @@ name: mixed-test
 image: ddev/ddev-webserver:20250806_rfay_php_addon
 
 pre_install_actions:
-  - "echo 'Bash: Starting mixed addon installation'"
+  - |
+    #ddev-description: Start mixed addon installation
+    echo 'Bash: Starting mixed addon installation'
   - |
     <?php
-    #ddev-description: PHP action in mixed addon
+    #ddev-description: Execute first PHP action
     echo "PHP: Mixed addon PHP action\n";
     ?>
-  - "echo 'Bash: Continuing after PHP'"
+  - |
+    #ddev-description: Continue with bash processing
+    echo 'Bash: Continuing after PHP'
   - |
     <?php
-    #ddev-description: Another PHP action
+    #ddev-description: Read project configuration
     $configPath = '/mnt/ddev_config/config.yaml';
     $projectName = 'unknown';
     if (file_exists($configPath)) {
@@ -23,6 +27,8 @@ pre_install_actions:
     }
     echo "PHP: Project name is $projectName\n";
     ?>
-  - "echo 'Bash: Final bash action'"
+  - |
+    #ddev-description: Complete mixed addon installation
+    echo 'Bash: Final bash action'
 
 project_files: []

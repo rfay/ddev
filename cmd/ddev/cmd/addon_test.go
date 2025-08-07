@@ -256,6 +256,11 @@ func TestCmdAddonPHP(t *testing.T) {
 		require.Contains(t, out, "Bash: This is a regular bash action after PHP")
 		require.Contains(t, out, "PHP: Post-install PHP action executed")
 
+		// Check that descriptions are displayed
+		require.Contains(t, out, "👍  Initialize basic PHP addon")
+		require.Contains(t, out, "👍  Execute bash validation step")
+		require.Contains(t, out, "👍  Finalize basic PHP addon setup")
+
 		// Verify the PHP-created file exists
 		require.FileExists(t, app.GetConfigPath("php-test-created.txt"))
 	})
@@ -280,6 +285,9 @@ services:
 		require.Contains(t, out, "PHP: Database version from config: 8.0")
 		require.Contains(t, out, "PHP: Service redis configured")
 		require.Contains(t, out, "PHP: Generated docker-compose.complex-php-addon.yaml")
+
+		// Check that descriptions are displayed
+		require.Contains(t, out, "👍  Process complex PHP addon configuration")
 
 		// Verify the generated docker-compose file exists and has expected content
 		composePath := app.GetConfigPath("docker-compose.complex-php-addon.yaml")
@@ -307,6 +315,13 @@ services:
 		require.Contains(t, out, "Bash: Continuing after PHP")
 		require.Contains(t, out, fmt.Sprintf("PHP: Project name is %s", app.Name))
 		require.Contains(t, out, "Bash: Final bash action")
+
+		// Check that PHP action descriptions are displayed
+		require.Contains(t, out, "👍  Start mixed addon installation")
+		require.Contains(t, out, "👍  Execute first PHP action")
+		require.Contains(t, out, "👍  Continue with bash processing")
+		require.Contains(t, out, "👍  Read project configuration")
+		require.Contains(t, out, "👍  Complete mixed addon installation")
 	})
 
 	// Test custom PHP image
@@ -319,6 +334,9 @@ services:
 		require.Contains(t, out, "PHP: Running on 8.1")
 		require.Contains(t, out, "PHP: OS info:")
 		require.Contains(t, out, fmt.Sprintf("PHP: Custom image working for project: %s", app.Name))
+
+		// Check that PHP action description is displayed
+		require.Contains(t, out, "👍  Testing custom PHP image")
 	})
 
 	// Test Varnish PHP addon - demonstrates real-world addon conversion
@@ -333,6 +351,10 @@ services:
 		require.Contains(t, out, "PHP: Static files (docker-compose.varnish.yaml, varnish/, commands/) will be installed")
 		require.Contains(t, out, "PHP: Generated docker-compose.varnish_extras.yaml")
 		require.Contains(t, out, "PHP: Varnish installation complete!")
+
+		// Check that descriptions are displayed
+		require.Contains(t, out, "👍  Initialize Varnish addon installation")
+		require.Contains(t, out, "👍  Complete Varnish configuration")
 
 		// Verify the generated docker-compose file exists and has expected content
 		varnishComposePath := app.GetConfigPath("docker-compose.varnish.yaml")

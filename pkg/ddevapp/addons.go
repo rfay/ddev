@@ -185,6 +185,8 @@ func ProcessAddonActionWithImage(action string, dict map[string]interface{}, bas
 
 // processPHPAction executes a PHP action in a container
 func processPHPAction(action string, dict map[string]interface{}, image string, verbose bool, app *DdevApp) error {
+	// Extract description before processing
+	desc := GetAddonDdevDescription(action)
 	// Use a default PHP image if none specified
 	if image == "" {
 		image = docker.GetWebImage()
@@ -229,12 +231,20 @@ php /tmp/addon-script.php
 		nil,   // healthConfig
 	)
 
-	if len(output) > 0 {
-		util.Success(output)
+	if err != nil {
+		if desc != "" {
+			util.Warning("%c %s", '\U0001F44E', desc) // 👎 error emoji
+		}
+		return fmt.Errorf("PHP script failed: %v", err)
 	}
 
-	if err != nil {
-		return fmt.Errorf("PHP script failed: %v", err)
+	// Show description on success
+	if desc != "" {
+		util.Success("%c %s", '\U0001F44D', desc) // 👍 success emoji
+	}
+
+	if len(output) > 0 {
+		util.Success(output)
 	}
 
 	return nil

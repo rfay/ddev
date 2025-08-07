@@ -4,6 +4,7 @@ image: ddev/ddev-webserver:20250806_rfay_php_addon
 pre_install_actions:
   - |
     <?php
+    #ddev-description: Initialize basic PHP addon
     // Access config.yaml directly from the mounted .ddev directory
     $configPath = '/mnt/ddev_config/config.yaml';
     if (file_exists($configPath)) {
@@ -11,8 +12,6 @@ pre_install_actions:
         // Simple parsing to get project name
         if (preg_match('/^name:\s*(.+)$/m', $configContent, $matches)) {
             $projectName = trim($matches[1]);
-            $out = shell_exec("uname -a");
-            echo "uname: $out\n";
             echo "PHP: Setting up project: $projectName\n";
         }
     }
@@ -26,7 +25,10 @@ pre_install_actions:
     echo "PHP: Created test file\n";
 
 post_install_actions:
-  - "echo 'Bash: This is a regular bash action after PHP'"
+  - |
+    #ddev-description: Execute bash validation step
+    echo 'Bash: This is a regular bash action after PHP'
   - |
     <?php
+    #ddev-description: Finalize basic PHP addon setup
     echo "PHP: Post-install PHP action executed\n";
