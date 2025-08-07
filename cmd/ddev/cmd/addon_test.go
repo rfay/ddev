@@ -239,6 +239,7 @@ func TestCmdAddonPHP(t *testing.T) {
 		_, _ = exec.RunHostCommand(DdevBin, "add-on", "remove", "mixed-test")
 		_, _ = exec.RunHostCommand(DdevBin, "add-on", "remove", "custom-image-test")
 		_, _ = exec.RunHostCommand(DdevBin, "add-on", "remove", "repo-access-test")
+		_, _ = exec.RunHostCommand(DdevBin, "add-on", "remove", "env-vars-test")
 
 		err = os.Chdir(origDir)
 		require.NoError(t, err)
@@ -440,5 +441,52 @@ services:
 		require.Contains(t, string(settingsContent), "Settings file created by PHP addon")
 		require.Contains(t, string(settingsContent), "$addon_config")
 		require.Contains(t, string(settingsContent), "repo-access-test")
+	})
+
+	// Test environment variables addon - validates all DDEV environment variables are available
+	t.Run("EnvironmentVariablesAddon", func(t *testing.T) {
+		envVarsAddonDir := filepath.Join(origDir, "testdata", "TestCmdAddonPHP", "env-vars-addon")
+		out, err := exec.RunHostCommand(DdevBin, "add-on", "get", envVarsAddonDir, "--verbose")
+		require.NoError(t, err, "failed to install environment variables addon: %v, output: %s", err, out)
+
+		// Check that PHP received and validated all environment variables
+		require.Contains(t, out, "PHP: Testing environment variables...")
+
+		// Define expected environment variables with their expected values or patterns
+		expectedEnvVars := map[string]interface{}{
+			"DDEV_SITENAME":        app.Name,
+			"DDEV_PROJECT":         app.Name,
+			"DDEV_PROJECT_TYPE":    app.Type,
+			"DDEV_PHP_VERSION":     app.PHPVersion,
+			"DDEV_WEBSERVER_TYPE":  app.WebserverType,
+			"DDEV_APPROOT":         "", // Value varies, just check presence
+			"DDEV_DOCROOT":         "", // Value varies, just check presence
+			"DDEV_DATABASE":        "", // Value varies, just check presence
+			"DDEV_DATABASE_FAMILY": "", // Value varies, just check presence
+			"DDEV_FILES_DIRS":      "", // Value varies, just check presence
+			"DDEV_MUTAGEN_ENABLED": "", // Value varies, just check presence
+			"DDEV_VERSION":         "", // Value varies, just check presence
+			"DDEV_TLD":             "", // Value varies, just check presence
+			"IS_DDEV_PROJECT":      "true",
+		}
+
+		// Verify each environment variable is present in the output
+		for envVar, expectedValue := range expectedEnvVars {
+			if expectedValue != "" {
+				// Check for specific value
+				require.Contains(t, out, fmt.Sprintf("PHP: Found %s=%s", envVar, expectedValue),
+					"Environment variable %s should have expected value", envVar)
+			} else {
+				// Just check for presence
+				require.Contains(t, out, fmt.Sprintf("PHP: Found %s=", envVar),
+					"Environment variable %s should be present", envVar)
+			}
+		}
+
+		require.Contains(t, out, fmt.Sprintf("PHP: SUCCESS - All %d environment variables found", len(expectedEnvVars)))
+		require.Contains(t, out, "PHP: Environment variable validation completed successfully")
+
+		// Check that description is displayed
+		require.Contains(t, out, "👍  Test environment variables in PHP actions")
 	})
 }

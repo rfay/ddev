@@ -20,6 +20,7 @@ import (
 	"github.com/ddev/ddev/pkg/globalconfig"
 	"github.com/ddev/ddev/pkg/nodeps"
 	"github.com/ddev/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/versionconstants"
 	"github.com/google/go-github/v72/github"
 	"go.yaml.in/yaml/v3"
 )
@@ -211,7 +212,30 @@ php /tmp/addon-script.php
 	binds = append(binds, fmt.Sprintf("%s:/mnt/ddev_config", app.AppConfDir()))
 	binds = append(binds, fmt.Sprintf("%s:/var/www/html", app.AppRoot))
 
-	var env []string
+	// Build environment variables array with standard DDEV variables
+	// Database family for connection URLs
+	dbFamily := "mysql"
+	if app.Database.Type == "postgres" {
+		dbFamily = "postgres"
+	}
+
+	env := []string{
+		fmt.Sprintf("DDEV_APPROOT=%s", app.AppRoot),
+		fmt.Sprintf("DDEV_DOCROOT=%s", app.GetDocroot()),
+		fmt.Sprintf("DDEV_PROJECT_TYPE=%s", app.Type),
+		fmt.Sprintf("DDEV_SITENAME=%s", app.Name),
+		fmt.Sprintf("DDEV_PROJECT=%s", app.Name),
+		fmt.Sprintf("DDEV_PHP_VERSION=%s", app.PHPVersion),
+		fmt.Sprintf("DDEV_WEBSERVER_TYPE=%s", app.WebserverType),
+		fmt.Sprintf("DDEV_DATABASE=%s:%s", app.Database.Type, app.Database.Version),
+		fmt.Sprintf("DDEV_DATABASE_FAMILY=%s", dbFamily),
+		fmt.Sprintf("DDEV_FILES_DIRS=%s", strings.Join(app.GetUploadDirs(), ",")),
+		fmt.Sprintf("DDEV_MUTAGEN_ENABLED=%t", app.IsMutagenEnabled()),
+		fmt.Sprintf("DDEV_VERSION=%s", versionconstants.DdevVersion),
+		fmt.Sprintf("DDEV_TLD=%s", app.ProjectTLD),
+		"IS_DDEV_PROJECT=true",
+	}
+
 	if verbose {
 		env = append(env, "DDEV_VERBOSE=true")
 	}
