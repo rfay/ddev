@@ -69,15 +69,15 @@ post_install_actions:
     }
     
     // Create the extras file that reroutes web hostnames
-    $extrasContent = <<<EOF
-#ddev-generated
-# This modifies the web container to use 'novarnish' subdomain prefix
-# so Varnish can intercept the main hostname
-services:
-  web:
-    environment:
-      - VIRTUAL_HOST=novarnish.\${DDEV_HOSTNAME}
-EOF;
+    $extrasContent = <<<'EOF'
+    #ddev-generated
+    # This modifies the web container to use 'novarnish' subdomain prefix
+    # so Varnish can intercept the main hostname
+    services:
+      web:
+        environment:
+          - VIRTUAL_HOST=novarnish.${DDEV_HOSTNAME}
+    EOF;
     
     // Parse additional hostnames if they exist
     $config = yaml_parse_file($configPath);
