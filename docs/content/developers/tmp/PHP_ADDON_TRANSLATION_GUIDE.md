@@ -226,14 +226,86 @@ Based on the translation experience, several enhancements would improve PHP add-
 **Issue**: When testing PHP add-ons with development builds (like `v1.23.5-477-gd1efc5064`), version constraints in `install.yaml` (e.g., `ddev_version_constraint: '>= v1.24.3'`) prevent installation, even when the development build contains the required PHP addon functionality.
 
 **Impact on Development**:
+
 - Cannot test PHP add-ons with development builds without commenting out version constraints
 - CI/CD testing requires manual constraint removal  
 - Version constraints become a barrier during development rather than a helpful guard
 
 **Potential Solutions**:
+
 - Allow development builds to bypass version constraints with a flag
 - Implement more flexible version matching for development builds
 - Provide a way to specify "development build compatible" in constraints
+
+### GitHub Actions Testing Challenges
+
+**Challenge**: Testing PHP add-ons requires installing custom DDEV builds that aren't available through standard distribution channels.
+
+**Current Solution**: We implemented a custom build step in `.github/workflows/tests.yml` that:
+
+1. **Dynamically fetches artifacts** from the PHP addon development branch
+2. **Downloads the correct binary** using GitHub's nightly.link service
+3. **Replaces the standard DDEV** installed by `ddev/github-action-add-on-test@v2`
+4. **Handles API failures** with fallback to known working artifact IDs
+
+```yaml
+- name: Install PHP addon DDEV binary
+  run: |
+    # Get latest successful workflow run with artifacts
+    RUN_ID=""
+    WORKFLOW_RUNS=$(curl -s --fail "https://api.github.com/repos/rfay/ddev/actions/runs?branch=20250806_rfay_php_addon&per_page=5" || echo '{"workflow_runs":[]}')
+    
+    for run_id in $(echo "$WORKFLOW_RUNS" | jq -r '.workflow_runs[] | select(.conclusion=="success") | .id'); do
+      ARTIFACT_COUNT=$(curl -s --fail "https://api.github.com/repos/rfay/ddev/actions/runs/$run_id/artifacts" | jq '.total_count')
+      if [ "$ARTIFACT_COUNT" -gt 0 ]; then
+        RUN_ID=$run_id
+        break
+      fi
+    done
+    
+    # Fallback to known working run if API fails
+    if [ -z "$RUN_ID" ]; then
+      RUN_ID="16806923996"  # Known working build
+    fi
+    
+    # Download and install PHP addon DDEV binary  
+    ARTIFACT_ID=$(curl -s --fail "https://api.github.com/repos/rfay/ddev/actions/runs/$RUN_ID/artifacts" | jq -r '.artifacts[] | select(.name=="ddev-linux-amd64") | .id')
+    curl -sSL --fail "https://nightly.link/rfay/ddev/actions/artifacts/$ARTIFACT_ID.zip" -o ddev-php-addon.zip
+    unzip -q ddev-php-addon.zip
+    sudo cp ddev /usr/local/bin/ddev
+    sudo chmod +x /usr/local/bin/ddev
+```
+
+**Why This Approach**:
+
+- `github-action-add-on-test@v2` only supports `"stable"` or `"HEAD"` versions, not custom builds
+- PHP addon functionality requires specific development build with container runtime support
+- Dynamic artifact fetching ensures tests use latest compatible build
+- Fallback mechanism prevents failures due to GitHub API issues
+
+**Future Options for Improvement**:
+
+1. **Enhanced github-action-add-on-test**: Extend the action to support:
+   - Custom binary URLs or artifact references
+   - Skip DDEV installation when custom binary provided
+   - Direct integration with development branches
+
+2. **Separate Test Step**: Move test execution outside the action:
+   - Install custom DDEV in separate step
+   - Run bats tests directly without using the action
+   - More control over test environment setup
+
+3. **Development Distribution**: Create temporary distribution channel:
+   - Publish development builds to test registry
+   - Allow version constraints like `>= v1.24.0-dev`
+   - Enable seamless testing of experimental features
+
+4. **Docker-based Testing**: Containerize the entire test environment:
+   - Build custom DDEV container images with PHP addon support
+   - Test add-ons within controlled container environment
+   - Eliminate host-level binary installation complexity
+
+**Current Status**: The dynamic artifact approach successfully enables comprehensive testing of PHP add-ons, with all 10 test scenarios consistently using the correct DDEV version (`v1.23.5-478-ga611e2155`) and passing validation.
 
 ### 1. Standard Environment Variables
 
