@@ -238,6 +238,7 @@ func TestCmdAddonPHP(t *testing.T) {
 		_, _ = exec.RunHostCommand(DdevBin, "add-on", "remove", "complex-php-test")
 		_, _ = exec.RunHostCommand(DdevBin, "add-on", "remove", "mixed-test")
 		_, _ = exec.RunHostCommand(DdevBin, "add-on", "remove", "custom-image-test")
+		_, _ = exec.RunHostCommand(DdevBin, "add-on", "remove", "repo-access-test")
 
 		err = os.Chdir(origDir)
 		require.NoError(t, err)
@@ -395,5 +396,49 @@ services:
 		// Check for some key varnish commands
 		require.FileExists(t, app.GetConfigPath("commands/varnish/varnishadm"))
 		require.FileExists(t, app.GetConfigPath("commands/varnish/varnishlog"))
+	})
+
+	// Test repository access addon - demonstrates full project access
+	t.Run("RepoAccessAddon", func(t *testing.T) {
+		repoAccessAddonDir := filepath.Join(origDir, "testdata", "TestCmdAddonPHP", "repo-access-addon")
+
+		out, err := exec.RunHostCommand(DdevBin, "add-on", "get", repoAccessAddonDir, "--verbose")
+		require.NoError(t, err, "failed to install repo access addon: %v, output: %s", err, out)
+
+		// Check that PHP processed repository files
+		require.Contains(t, out, "PHP: Found")
+		require.Contains(t, out, "files in project root")
+		require.Contains(t, out, "PHP: Created test file in project root")
+		require.Contains(t, out, "PHP: Created settings file in web/sites/default/")
+		require.Contains(t, out, "PHP: Test file exists and contains:")
+		require.Contains(t, out, "PHP: Settings file exists and is readable")
+		require.Contains(t, out, "PHP: Repository access test completed successfully")
+
+		// Check that descriptions are displayed
+		require.Contains(t, out, "👍  Test repository access capabilities")
+		require.Contains(t, out, "👍  Verify repository file access")
+
+		// Verify the files were actually created in the project
+		testFile := filepath.Join(app.GetAppRoot(), "php-addon-test.txt")
+		require.FileExists(t, testFile)
+
+		testContent, err := os.ReadFile(testFile)
+		require.NoError(t, err)
+		require.Contains(t, string(testContent), "Test file created by PHP addon")
+		require.Contains(t, string(testContent), "Created at:")
+
+		// Verify settings directory and file were created
+		settingsDir := filepath.Join(app.GetAppRoot(), "web", "sites", "default")
+		require.DirExists(t, settingsDir)
+
+		settingsFile := filepath.Join(settingsDir, "addon-settings.php")
+		require.FileExists(t, settingsFile)
+
+		settingsContent, err := os.ReadFile(settingsFile)
+		require.NoError(t, err)
+		require.Contains(t, string(settingsContent), "<?php")
+		require.Contains(t, string(settingsContent), "Settings file created by PHP addon")
+		require.Contains(t, string(settingsContent), "$addon_config")
+		require.Contains(t, string(settingsContent), "repo-access-test")
 	})
 }

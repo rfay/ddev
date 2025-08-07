@@ -66,36 +66,47 @@ pre_install_actions:
 ### 1. Execution Environment
 
 **Bash Actions:**
+
 - Run directly on the host system
 - Have access to all host tools and environment
 - Current directory is the project root
 
 **PHP Actions:**
+
 - Run inside a PHP container
 - Limited to PHP and basic container tools
 - Project `.ddev` directory mounted at `/mnt/ddev_config/`
+- **Full project repository mounted at `/var/www/html/`** (read/write access)
 
 ### 2. File Access
 
 **Bash Actions:**
+
 ```bash
-# Direct access to .ddev directory
+# Direct access to project and .ddev directory
 cat .ddev/config.yaml
 echo "data" > .ddev/output.txt
+echo "content" > web/sites/default/settings.php
 ```
 
 **PHP Actions:**
+
 ```php
 <?php
-// Access via mounted directory
+// Access .ddev directory via mount
 $config = file_get_contents('/mnt/ddev_config/config.yaml');
 file_put_contents('/mnt/ddev_config/output.txt', 'data');
+
+// Access full project repository 
+$projectFiles = scandir('/var/www/html');
+file_put_contents('/var/www/html/web/sites/default/settings.php', 'content');
 ?>
 ```
 
 ### 3. Error Handling
 
 **Bash Actions:**
+
 ```bash
 #ddev-description: Check if file exists
 if [ ! -f ".ddev/config.yaml" ]; then
@@ -105,6 +116,7 @@ fi
 ```
 
 **PHP Actions:**
+
 ```php
 <?php
 #ddev-description: Check if file exists
@@ -118,12 +130,14 @@ if (!file_exists('/mnt/ddev_config/config.yaml')) {
 ### 4. YAML Processing
 
 **Bash Actions (limited):**
+
 ```bash
 # Basic grep-based parsing
 DB_VERSION=$(grep "database:" -A 2 .ddev/config.yaml | grep "version:" | cut -d: -f2 | tr -d ' ')
 ```
 
 **PHP Actions (robust):**
+
 ```php
 <?php
 // Full YAML parsing with php-yaml
@@ -244,7 +258,83 @@ pre_install_actions:
     ?>
 ```
 
-### Example 3: Mixed Bash and PHP Actions
+### Example 3: Repository File Management
+
+```yaml
+name: settings-manager
+image: ddev/ddev-webserver:latest
+
+pre_install_actions:
+  - |
+    <?php
+    #ddev-description: Configure project settings files
+    
+    $config = yaml_parse_file('/mnt/ddev_config/config.yaml');
+    $projectType = $config['type'] ?? 'php';
+    
+    // Create appropriate settings files based on project type
+    switch($projectType) {
+        case 'drupal':
+            $settingsDir = '/var/www/html/web/sites/default';
+            if (!is_dir($settingsDir)) {
+                mkdir($settingsDir, 0755, true);
+            }
+            
+            $settingsFile = $settingsDir . '/settings.ddev.php';
+            $settingsContent = "<?php\n// DDEV settings file\n";
+            $settingsContent .= "\$databases['default']['default'] = [\n";
+            $settingsContent .= "  'database' => 'db',\n";
+            $settingsContent .= "  'username' => 'db',\n";
+            $settingsContent .= "  'password' => 'db',\n";
+            $settingsContent .= "  'host' => 'db',\n";
+            $settingsContent .= "  'driver' => 'mysql',\n";
+            $settingsContent .= "];\n";
+            
+            file_put_contents($settingsFile, $settingsContent);
+            echo "Created Drupal settings file\n";
+            break;
+            
+        case 'wordpress':
+            $configFile = '/var/www/html/wp-config-ddev.php';
+            $configContent = "<?php\n// DDEV WordPress configuration\n";
+            $configContent .= "define('DB_NAME', 'db');\n";
+            $configContent .= "define('DB_USER', 'db');\n";
+            $configContent .= "define('DB_PASSWORD', 'db');\n";
+            $configContent .= "define('DB_HOST', 'db');\n";
+            
+            file_put_contents($configFile, $configContent);
+            echo "Created WordPress config file\n";
+            break;
+    }
+    ?>
+
+post_install_actions:
+  - |
+    <?php
+    #ddev-description: Verify settings files are accessible
+    
+    // Check that files were created and are readable from project
+    $possibleFiles = [
+        '/var/www/html/web/sites/default/settings.ddev.php',
+        '/var/www/html/wp-config-ddev.php'
+    ];
+    
+    foreach ($possibleFiles as $file) {
+        if (file_exists($file)) {
+            $size = filesize($file);
+            echo "Settings file $file exists ($size bytes)\n";
+            
+            // Verify it's valid PHP
+            $content = file_get_contents($file);
+            if (strpos($content, '<?php') === 0) {
+                echo "File has valid PHP syntax\n";
+            }
+        }
+    }
+    ?>
+```
+
+### Example 4: Mixed Bash and PHP Actions
 
 ```yaml
 name: mixed-actions-addon
@@ -286,7 +376,7 @@ pre_install_actions:
 ?>
 ```
 
-### 3. Error Handling
+### 3. Proper Error Handling
 
 ```php
 <?php
@@ -313,63 +403,86 @@ echo "Database configured for project\n";
 The DDEV repository includes several test add-ons demonstrating PHP functionality:
 
 ### Basic PHP Addon
+
 **Location:** `cmd/ddev/cmd/testdata/TestCmdAddonPHP/basic-php-addon/`
 
 Shows fundamental PHP action usage:
+
 - Reading DDEV configuration
 - File creation and manipulation
 - Mixed PHP and bash actions
 
-### Complex PHP Addon  
+### Complex PHP Addon
+
 **Location:** `cmd/ddev/cmd/testdata/TestCmdAddonPHP/complex-php-addon/`
 
 Demonstrates advanced features:
+
 - YAML file parsing with php-yaml extension
 - Complex data structure manipulation
 - Docker compose generation
 
 ### Mixed Actions Addon
+
 **Location:** `cmd/ddev/cmd/testdata/TestCmdAddonPHP/mixed-addon/`
 
 Shows best practices for combining bash and PHP:
+
 - Sequential bash and PHP actions
 - Proper description usage
 - Action coordination
 
 ### Varnish PHP Addon
+
 **Location:** `cmd/ddev/cmd/testdata/TestCmdAddonPHP/varnish-php-addon/`
 
 Real-world example converting a bash addon to PHP:
+
 - Configuration file processing
 - HEREDOC usage for clean YAML generation
 - Error handling and validation
 
 ### Custom Image Addon
+
 **Location:** `cmd/ddev/cmd/testdata/TestCmdAddonPHP/custom-image-addon/`
 
 Demonstrates using custom PHP images:
+
 - Specifying alternative PHP versions
 - Image compatibility testing
+
+### Repository Access Addon
+
+**Location:** `cmd/ddev/cmd/testdata/TestCmdAddonPHP/repo-access-addon/`
+
+Shows full project repository access capabilities:
+
+- Reading and scanning project files
+- Creating files in project root and subdirectories
+- Managing settings files like ddev-redis does
+- Directory creation and file management
 
 ## Migration from Bash
 
 When migrating existing bash actions to PHP, consider:
 
 1. **File paths:** Change `.ddev/file` to `/mnt/ddev_config/file`
-2. **YAML parsing:** Replace grep/sed with `yaml_parse_file()`
-3. **Variables:** Convert `$DDEV_PROJECT` style to reading config files
-4. **Output:** Add `\n` to echo statements for proper line breaks
+2. **Project files:** Change `./file` to `/var/www/html/file`
+3. **YAML parsing:** Replace grep/sed with `yaml_parse_file()`
+4. **Variables:** Convert `$DDEV_PROJECT` style to reading config files
+5. **Output:** Add `\n` to echo statements for proper line breaks
 
 ## Limitations
 
 - No direct access to host system (by design)
 - Limited to tools available in the PHP container
-- File operations restricted to mounted `.ddev` directory
+- File operations restricted to mounted directories (`.ddev` and project root)
 - Cannot execute host-specific commands like `ddev` itself
 
 ## Container Image
 
 PHP actions currently use `ddev/ddev-webserver:20250806_rfay_php_addon` which includes:
+
 - PHP with php-yaml extension
 - Basic container utilities
 - Access to mounted project `.ddev` directory

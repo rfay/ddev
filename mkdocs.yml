@@ -231,5 +231,7 @@ nav:
     - developers/maintainers.md
     - developers/network-test-environments.md
     - developers/secret-management.md
+    # TODO: Remove when PHP add-ons move from experimental to stable
+    - 'PHP Add-ons (Experimental)': developers/tmp/PHP_ADDON_GUIDE.md
   - 'Blog': https://ddev.com
   - 'Add-on Registry': https://addons.ddev.com
