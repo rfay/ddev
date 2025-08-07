@@ -219,6 +219,22 @@ file_put_contents('/var/www/html/.ddev/docker-compose.redis.yaml',
 
 Based on the translation experience, several enhancements would improve PHP add-on development:
 
+### 0. Version Constraint Challenges
+
+**Challenge**: Development and testing of PHP add-ons is complicated by version constraints.
+
+**Issue**: When testing PHP add-ons with development builds (like `v1.23.5-477-gd1efc5064`), version constraints in `install.yaml` (e.g., `ddev_version_constraint: '>= v1.24.3'`) prevent installation, even when the development build contains the required PHP addon functionality.
+
+**Impact on Development**:
+- Cannot test PHP add-ons with development builds without commenting out version constraints
+- CI/CD testing requires manual constraint removal  
+- Version constraints become a barrier during development rather than a helpful guard
+
+**Potential Solutions**:
+- Allow development builds to bypass version constraints with a flag
+- Implement more flexible version matching for development builds
+- Provide a way to specify "development build compatible" in constraints
+
 ### 1. Standard Environment Variables
 
 **Implementation**: Provide the same environment variables that bash actions receive.
