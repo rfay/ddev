@@ -489,4 +489,27 @@ services:
 		// Check that description is displayed
 		require.Contains(t, out, "👍  Test environment variables in PHP actions")
 	})
+
+	// Test configuration access addon - validates PHP actions can access processed configuration
+	t.Run("ConfigurationAccessAddon", func(t *testing.T) {
+		configAccessAddonDir := filepath.Join(origDir, "testdata", "TestCmdAddonPHP", "config-access-addon")
+		out, err := exec.RunHostCommand(DdevBin, "add-on", "get", configAccessAddonDir, "--verbose")
+		require.NoError(t, err, "failed to install configuration access addon: %v, output: %s", err, out)
+
+		// Check that PHP accessed and validated configuration files successfully
+		require.Contains(t, out, "PHP: ✓ Project name matches environment:")
+		require.Contains(t, out, "PHP: ✓ Project type matches environment:")
+		// Note: PHP version and webserver type may not always be available in the YAML structure
+		// The test validates what's actually present in the configuration
+		require.Contains(t, out, "PHP: Successfully validated")
+		require.Contains(t, out, "configuration properties")
+		require.Contains(t, out, "PHP: Configuration data validation PASSED")
+
+		// Check that description is displayed
+		require.Contains(t, out, "👍  Test configuration file access and data validation")
+
+		// Verify that .ddev-config directory was cleaned up after installation
+		configDir := app.GetConfigPath(".ddev-config")
+		require.NoFileExists(t, configDir, "Configuration directory should be cleaned up after installation")
+	})
 }

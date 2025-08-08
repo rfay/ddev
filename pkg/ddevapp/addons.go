@@ -224,6 +224,12 @@ func processPHPAction(action string, dict map[string]interface{}, image string, 
 		image = docker.GetWebImage()
 	}
 
+	// Create configuration files for PHP action access
+	err := createConfigurationFiles(app)
+	if err != nil {
+		return fmt.Errorf("failed to create configuration files: %v", err)
+	}
+
 	// Prepare container run arguments
 	containerName := "ddev-addon-php-" + util.RandString(6)
 
@@ -304,6 +310,54 @@ php /tmp/addon-script.php
 		util.Success(output)
 	}
 
+	return nil
+}
+
+// createConfigurationFiles creates temporary YAML configuration files for PHP actions
+func createConfigurationFiles(app *DdevApp) error {
+	configDir := filepath.Join(app.AppConfDir(), ".ddev-config")
+
+	// Create the .ddev-config directory
+	err := os.MkdirAll(configDir, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create config directory %s: %v", configDir, err)
+	}
+
+	// Generate project configuration YAML
+	projectConfigYAML, err := app.GetProcessedProjectConfigYAML()
+	if err != nil {
+		return fmt.Errorf("failed to generate project configuration: %v", err)
+	}
+
+	// Write project configuration file
+	projectConfigPath := filepath.Join(configDir, "project_config.yaml")
+	err = os.WriteFile(projectConfigPath, projectConfigYAML, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write project config file %s: %v", projectConfigPath, err)
+	}
+
+	// Generate global configuration YAML
+	globalConfigYAML, err := GetGlobalConfigYAML()
+	if err != nil {
+		return fmt.Errorf("failed to generate global configuration: %v", err)
+	}
+
+	// Write global configuration file
+	globalConfigPath := filepath.Join(configDir, "global_config.yaml")
+	err = os.WriteFile(globalConfigPath, globalConfigYAML, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write global config file %s: %v", globalConfigPath, err)
+	}
+
+	return nil
+}
+
+// CleanupConfigurationFiles removes temporary configuration files created for PHP actions
+func (app *DdevApp) CleanupConfigurationFiles() error {
+	configDir := filepath.Join(app.AppConfDir(), ".ddev-config")
+	if fileutil.FileExists(configDir) {
+		return os.RemoveAll(configDir)
+	}
 	return nil
 }
 
