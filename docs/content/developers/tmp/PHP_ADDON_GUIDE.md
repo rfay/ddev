@@ -16,9 +16,12 @@ PHP-based add-ons allow you to write installation and configuration logic in PHP
 
 DDEV automatically detects PHP actions by looking for scripts that start with `<?php`. When found, these actions are executed in a PHP container with access to:
 
-- Your project's `.ddev` directory as the working directory (`/var/www/html/.ddev`)
-- The php-yaml extension for parsing YAML files
-- All standard PHP functionality for file manipulation, string processing, etc.
+- **Working directory:** `/var/www/html/.ddev` (your project's .ddev directory)
+- **Environment variables:** All standard DDEV environment variables (identical to bash actions)
+- **Processed configuration:** Access to fully processed project and global configuration via YAML files
+- **Full project access:** Complete read/write access to your project repository
+- **php-yaml extension:** For robust YAML parsing and generation
+- **Standard PHP functionality:** File manipulation, string processing, etc.
 
 ## Basic Syntax Comparison
 
@@ -46,10 +49,13 @@ pre_install_actions:
     <?php
     #ddev-description: Process project configuration
     
-    // Read DDEV config with proper YAML parsing
-    $config = yaml_parse_file('config.yaml');
-    $projectName = $config['name'] ?? 'unknown';
+    // ✅ RECOMMENDED: Use environment variables for common values
+    $projectName = $_ENV['DDEV_PROJECT'];
     echo "Setting up project: $projectName\n";
+    
+    // ✅ ALTERNATIVE: Access processed configuration when needed
+    // $config = yaml_parse_file('.ddev-config/project_config.yaml');
+    // $projectName = $config['name'] ?? 'unknown';
     
     // Create configuration file
     $addonConfig = [
@@ -59,6 +65,64 @@ pre_install_actions:
     file_put_contents('my-addon-config.yaml', 
         yaml_emit($addonConfig));
     ?>
+```
+
+## Available Environment Variables ✅ **NEW FEATURE**
+
+PHP actions now have access to all standard DDEV environment variables, making them functionally equivalent to bash actions:
+
+```php
+<?php
+// Project Information
+$_ENV['DDEV_PROJECT']        // Project name
+$_ENV['DDEV_SITENAME']       // Same as DDEV_PROJECT
+$_ENV['DDEV_PROJECT_TYPE']   // 'drupal', 'wordpress', 'laravel', etc.
+$_ENV['DDEV_APPROOT']        // '/var/www/html' (project root)
+$_ENV['DDEV_DOCROOT']        // 'web', 'public', or configured docroot
+$_ENV['DDEV_TLD']            // 'ddev.site' or configured TLD
+
+// Technology Stack
+$_ENV['DDEV_PHP_VERSION']    // '8.1', '8.2', '8.3', etc.
+$_ENV['DDEV_WEBSERVER_TYPE'] // 'nginx-fpm', 'apache-fpm'
+$_ENV['DDEV_DATABASE']       // 'mysql:8.0', 'postgres:16', etc.
+$_ENV['DDEV_DATABASE_FAMILY'] // 'mysql', 'postgres'
+
+// System Information
+$_ENV['DDEV_VERSION']        // Current DDEV version
+$_ENV['DDEV_FILES_DIRS']     // Upload directories (comma-separated)
+$_ENV['DDEV_MUTAGEN_ENABLED'] // 'true' or 'false'
+$_ENV['IS_DDEV_PROJECT']     // Always 'true' in DDEV context
+?>
+```
+
+**Migration Benefit:** This eliminates the need for manual config parsing in most cases!
+
+```php
+// ❌ OLD APPROACH (no longer needed)
+$config = yaml_parse_file('config.yaml');
+$projectType = $config['type'] ?? 'php';
+$docroot = $config['docroot'] ?? 'web';
+
+// ✅ NEW APPROACH (recommended)
+$projectType = $_ENV['DDEV_PROJECT_TYPE'];
+$docroot = $_ENV['DDEV_DOCROOT'];
+```
+
+## Processed Configuration Access ✅ **NEW FEATURE**
+
+For complex configuration needs, PHP actions can access fully processed DDEV configuration:
+
+```php
+<?php
+// Access processed project configuration (equivalent to 'ddev debug configyaml')
+$projectConfig = yaml_parse_file('.ddev-config/project_config.yaml');
+
+// Access global DDEV configuration
+$globalConfig = yaml_parse_file('.ddev-config/global_config.yaml');
+
+// These files contain all merged config.*.yaml files with computed values
+// including resolved hostnames, ports, and complete service definitions
+?>
 ```
 
 ## Key Differences from Bash Actions
@@ -93,13 +157,17 @@ echo "content" > web/sites/default/settings.php
 
 ```php
 <?php
-// Access .ddev directory with relative paths (working directory: /var/www/html/.ddev)
-$config = file_get_contents('config.yaml');
+// ✅ RECOMMENDED: Use environment variables (working directory: /var/www/html/.ddev)
+$projectName = $_ENV['DDEV_PROJECT'];
+$docroot = $_ENV['DDEV_DOCROOT'];
 file_put_contents('output.txt', 'data');
+
+// ✅ RECOMMENDED: Use processed configuration when needed
+$config = yaml_parse_file('.ddev-config/project_config.yaml');
 
 // Access full project repository 
 $projectFiles = scandir('/var/www/html');
-file_put_contents('/var/www/html/web/sites/default/settings.php', 'content');
+file_put_contents("/var/www/html/{$docroot}/sites/default/settings.php", 'content');
 ?>
 ```
 
@@ -140,8 +208,12 @@ DB_VERSION=$(grep "database:" -A 2 .ddev/config.yaml | grep "version:" | cut -d:
 
 ```php
 <?php
-// Full YAML parsing with php-yaml
-$config = yaml_parse_file('config.yaml');
+// ✅ RECOMMENDED: Use environment variables for common values
+$databaseInfo = $_ENV['DDEV_DATABASE']; // e.g., 'mysql:8.0' or 'postgres:16'
+$dbVersion = explode(':', $databaseInfo)[1] ?? 'default';
+
+// ✅ ALTERNATIVE: Use processed configuration for complex data
+$config = yaml_parse_file('.ddev-config/project_config.yaml');
 $dbVersion = $config['database']['version'] ?? 'default';
 
 // Generate complex YAML structures
@@ -173,8 +245,12 @@ pre_install_actions:
     <?php
     #ddev-description: Generate environment-specific configuration
     
-    $config = yaml_parse_file('config.yaml');
-    $projectType = $config['type'] ?? 'php';
+    // ✅ RECOMMENDED: Use environment variable
+    $projectType = $_ENV['DDEV_PROJECT_TYPE'];
+    
+    // ✅ ALTERNATIVE: Use processed configuration if needed
+    // $config = yaml_parse_file('.ddev-config/project_config.yaml');
+    // $projectType = $config['type'] ?? 'php';
     
     // Generate different configs based on project type
     $services = [];
@@ -269,13 +345,19 @@ pre_install_actions:
     <?php
     #ddev-description: Configure project settings files
     
-    $config = yaml_parse_file('config.yaml');
-    $projectType = $config['type'] ?? 'php';
+    // ✅ RECOMMENDED: Use environment variable
+    $projectType = $_ENV['DDEV_PROJECT_TYPE'];
+    $docroot = $_ENV['DDEV_DOCROOT'];
+    
+    // ✅ ALTERNATIVE: Use processed configuration for complex decisions
+    // $config = yaml_parse_file('.ddev-config/project_config.yaml');
     
     // Create appropriate settings files based on project type
     switch($projectType) {
         case 'drupal':
-            $settingsDir = '/var/www/html/web/sites/default';
+            // ✅ RECOMMENDED: Use environment variable for docroot
+            $docroot = $_ENV['DDEV_DOCROOT'];
+            $settingsDir = "/var/www/html/{$docroot}/sites/default";
             if (!is_dir($settingsDir)) {
                 mkdir($settingsDir, 0755, true);
             }
@@ -348,9 +430,9 @@ pre_install_actions:
   - |
     <?php
     #ddev-description: Process configuration files  
-    // PHP is better for data processing
-    $config = yaml_parse_file('config.yaml');
-    $projectName = $config['name'];
+    // ✅ RECOMMENDED: PHP is better for data processing
+    $projectName = $_ENV['DDEV_PROJECT'];
+    // Alternative: $config = yaml_parse_file('.ddev-config/project_config.yaml');
     echo "Processing config for: $projectName\n";
     ?>
     
@@ -380,7 +462,14 @@ pre_install_actions:
 
 ```php
 <?php
-if (!file_exists('/mnt/ddev_config/config.yaml')) {
+// ✅ RECOMMENDED: Check environment variables
+if (empty($_ENV['DDEV_PROJECT'])) {
+    echo "Error: DDEV environment not available\n";
+    exit(1);
+}
+
+// ✅ ALTERNATIVE: Check processed configuration files
+if (!file_exists('.ddev-config/project_config.yaml')) {
     echo "Error: DDEV config file not found\n";
     exit(1);
 }
@@ -469,7 +558,7 @@ When migrating existing bash actions to PHP, consider:
 1. **File paths:** Change `.ddev/file` to relative paths like `file` (working directory is `/var/www/html/.ddev`)
 2. **Project files:** Change `./file` to `/var/www/html/file`
 3. **YAML parsing:** Replace grep/sed with `yaml_parse_file()`
-4. **Variables:** Convert `$DDEV_PROJECT` style to reading config files
+4. **Variables:** ✅ **NOW AVAILABLE** - Use `$_ENV['DDEV_PROJECT']` and other environment variables directly
 5. **Output:** Add `\n` to echo statements for proper line breaks
 
 ## Limitations
