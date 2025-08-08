@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.yaml.in/yaml/v3"
 )
 
 func TestProcessPHPAction(t *testing.T) {
@@ -190,4 +191,100 @@ func TestProcessAddonActionPHPDetection(t *testing.T) {
 
 		require.True(t, strings.HasPrefix(strings.TrimSpace(phpAction), "<?php"))
 	})
+}
+
+func TestGetProcessedProjectConfigYAML(t *testing.T) {
+	// Create a temporary test app
+	homeDir, _ := os.UserHomeDir()
+	testDir := filepath.Join(homeDir, "tmp", "test-config-app")
+	app := &DdevApp{
+		AppRoot:    testDir,
+		Name:       "test-config-project",
+		Type:       "drupal",
+		ConfigPath: filepath.Join(testDir, ".ddev", "config.yaml"),
+	}
+
+	// Create the .ddev directory and config files for testing
+	err := os.MkdirAll(app.AppConfDir(), 0755)
+	require.NoError(t, err)
+
+	// Create base config.yaml
+	baseConfig := `name: test-config-project
+type: drupal
+docroot: web
+php_version: "8.2"
+database:
+  type: mysql
+  version: "8.0"
+webserver_type: nginx-fpm
+additional_hostnames:
+  - test.ddev.site
+`
+	err = os.WriteFile(filepath.Join(app.AppConfDir(), "config.yaml"), []byte(baseConfig), 0644)
+	require.NoError(t, err)
+
+	// Create config.override.yaml to test merging
+	overrideConfig := `php_version: "8.3"
+additional_hostnames:
+  - override.ddev.site
+webserver_type: apache-fpm
+`
+	err = os.WriteFile(filepath.Join(app.AppConfDir(), "config.override.yaml"), []byte(overrideConfig), 0644)
+	require.NoError(t, err)
+
+	// Clean up
+	defer func() {
+		_ = os.RemoveAll(testDir)
+	}()
+
+	// Test GetProcessedProjectConfigYAML
+	configYAML, err := app.GetProcessedProjectConfigYAML()
+	require.NoError(t, err)
+	require.NotEmpty(t, configYAML)
+
+	// Parse the result to verify it contains merged values
+	var parsedConfig map[string]interface{}
+	err = yaml.Unmarshal(configYAML, &parsedConfig)
+	require.NoError(t, err)
+
+	// Verify base values are preserved
+	require.Equal(t, "test-config-project", parsedConfig["name"])
+	require.Equal(t, "drupal", parsedConfig["type"])
+	require.Equal(t, "web", parsedConfig["docroot"])
+
+	// Verify override values took precedence
+	require.Equal(t, "8.3", parsedConfig["php_version"])           // Should be overridden
+	require.Equal(t, "apache-fpm", parsedConfig["webserver_type"]) // Should be overridden
+
+	// Verify arrays were merged (both hostnames should be present)
+	hostnames, ok := parsedConfig["additional_hostnames"]
+	require.True(t, ok)
+	hostnameSlice, ok := hostnames.([]interface{})
+	require.True(t, ok)
+	require.Len(t, hostnameSlice, 2) // Should have both hostnames
+
+	// Convert to strings for easier checking
+	var hostnameStrings []string
+	for _, h := range hostnameSlice {
+		hostnameStrings = append(hostnameStrings, h.(string))
+	}
+	require.Contains(t, hostnameStrings, "test.ddev.site")
+	require.Contains(t, hostnameStrings, "override.ddev.site")
+}
+
+func TestGetGlobalConfigYAML(t *testing.T) {
+	// Test GetGlobalConfigYAML
+	globalConfigYAML, err := GetGlobalConfigYAML()
+	require.NoError(t, err)
+	require.NotEmpty(t, globalConfigYAML)
+
+	// Parse the result to verify it's valid YAML
+	var parsedGlobalConfig map[string]interface{}
+	err = yaml.Unmarshal(globalConfigYAML, &parsedGlobalConfig)
+	require.NoError(t, err)
+
+	// The global config should contain some expected fields
+	// Note: We can't test specific values since they depend on the system
+	// but we can verify the structure is reasonable
+	require.NotNil(t, parsedGlobalConfig)
 }
