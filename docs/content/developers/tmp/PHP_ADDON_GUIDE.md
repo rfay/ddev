@@ -67,6 +67,24 @@ pre_install_actions:
     ?>
 ```
 
+## System-Level Error Handling ✅ **NEW FEATURE**
+
+PHP actions now include automatic strict error handling equivalent to bash `set -eu -o pipefail`:
+
+```php
+// Automatically applied to all PHP actions:
+<?php
+// PHP strict error handling equivalent to bash 'set -eu -o pipefail'
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+set_error_handler(function($severity, $message, $file, $line) {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+?>
+```
+
+This ensures PHP actions fail fast on warnings and errors, providing reliable error detection similar to bash actions.
+
 ## Available Environment Variables ✅ **NEW FEATURE**
 
 PHP actions now have access to all standard DDEV environment variables, making them functionally equivalent to bash actions:
@@ -230,6 +248,98 @@ $newConfig = [
 file_put_contents('docker-compose.myservice.yaml', 
     "#ddev-generated\n" . yaml_emit($newConfig));
 ?>
+```
+
+## Separate PHP Script Files ✅ **BEST PRACTICE**
+
+For complex logic, create separate PHP script files to keep install.yaml clean and readable:
+
+### File Structure
+```
+.ddev/
+├── install.yaml
+└── scripts/
+    ├── setup-drupal.php
+    ├── optimize-config.php
+    └── cleanup.php
+```
+
+### Clean install.yaml Pattern
+```yaml
+name: my-addon
+
+post_install_actions:
+  - |
+    <?php
+    #ddev-description:Configure Drupal settings
+    require 'scripts/setup-drupal.php';
+  - |
+    <?php  
+    #ddev-description:Apply optimized configuration
+    require 'scripts/optimize-config.php';
+  - |
+    <?php
+    #ddev-description:Clean up temporary files
+    require 'scripts/cleanup.php';
+```
+
+### Example Script File: `scripts/setup-drupal.php`
+```php
+<?php
+#ddev-generated
+
+// ✅ Use environment variables for project information
+$projectType = $_ENV['DDEV_PROJECT_TYPE'];
+$docroot = $_ENV['DDEV_DOCROOT'];
+$appRoot = $_ENV['DDEV_APPROOT'];
+
+// Exit early if not applicable
+if (strpos($projectType, 'drupal') !== 0) {
+    echo "Not a Drupal project, skipping Drupal setup\n";
+    exit(0);
+}
+
+// ✅ Use processed configuration when needed
+$config = yaml_parse_file('.ddev-config/project_config.yaml');
+if (isset($config['disable_settings_management']) && $config['disable_settings_management'] === true) {
+    echo "Settings management disabled, skipping\n";
+    exit(0);
+}
+
+// Perform Drupal-specific setup
+$targetDir = "{$appRoot}/{$docroot}/sites/default";
+$targetFile = "{$targetDir}/settings.ddev.php";
+
+// Copy settings file
+if (!copy('scripts/settings.ddev.php', $targetFile)) {
+    echo "Error: Failed to copy settings file\n";
+    exit(1);
+}
+
+echo "Drupal settings configured successfully\n";
+```
+
+### Benefits of This Approach
+
+1. **Clean install.yaml**: Easy to read and understand the addon workflow
+2. **Modular logic**: Each script has a focused responsibility  
+3. **Reusable components**: Scripts can be shared between different actions
+4. **Better error handling**: Individual script failures don't affect other operations
+5. **Easier testing**: Scripts can be tested independently
+
+### Key Points for Script Files
+
+- **Start with `<?php`**: Required for proper PHP execution
+- **Include `#ddev-generated`**: For safe file cleanup during removal
+- **Use `require` not `include`**: Scripts are mandatory dependencies
+- **Exit codes matter**: Use `exit(0)` for success, `exit(1)` for errors
+- **Add to `project_files`**: Include script files in install.yaml file list
+
+```yaml
+project_files:
+  - scripts/setup-drupal.php
+  - scripts/optimize-config.php
+  - scripts/cleanup.php
 ```
 
 ## Practical Examples
@@ -486,6 +596,95 @@ echo "Database configured for project\n";
 // Avoid verbose debugging output unless debugging
 ?>
 ```
+
+## Real-World Example: ddev-redis PHP Translation
+
+The ddev-redis add-on has been successfully translated from bash to PHP, demonstrating production-ready PHP add-on patterns:
+
+### Original Structure (Bash)
+```
+redis/scripts/
+├── setup-drupal-settings.sh       # Drupal configuration
+├── setup-redis-optimized-config.sh # Optimization handling  
+└── settings.ddev.redis.php         # Settings template
+```
+
+### Translated Structure (PHP)  
+```
+redis/scripts/
+├── setup-drupal-settings.php      # PHP version
+├── setup-redis-optimized-config.php # PHP version
+└── settings.ddev.redis.php        # Unchanged template
+```
+
+### Clean install.yaml
+```yaml
+name: redis
+
+post_install_actions:
+  - |
+    <?php
+    #ddev-description:Install redis settings for Drupal 9+ if applicable
+    require 'redis/scripts/setup-drupal-settings.php';
+  - |
+    <?php
+    #ddev-description:Using optimized config if --redis-optimized=true
+    require 'redis/scripts/setup-redis-optimized-config.php';
+  - |
+    <?php
+    #ddev-description:Remove redis/scripts if there are no files
+    $scriptsDir = 'redis/scripts';
+    if (is_dir($scriptsDir) && count(scandir($scriptsDir)) <= 2) {
+        rmdir($scriptsDir);
+    }
+```
+
+### Key Implementation Details
+
+**Environment File Detection:**
+```php
+// Direct file access instead of ddev dotenv command
+$envFile = '.env.redis';
+if (file_exists($envFile)) {
+    $envContent = file_get_contents($envFile);
+    $isOptimized = strpos($envContent, 'REDIS_OPTIMIZED=true') !== false;
+}
+```
+
+**YAML Generation with php-yaml:**
+```php
+// Generate docker-compose extra file using yaml_emit instead of heredoc
+$dockerConfig = [
+    'services' => [
+        'redis' => [
+            'deploy' => [
+                'resources' => [
+                    'limits' => ['cpus' => '2.5', 'memory' => '768M'],
+                    'reservations' => ['cpus' => '1.5', 'memory' => '512M']
+                ]
+            ]
+        ]
+    ]
+];
+$yamlContent = "#ddev-generated\n" . yaml_emit($dockerConfig);
+file_put_contents($extraDockerFile, $yamlContent);
+```
+
+**Environment Variable Usage:**
+```php
+// ✅ Use environment variables instead of manual config parsing
+$projectType = $_ENV['DDEV_PROJECT_TYPE'];
+$docroot = $_ENV['DDEV_DOCROOT']; 
+$appRoot = $_ENV['DDEV_APPROOT'];
+$siteName = $_ENV['DDEV_SITENAME'];
+```
+
+**Results:**
+- ✅ All 10 test scenarios pass identically to bash version
+- ✅ Cleaner, more maintainable code structure
+- ✅ Better error handling with system-level strict mode
+- ✅ Cross-platform compatibility
+- ✅ Robust YAML processing
 
 ## Available Test Examples
 

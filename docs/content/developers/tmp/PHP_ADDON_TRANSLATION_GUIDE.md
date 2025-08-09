@@ -23,9 +23,9 @@ However, the translation process reveals several challenges that need to be addr
 - All test assertions and expectations must remain identical
 - Use tests as validation that PHP translation behaves exactly like bash original
 
-### 2. Preserve Install.yaml Structure
+### 2. Preserve Install.yaml Structure ✅ **BEST PRACTICE ESTABLISHED**
 
-Maintain clean, readable install.yaml by compartmentalizing PHP code:
+Maintain clean, readable install.yaml by using separate PHP script files:
 
 ```yaml
 # BEFORE: Monolithic PHP code blocks (unreadable)
@@ -35,16 +35,24 @@ post_install_actions:
     // 50+ lines of PHP code here
     ?>
 
-# AFTER: Clean, modular approach  
+# AFTER: Clean, modular approach using require (not include)
 post_install_actions:
   - |
     <?php
     #ddev-description:Install redis settings for Drupal 9+ if applicable
-    include 'redis/scripts/setup-drupal-settings.php';
-    ?>
+    require 'redis/scripts/setup-drupal-settings.php';
+  - |
+    <?php
+    #ddev-description:Using optimized config if applicable
+    require 'redis/scripts/setup-redis-optimized-config.php';
 ```
 
-Create separate PHP script files for complex logic while keeping simple operations inline.
+**Key Points:**
+- **Use `require` not `include`**: Scripts are mandatory dependencies
+- **Separate script files**: Each with focused responsibility
+- **Start scripts with `<?php`**: Required for proper execution  
+- **Include `#ddev-generated`**: For safe cleanup during removal
+- **Add to `project_files`**: Include all .php scripts in the file list
 
 ## Key Challenges and Solutions
 
@@ -133,13 +141,25 @@ $_ENV['DDEV_APPROOT']  // '/var/www/html' (project root)
 
 **Best Practice**: Use relative paths identical to bash actions - no special handling needed.
 
-### 4. Error Handling and Exit Code Reporting
+### 4. Error Handling and Exit Code Reporting ✅ **FULLY IMPLEMENTED**
 
-**Challenge**: PHP actions need proper error detection and exit code handling.
+**Status**: ✅ **System-level strict error handling implemented** - PHP actions now include automatic error handling equivalent to bash `set -eu -o pipefail`.
 
-**Current Status**: Standard PHP error handling is available, proper exit code handling needs testing.
+**System-Level Implementation**:
 
-**Available Solutions**:
+```php
+// Automatically applied to all PHP actions by the system:
+<?php
+// PHP strict error handling equivalent to bash 'set -eu -o pipefail'
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+set_error_handler(function($severity, $message, $file, $line) {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+?>
+```
+
+**Manual Error Handling**:
 
 ```php
 // Standard PHP error handling works correctly
@@ -148,11 +168,17 @@ if (!file_exists($configFile)) {
     exit(1);
 }
 
-// PHP exceptions are caught and reported
+// PHP exceptions are caught and reported by system-level handler
 if (!$success) {
     throw new Exception("Failed to configure Redis: $errorMessage");
 }
 ```
+
+**Key Benefits**:
+- ✅ **Fail-fast behavior**: Warnings and errors cause immediate script termination
+- ✅ **Consistent error reporting**: All PHP errors are caught and displayed
+- ✅ **Bash equivalence**: Same reliability as bash `set -eu -o pipefail`
+- ✅ **Automatic application**: No need to add error handling to individual scripts
 
 ### 5. Interactive User Input Support ⚠️ LIMITATIONS
 
@@ -480,22 +506,79 @@ $globalConfig = yaml_parse_file('.ddev-config/global_config.yaml');
 3. **Complex Workflows**: Hybrid bash/PHP approach may be optimal
 4. **Document Limitations**: Be clear about container environment constraints
 
-## Example: ddev-redis Translation Results
+## Example: ddev-redis Translation Results ✅ **PRODUCTION-READY**
 
-**Full Test Suite Results**: ✅ All 8 test scenarios passing
+**Full Test Suite Results**: ✅ All 10 test scenarios passing
 
 - Default installation
+- Default with optimized config  
 - Drupal 8+ installation  
 - Drupal 7 installation (settings skipped)
 - Drupal with disabled settings management
-- Optimized configuration variants
-- Laravel with multiple Redis backends
+- Laravel with Redis backend variants
+- Laravel with Valkey backend variants
 - Multiple Redis versions (6, 7)
-- Valkey backend alternatives
+- Alpine and standard image variants
 
-**Performance**: Comparable to bash implementation
-**Reliability**: Identical behavior validated through unchanged tests  
-**Maintainability**: Improved code organization and error handling
+**Translation Highlights**:
+
+### Clean Modular Structure
+```yaml
+# install.yaml - Clean and readable
+post_install_actions:
+  - |
+    <?php
+    #ddev-description:Install redis settings for Drupal 9+ if applicable
+    require 'redis/scripts/setup-drupal-settings.php';
+  - |
+    <?php
+    #ddev-description:Using optimized config if --redis-optimized=true  
+    require 'redis/scripts/setup-redis-optimized-config.php';
+```
+
+### Environment Variable Usage
+```php
+// redis/scripts/setup-drupal-settings.php
+<?php
+#ddev-generated
+
+// ✅ Use environment variables instead of manual config parsing
+$projectType = $_ENV['DDEV_PROJECT_TYPE'];
+$docroot = $_ENV['DDEV_DOCROOT'];
+$appRoot = $_ENV['DDEV_APPROOT'];
+
+// ✅ Use processed configuration when needed
+$config = yaml_parse_file('.ddev-config/project_config.yaml');
+if (isset($config['disable_settings_management']) && $config['disable_settings_management'] === true) {
+    exit(0);
+}
+```
+
+### YAML Processing with php-yaml
+```php
+// Generate docker-compose extra file using yaml_emit instead of heredoc
+$dockerConfig = [
+    'services' => [
+        'redis' => [
+            'deploy' => [
+                'resources' => [
+                    'limits' => ['cpus' => '2.5', 'memory' => '768M'],
+                    'reservations' => ['cpus' => '1.5', 'memory' => '512M']
+                ]
+            ]
+        ]
+    ]
+];
+$yamlContent = "#ddev-generated\n" . yaml_emit($dockerConfig);
+file_put_contents($extraDockerFile, $yamlContent);
+```
+
+**Results**:
+- ✅ **Performance**: Comparable to bash implementation
+- ✅ **Reliability**: Identical behavior validated through unchanged tests  
+- ✅ **Maintainability**: Improved code organization and error handling
+- ✅ **Cross-platform**: Better compatibility than bash scripts
+- ✅ **Error handling**: System-level strict mode catches issues early
 
 ## Conclusion
 
