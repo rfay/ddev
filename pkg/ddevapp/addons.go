@@ -12,17 +12,51 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/ddev/ddev/pkg/docker"
+	"github.com/ddev/ddev/pkg/dockerutil"
 	"github.com/ddev/ddev/pkg/exec"
 	"github.com/ddev/ddev/pkg/fileutil"
 	github2 "github.com/ddev/ddev/pkg/github"
 	"github.com/ddev/ddev/pkg/globalconfig"
 	"github.com/ddev/ddev/pkg/nodeps"
 	"github.com/ddev/ddev/pkg/util"
+	"github.com/ddev/ddev/pkg/versionconstants"
 	"github.com/google/go-github/v72/github"
 	"go.yaml.in/yaml/v3"
 )
 
 const AddonMetadataDir = "addon-metadata"
+
+// GetProcessedProjectConfigYAML returns the processed project configuration as YAML
+// This is equivalent to what 'ddev debug configyaml' shows - the project configuration
+// after all config.*.yaml files have been merged and processed
+func (app *DdevApp) GetProcessedProjectConfigYAML() ([]byte, error) {
+	// Ensure we have the latest processed configuration
+	_, err := app.ReadConfig(true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read project configuration: %v", err)
+	}
+
+	// Marshal the fully processed DdevApp struct to YAML
+	configYAML, err := yaml.Marshal(app)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal project configuration to YAML: %v", err)
+	}
+
+	return configYAML, nil
+}
+
+// GetGlobalConfigYAML returns the global DDEV configuration as YAML
+// This provides access to global settings that affect all DDEV projects
+func GetGlobalConfigYAML() ([]byte, error) {
+	// Marshal the global configuration to YAML
+	globalConfigYAML, err := yaml.Marshal(&globalconfig.DdevGlobalConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal global configuration to YAML: %v", err)
+	}
+
+	return globalConfigYAML, nil
+}
 
 // Format of install.yaml
 type InstallDesc struct {
@@ -36,6 +70,7 @@ type InstallDesc struct {
 	PostInstallActions    []string          `yaml:"post_install_actions,omitempty"`
 	RemovalActions        []string          `yaml:"removal_actions,omitempty"`
 	YamlReadFiles         map[string]string `yaml:"yaml_read_files"`
+	Image                 string            `yaml:"image,omitempty"`
 }
 
 // format of the add-on manifest file
@@ -116,6 +151,20 @@ func GetInstalledAddonProjectFiles(app *DdevApp) []string {
 
 // ProcessAddonAction takes a stanza from yaml exec section and executes it.
 func ProcessAddonAction(action string, dict map[string]interface{}, bashPath string, verbose bool) error {
+	return ProcessAddonActionWithImage(action, dict, bashPath, verbose, "", nil)
+}
+
+// ProcessAddonActionWithImage takes a stanza from yaml exec section and executes it, optionally in a container.
+func ProcessAddonActionWithImage(action string, dict map[string]interface{}, bashPath string, verbose bool, image string, app *DdevApp) error {
+	// Check if the action starts with <?php
+	if strings.HasPrefix(strings.TrimSpace(action), "<?php") {
+		if app == nil {
+			return fmt.Errorf("app is required for PHP actions")
+		}
+		return processPHPAction(action, dict, image, verbose, app)
+	}
+
+	// Default behavior for bash actions
 	action = "set -eu -o pipefail\n" + action
 	t, err := template.New("ProcessAddonAction").Funcs(getTemplateFuncMap()).Parse(action)
 	if err != nil {
@@ -164,6 +213,152 @@ func ProcessAddonAction(action string, dict map[string]interface{}, bashPath str
 		util.Warning(out)
 	}
 	return err
+}
+
+// processPHPAction executes a PHP action in a container
+func processPHPAction(action string, dict map[string]interface{}, image string, verbose bool, app *DdevApp) error {
+	// Extract description before processing
+	desc := GetAddonDdevDescription(action)
+	// Use a default PHP image if none specified
+	if image == "" {
+		image = docker.GetWebImage()
+	}
+
+	// Create configuration files for PHP action access
+	err := createConfigurationFiles(app)
+	if err != nil {
+		return fmt.Errorf("failed to create configuration files: %v", err)
+	}
+
+	// Prepare container run arguments
+	containerName := "ddev-addon-php-" + util.RandString(6)
+
+	// Create a shell script that writes the PHP script then executes it
+	shellScript := fmt.Sprintf(`
+cat > /tmp/addon-script.php << 'DDEV_PHP_EOF'
+%s
+DDEV_PHP_EOF
+
+cd /var/www/html/.ddev
+php /tmp/addon-script.php
+`, action)
+
+	cmd := []string{"sh", "-c", shellScript}
+
+	// Bind mount the .ddev directory and the project root into the container
+	var binds []string
+	binds = append(binds, fmt.Sprintf("%s:/mnt/ddev_config", app.AppConfDir()))
+	binds = append(binds, fmt.Sprintf("%s:/var/www/html", app.AppRoot))
+
+	// Build environment variables array with standard DDEV variables
+	// Database family for connection URLs
+	dbFamily := "mysql"
+	if app.Database.Type == "postgres" {
+		dbFamily = "postgres"
+	}
+
+	env := []string{
+		fmt.Sprintf("DDEV_APPROOT=%s", app.AppRoot),
+		fmt.Sprintf("DDEV_DOCROOT=%s", app.GetDocroot()),
+		fmt.Sprintf("DDEV_PROJECT_TYPE=%s", app.Type),
+		fmt.Sprintf("DDEV_SITENAME=%s", app.Name),
+		fmt.Sprintf("DDEV_PROJECT=%s", app.Name),
+		fmt.Sprintf("DDEV_PHP_VERSION=%s", app.PHPVersion),
+		fmt.Sprintf("DDEV_WEBSERVER_TYPE=%s", app.WebserverType),
+		fmt.Sprintf("DDEV_DATABASE=%s:%s", app.Database.Type, app.Database.Version),
+		fmt.Sprintf("DDEV_DATABASE_FAMILY=%s", dbFamily),
+		fmt.Sprintf("DDEV_FILES_DIRS=%s", strings.Join(app.GetUploadDirs(), ",")),
+		fmt.Sprintf("DDEV_MUTAGEN_ENABLED=%t", app.IsMutagenEnabled()),
+		fmt.Sprintf("DDEV_VERSION=%s", versionconstants.DdevVersion),
+		fmt.Sprintf("DDEV_TLD=%s", app.ProjectTLD),
+		"IS_DDEV_PROJECT=true",
+	}
+
+	if verbose {
+		env = append(env, "DDEV_VERBOSE=true")
+	}
+
+	// Run the container
+	_, output, err := dockerutil.RunSimpleContainer(
+		image,
+		containerName,
+		cmd,
+		nil, // entrypoint
+		env,
+		binds,
+		"",    // uid
+		true,  // removeContainerAfterRun
+		false, // detach
+		nil,   // labels
+		nil,   // portBindings
+		nil,   // healthConfig
+	)
+
+	if err != nil {
+		if desc != "" {
+			util.Warning("%c %s", '\U0001F44E', desc) // 👎 error emoji
+		}
+		return fmt.Errorf("PHP script failed: %v", err)
+	}
+
+	// Show description on success
+	if desc != "" {
+		util.Success("%c %s", '\U0001F44D', desc) // 👍 success emoji
+	}
+
+	if len(output) > 0 {
+		util.Success(output)
+	}
+
+	return nil
+}
+
+// createConfigurationFiles creates temporary YAML configuration files for PHP actions
+func createConfigurationFiles(app *DdevApp) error {
+	configDir := filepath.Join(app.AppConfDir(), ".ddev-config")
+
+	// Create the .ddev-config directory
+	err := os.MkdirAll(configDir, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create config directory %s: %v", configDir, err)
+	}
+
+	// Generate project configuration YAML
+	projectConfigYAML, err := app.GetProcessedProjectConfigYAML()
+	if err != nil {
+		return fmt.Errorf("failed to generate project configuration: %v", err)
+	}
+
+	// Write project configuration file
+	projectConfigPath := filepath.Join(configDir, "project_config.yaml")
+	err = os.WriteFile(projectConfigPath, projectConfigYAML, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write project config file %s: %v", projectConfigPath, err)
+	}
+
+	// Generate global configuration YAML
+	globalConfigYAML, err := GetGlobalConfigYAML()
+	if err != nil {
+		return fmt.Errorf("failed to generate global configuration: %v", err)
+	}
+
+	// Write global configuration file
+	globalConfigPath := filepath.Join(configDir, "global_config.yaml")
+	err = os.WriteFile(globalConfigPath, globalConfigYAML, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write global config file %s: %v", globalConfigPath, err)
+	}
+
+	return nil
+}
+
+// CleanupConfigurationFiles removes temporary configuration files created for PHP actions
+func (app *DdevApp) CleanupConfigurationFiles() error {
+	configDir := filepath.Join(app.AppConfDir(), ".ddev-config")
+	if fileutil.FileExists(configDir) {
+		return os.RemoveAll(configDir)
+	}
+	return nil
 }
 
 // GetAddonDdevDescription returns what follows #ddev-description: in any line in action
