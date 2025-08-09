@@ -48,6 +48,7 @@ post_install_actions:
 ```
 
 **Key Points:**
+
 - **Use `require` not `include`**: Scripts are mandatory dependencies
 - **Separate script files**: Each with focused responsibility
 - **Start scripts with `<?php`**: Required for proper execution  
@@ -175,6 +176,7 @@ if (!$success) {
 ```
 
 **Key Benefits**:
+
 - ✅ **Fail-fast behavior**: Warnings and errors cause immediate script termination
 - ✅ **Consistent error reporting**: All PHP errors are caught and displayed
 - ✅ **Bash equivalence**: Same reliability as bash `set -eu -o pipefail`
@@ -523,6 +525,7 @@ $globalConfig = yaml_parse_file('.ddev-config/global_config.yaml');
 **Translation Highlights**:
 
 ### Clean Modular Structure
+
 ```yaml
 # install.yaml - Clean and readable
 post_install_actions:
@@ -537,6 +540,7 @@ post_install_actions:
 ```
 
 ### Environment Variable Usage
+
 ```php
 // redis/scripts/setup-drupal-settings.php
 <?php
@@ -555,6 +559,7 @@ if (isset($config['disable_settings_management']) && $config['disable_settings_m
 ```
 
 ### YAML Processing with php-yaml
+
 ```php
 // Generate docker-compose extra file using yaml_emit instead of heredoc
 $dockerConfig = [
@@ -574,6 +579,7 @@ file_put_contents($extraDockerFile, $yamlContent);
 ```
 
 **Results**:
+
 - ✅ **Performance**: Comparable to bash implementation
 - ✅ **Reliability**: Identical behavior validated through unchanged tests  
 - ✅ **Maintainability**: Improved code organization and error handling

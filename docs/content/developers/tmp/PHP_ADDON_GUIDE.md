@@ -255,6 +255,7 @@ file_put_contents('docker-compose.myservice.yaml',
 For complex logic, create separate PHP script files to keep install.yaml clean and readable:
 
 ### File Structure
+
 ```
 .ddev/
 ├── install.yaml
@@ -265,6 +266,7 @@ For complex logic, create separate PHP script files to keep install.yaml clean a
 ```
 
 ### Clean install.yaml Pattern
+
 ```yaml
 name: my-addon
 
@@ -284,6 +286,7 @@ post_install_actions:
 ```
 
 ### Example Script File: `scripts/setup-drupal.php`
+
 ```php
 <?php
 #ddev-generated
@@ -602,6 +605,7 @@ echo "Database configured for project\n";
 The ddev-redis add-on has been successfully translated from bash to PHP, demonstrating production-ready PHP add-on patterns:
 
 ### Original Structure (Bash)
+
 ```
 redis/scripts/
 ├── setup-drupal-settings.sh       # Drupal configuration
@@ -609,7 +613,8 @@ redis/scripts/
 └── settings.ddev.redis.php         # Settings template
 ```
 
-### Translated Structure (PHP)  
+### Translated Structure (PHP)
+
 ```
 redis/scripts/
 ├── setup-drupal-settings.php      # PHP version
@@ -618,6 +623,7 @@ redis/scripts/
 ```
 
 ### Clean install.yaml
+
 ```yaml
 name: redis
 
@@ -642,6 +648,7 @@ post_install_actions:
 ### Key Implementation Details
 
 **Environment File Detection:**
+
 ```php
 // Direct file access instead of ddev dotenv command
 $envFile = '.env.redis';
@@ -652,6 +659,7 @@ if (file_exists($envFile)) {
 ```
 
 **YAML Generation with php-yaml:**
+
 ```php
 // Generate docker-compose extra file using yaml_emit instead of heredoc
 $dockerConfig = [
@@ -671,6 +679,7 @@ file_put_contents($extraDockerFile, $yamlContent);
 ```
 
 **Environment Variable Usage:**
+
 ```php
 // ✅ Use environment variables instead of manual config parsing
 $projectType = $_ENV['DDEV_PROJECT_TYPE'];
@@ -680,6 +689,7 @@ $siteName = $_ENV['DDEV_SITENAME'];
 ```
 
 **Results:**
+
 - ✅ All 10 test scenarios pass identically to bash version
 - ✅ Cleaner, more maintainable code structure
 - ✅ Better error handling with system-level strict mode
