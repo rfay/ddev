@@ -219,33 +219,6 @@ func ProcessAddonActionWithImage(action string, dict map[string]interface{}, bas
 func processPHPAction(action string, dict map[string]interface{}, image string, verbose bool, app *DdevApp) error {
 	// Extract description before processing
 	desc := GetAddonDdevDescription(action)
-
-	// Add PHP strict error handling equivalent to bash 'set -eu -o pipefail'
-	phpStrictMode := `<?php
-// PHP strict error handling equivalent to bash 'set -eu -o pipefail'
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-set_error_handler(function($severity, $message, $file, $line) {
-    throw new ErrorException($message, 0, $severity, $file, $line);
-});
-?>`
-
-	// Add strict mode regardless - either prepend complete PHP block or insert after existing <?php
-	if !strings.HasPrefix(strings.TrimSpace(action), "<?php") {
-		action = phpStrictMode + "\n" + action
-	} else {
-		// If it already starts with <?php, insert strict mode after the opening tag
-		lines := strings.Split(action, "\n")
-		if len(lines) > 0 {
-			firstLine := strings.TrimSpace(lines[0])
-			if firstLine == "<?php" {
-				// Insert strict mode after the <?php line
-				strictModeLines := strings.Split(phpStrictMode, "\n")[1:] // Skip the <?php line
-				lines = append(lines[:1], append(strictModeLines, lines[1:]...)...)
-				action = strings.Join(lines, "\n")
-			}
-		}
-	}
 	// Use a default PHP image if none specified
 	if image == "" {
 		image = docker.GetWebImage()
