@@ -73,9 +73,45 @@ The `ddev_exec_command` tool requires elevated permissions because it can execut
 - **With writes but approval required**: `mcp start --allow-writes`
 - **With automatic approval**: `mcp start --allow-writes --auto-approve ddev_exec_command`
 
-## Option 3: Claude Code Integration
+## Option 3: Gemini-CLI Integration
 
-Claude Code provides native MCP support for AI-powered DDEV project management.
+Gemini-CLI  provides native MCP support for AI-powered DDEV project management.
+
+### Setup
+1. **Edit `~/.gemini/settings.json`:**
+
+   ```json
+   {
+     "mcpServers": {
+       "ddev": {
+         "command": "/path/to/ddev/",
+         "args": ["mcp", "start"],
+         "env": {}
+       }
+     }
+   }
+   ```
+
+2. **Launch Gemini-CLI** in the DDEV repository directory:
+
+   ```bash
+   cd /any/directory && gemini
+   ```
+   
+### Testing with Gemini-CLI
+1. **Project Discovery:**
+   - Ask: "What DDEV projects do I have?"
+   - Expected: Gemini uses `ddev_list_projects` tool and summarizes project status
+2. **Project Details:**
+   - Ask: "Show me details for project [name]"
+   - Expected: Gemini calls `ddev_describe_project` with project name
+3. **Project Management:**
+   - Ask: "Start the [project-name] project"
+   - Expected: Gemini identifies the project needs starting and attempts to use appropriate tools
+
+## Option 4: Claude Code Integration
+
+Claude Code also provides native MCP support for AI-powered DDEV project management.
 
 ### Setup
 
@@ -143,7 +179,7 @@ Claude Code provides native MCP support for AI-powered DDEV project management.
   "mcpServers": {
     "ddev": {
       "command": "./.gotmp/bin/darwin_arm64/ddev", 
-      "args": ["mcp", "start", "--verbose"],
+      "args": ["mcp", "start", "--log-level=debug"],
       "env": {
         "DDEV_DEBUG": "true"
       }
