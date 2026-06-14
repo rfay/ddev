@@ -14,6 +14,14 @@ set -u
 
 CONF=/etc/wsl.conf
 
+# If systemd is already running as PID 1 (WSL enables it by default on modern
+# Ubuntu/Debian), no restart is needed regardless of whether the config file
+# explicitly says so. We still write the config for idempotency, but exit 0.
+SYSTEMD_RUNNING=false
+if [ "$(ps -p 1 -o comm= 2>/dev/null)" = "systemd" ]; then
+    SYSTEMD_RUNNING=true
+fi
+
 if ! touch "$CONF" 2>/dev/null; then
     echo "ERROR: cannot write $CONF"
     exit 2
@@ -27,6 +35,7 @@ if ! grep -q '^\[boot\]' "$CONF"; then
         echo "systemd=true"
     } >> "$CONF"
     echo "STATUS: added [boot] section with systemd=true to $CONF"
+    [ "$SYSTEMD_RUNNING" = "true" ] && { echo "STATUS: systemd already running as PID 1; no restart needed"; exit 0; }
     exit 1
 fi
 
@@ -45,6 +54,7 @@ if [ -z "$CURRENT" ]; then
         { print }
     ' "$CONF" > "${CONF}.new" && mv "${CONF}.new" "$CONF"
     echo "STATUS: added systemd=true to existing [boot] section in $CONF"
+    [ "$SYSTEMD_RUNNING" = "true" ] && { echo "STATUS: systemd already running as PID 1; no restart needed"; exit 0; }
     exit 1
 fi
 
@@ -64,4 +74,5 @@ awk '
     { print }
 ' "$CONF" > "${CONF}.new" && mv "${CONF}.new" "$CONF"
 echo "STATUS: changed systemd setting to true in $CONF (was: $CURRENT)"
+[ "$SYSTEMD_RUNNING" = "true" ] && { echo "STATUS: systemd already running as PID 1; no restart needed"; exit 0; }
 exit 1
