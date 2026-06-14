@@ -130,9 +130,9 @@ PowerShell scripts (`scripts/install_ddev_wsl2_docker_inside.ps1` and
 `ps1-docker-inside` and `ps1-docker-desktop` matrix cases. These run only when a
 ps1 script (or its test/plumbing) changes, plus on `main` and manual builds.
 
-They **reuse the two Ubuntu instances** above — no extra provisioning — but the
-scripts operate on the *default* WSL2 distro, so each test temporarily
-`wsl --set-default`s its instance and restores the prior default afterward:
+They **reuse the two Ubuntu instances** above — no extra provisioning. The
+scripts now accept a `-Distro` parameter so the test passes the distro name
+directly without changing the system default:
 
 * `ps1-docker-inside` → `ddev-test-ubuntu-ce`, which must have Docker Desktop WSL
   integration **disabled** (the script aborts if `/mnt/wsl/docker-desktop`

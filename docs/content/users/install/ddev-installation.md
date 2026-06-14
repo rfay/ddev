@@ -321,7 +321,7 @@ Once you’ve [installed a Docker provider](docker-installation.md), you’re re
         8. Check that Docker is working inside Ubuntu (or your distro) by running `docker ps` in the distro.
         9. Open the WSL2 terminal, for example `Debian` from the Windows start menu.
         10. In WSL2, run `mkcert -install`.
-        11. Note that the older manual [PowerShell script](https://github.com/ddev/ddev/blob/main/scripts/install_ddev_wsl2_docker_inside.ps1) may be instructional if you’re setting up a non-Ubuntu distro. It has been replaced by the Windows installer, but could be adapted for other distros.
+        11. Note that the older manual [PowerShell script](https://github.com/ddev/ddev/blob/main/scripts/install_ddev_wsl2_docker_inside.ps1) may be instructional if you’re setting up a non-Ubuntu distro. It has been replaced by the Windows installer, but could be adapted for other distros. Pass `-Distro <name>` when running it.
 
         !!!note "Path to certificates"
             If you get the prompt `Installing to the system store is not yet supported on this Linux`, you may need to add `/usr/sbin` to the `$PATH` so that `/usr/sbin/update-ca-certificates` can be found.

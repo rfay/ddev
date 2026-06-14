@@ -10,7 +10,6 @@ import (
 	"os"
 	osexec "os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -21,27 +20,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// getDefaultDistro returns the name of the current default WSL2 distro, or ""
-// if it cannot be determined. The default distro is the one marked with "*" in
-// `wsl -l -v` output (which is UTF-16, so NUL bytes are stripped).
-func getDefaultDistro(t *testing.T) string {
-	out, err := exec.RunHostCommand("wsl.exe", "-l", "-v")
-	if err != nil {
-		t.Logf("Failed to list WSL distros: %v", err)
-		return ""
-	}
-	clean := strings.ReplaceAll(out, "\x00", "")
-	for _, line := range strings.Split(clean, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "*") {
-			fields := strings.Fields(strings.TrimPrefix(trimmed, "*"))
-			if len(fields) > 0 {
-				return fields[0]
-			}
-		}
-	}
-	return ""
-}
 
 // TestWSL2InstallScripts exercises the manual WSL2 install PowerShell scripts
 // (scripts/install_ddev_wsl2_docker_inside.ps1 and
@@ -101,17 +79,6 @@ func TestWSL2InstallScripts(t *testing.T) {
 				t.Logf("Docker Desktop WSL2 integration confirmed for %s", tc.distro)
 			}
 
-			// The scripts act on the default distro; set ours as default and
-			// restore the prior default afterward.
-			origDefault := getDefaultDistro(t)
-			t.Logf("Current default WSL2 distro: %q", origDefault)
-			t.Cleanup(func() {
-				if origDefault != "" && origDefault != tc.distro {
-					t.Logf("Restoring default WSL2 distro to %q", origDefault)
-					_, _ = exec.RunHostCommand("wsl.exe", "--set-default", origDefault)
-				}
-			})
-
 			// Reset the distro to a pre-ddev state for a meaningful install.
 			cleanupTestEnv(t, tc.distro)
 
@@ -121,9 +88,6 @@ func TestWSL2InstallScripts(t *testing.T) {
 				_, _ = exec.RunHostCommand("wsl.exe", "-d", tc.distro, "bash", "-c", "ddev poweroff")
 				_, _ = exec.RunHostCommand("wsl.exe", "-d", tc.distro, "bash", "-c", "ddev delete -Oy tp")
 			})
-
-			_, err := exec.RunHostCommand("wsl.exe", "--set-default", tc.distro)
-			require.NoError(err, "Failed to set %s as default WSL2 distro", tc.distro)
 
 			// Resolve the script's absolute path.
 			wd, err := os.Getwd()
@@ -135,12 +99,12 @@ func TestWSL2InstallScripts(t *testing.T) {
 			// installs + image pulls can legitimately take several minutes.
 			// Stream stdout/stderr line-by-line so progress is visible in the
 			// test log in real time (not only on failure after a silent hang).
-			t.Logf("Running install script: %s (default distro=%s)", scriptFullPath, tc.distro)
+			t.Logf("Running install script: %s -Distro %s", scriptFullPath, tc.distro)
 			const scriptTimeout = 15 * time.Minute
 			ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
 			defer cancel()
 
-			cmd := osexec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptFullPath)
+			cmd := osexec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptFullPath, "-Distro", tc.distro)
 			stdoutPipe, pipeErr := cmd.StdoutPipe()
 			require.NoError(pipeErr)
 			stderrPipe, pipeErr := cmd.StderrPipe()
