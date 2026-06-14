@@ -63,16 +63,19 @@ func TestWSL2InstallScripts(t *testing.T) {
 		distro               string
 		requireDockerDesktop bool
 	}{
-		{
-			name:   "docker-inside",
-			script: "../scripts/install_ddev_wsl2_docker_inside.ps1",
-			distro: "ddev-test-ubuntu-ce",
-		},
+		// docker-desktop runs first so that the docker-inside test (which
+		// manipulates WSL2 distros) cannot briefly disrupt Docker Desktop's
+		// WSL2 integration before the precondition check fires.
 		{
 			name:                 "docker-desktop",
 			script:               "../scripts/install_ddev_wsl2_docker_desktop.ps1",
 			distro:               "ddev-test-ubuntu-desktop",
 			requireDockerDesktop: true,
+		},
+		{
+			name:   "docker-inside",
+			script: "../scripts/install_ddev_wsl2_docker_inside.ps1",
+			distro: "ddev-test-ubuntu-ce",
 		},
 	}
 
