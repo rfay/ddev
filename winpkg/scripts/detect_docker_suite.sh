@@ -25,7 +25,7 @@ fi
 # For pure Debian derivatives (Kali, eLxr, etc.) check if the codename
 # is already a valid Docker Debian suite.
 case "$CODENAME" in
-    bookworm|bullseye|buster|trixie|stretch|jessie)
+    trixie|bookworm|bullseye|buster|stretch|jessie)
         printf '%s' "$CODENAME"
         exit 0
         ;;
@@ -40,11 +40,11 @@ if [ -f /etc/debian_version ]; then
     # "trixie/sid" -> "trixie", "kali-rolling" -> "kali-rolling").
     DEBIAN_MAJOR=$(printf '%s' "$DEBIAN_VER" | sed -n 's/^\([0-9][0-9]*\).*/\1/p')
     case "$DEBIAN_MAJOR" in
-        9)  printf 'stretch';  exit 0 ;;
-        10) printf 'buster';   exit 0 ;;
-        11) printf 'bullseye'; exit 0 ;;
-        12) printf 'bookworm'; exit 0 ;;
         13) printf 'trixie';   exit 0 ;;
+        12) printf 'bookworm'; exit 0 ;;
+        11) printf 'bullseye'; exit 0 ;;
+        10) printf 'buster';   exit 0 ;;
+        9)  printf 'stretch';  exit 0 ;;
     esac
     # /etc/debian_version may contain a codename directly (e.g. "trixie/sid")
     case "$DEBIAN_VER" in
