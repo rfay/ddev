@@ -71,6 +71,27 @@ func getInstallerDebugLogs(t *testing.T) string {
 	return fmt.Sprintf("=== Installer Debug Log: %s ===\n%s", logPath, string(content))
 }
 
+// waitForDockerDesktopWSL2Integration polls until Docker Desktop's WSL2
+// integration is active for the given distro, waiting up to ~2 minutes.
+// Returns true when `docker ps` succeeds inside the distro, false on timeout.
+func waitForDockerDesktopWSL2Integration(t *testing.T, distro string) bool {
+	t.Helper()
+	const maxAttempts = 12
+	const delay = 10 * time.Second
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		out, err := exec.RunHostCommand("wsl.exe", "-d", distro, "docker", "ps")
+		if err == nil {
+			t.Logf("Docker Desktop WSL2 integration confirmed for %s (attempt %d/%d)", distro, attempt, maxAttempts)
+			return true
+		}
+		t.Logf("Docker Desktop WSL2 integration not yet active for %s (attempt %d/%d): %v\n%s", distro, attempt, maxAttempts, err, out)
+		if attempt < maxAttempts {
+			time.Sleep(delay)
+		}
+	}
+	return false
+}
+
 // TestWindowsInstallerWSL2 tests WSL2 installation paths using a test matrix
 func TestWindowsInstallerWSL2(t *testing.T) {
 	if nodeps.IsEnvFalse("DDEV_TEST_USE_REAL_INSTALLER") {
@@ -124,14 +145,12 @@ func TestWindowsInstallerWSL2(t *testing.T) {
 			// the installer. Docker Desktop frequently loses WSL2 integration; this
 			// produces an actionable message instead of a cryptic installer error.
 			if strings.HasSuffix(tc.name, "-desktop") {
-				out, dockerErr := exec.RunHostCommand("wsl.exe", "-d", tc.distro, "docker", "ps")
-				if dockerErr != nil {
-					t.Skipf("SKIPPED: Docker Desktop WSL2 integration is not active for %s (docker ps failed: %v, output: %s).\n"+
+				if !waitForDockerDesktopWSL2Integration(t, tc.distro) {
+					t.Skipf("SKIPPED: Docker Desktop WSL2 integration is not active for %s after retries.\n"+
 						"Re-enable it: Docker Desktop → Settings → Resources → WSL Integration → enable %s → Apply & Restart.\n"+
 						"Then verify with: wsl -d %s docker ps",
-						tc.distro, dockerErr, out, tc.distro, tc.distro)
+						tc.distro, tc.distro, tc.distro)
 				}
-				t.Logf("Docker Desktop WSL2 integration confirmed for %s", tc.distro)
 			}
 
 			// Dump installer debug logs on test failure (registered first, runs last)

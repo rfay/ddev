@@ -69,14 +69,12 @@ func TestWSL2InstallScripts(t *testing.T) {
 			// integration silently; catching it here produces an actionable
 			// message rather than a cryptic script error later.
 			if tc.requireDockerDesktop {
-				out, dockerErr := exec.RunHostCommand("wsl.exe", "-d", tc.distro, "docker", "ps")
-				if dockerErr != nil {
-					t.Skipf("SKIPPED: Docker Desktop WSL2 integration is not active for %s (docker ps failed: %v, output: %s).\n"+
+				if !waitForDockerDesktopWSL2Integration(t, tc.distro) {
+					t.Skipf("SKIPPED: Docker Desktop WSL2 integration is not active for %s after retries.\n"+
 						"Re-enable it: Docker Desktop → Settings → Resources → WSL Integration → enable %s → Apply & Restart.\n"+
 						"Then verify with: wsl -d %s docker ps",
-						tc.distro, dockerErr, out, tc.distro, tc.distro)
+						tc.distro, tc.distro, tc.distro)
 				}
-				t.Logf("Docker Desktop WSL2 integration confirmed for %s", tc.distro)
 			}
 
 			// Reset the distro to a pre-ddev state for a meaningful install.
