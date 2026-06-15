@@ -74,17 +74,32 @@ func getInstallerDebugLogs(t *testing.T) string {
 // waitForDockerDesktopWSL2Integration polls until Docker Desktop's WSL2
 // integration is active for the given distro, waiting up to ~2 minutes.
 // Returns true when `docker ps` succeeds inside the distro, false on timeout.
+// Uses a login shell (bash -lc) because Docker Desktop injects docker into
+// PATH via /etc/profile.d/, which only runs for login shells.
 func waitForDockerDesktopWSL2Integration(t *testing.T, distro string) bool {
 	t.Helper()
 	const maxAttempts = 12
 	const delay = 10 * time.Second
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		out, err := exec.RunHostCommand("wsl.exe", "-d", distro, "docker", "ps")
+		// Use login shell so Docker Desktop's PATH injection via /etc/profile.d/ takes effect.
+		out, err := exec.RunHostCommand("wsl.exe", "-d", distro, "--", "bash", "-lc", "docker ps")
 		if err == nil {
 			t.Logf("Docker Desktop WSL2 integration confirmed for %s (attempt %d/%d)", distro, attempt, maxAttempts)
 			return true
 		}
-		t.Logf("Docker Desktop WSL2 integration not yet active for %s (attempt %d/%d): %v\n%s", distro, attempt, maxAttempts, err, out)
+		t.Logf("Docker Desktop WSL2 integration not yet active for %s (attempt %d/%d): %v\nOutput: %s", distro, attempt, maxAttempts, err, out)
+
+		// On first failure, dump diagnostics to help understand the environment.
+		if attempt == 1 {
+			if diagOut, diagErr := exec.RunHostCommand("wsl.exe", "--list", "--running"); diagErr == nil {
+				t.Logf("WSL running distros:\n%s", diagOut)
+			}
+			if diagOut, _ := exec.RunHostCommand("wsl.exe", "-d", distro, "--", "bash", "-lc",
+				`echo "PATH=$PATH"; which docker 2>&1 || echo "docker not in PATH"; ls -la /var/run/docker.sock 2>&1; ls /usr/local/bin/docker /usr/bin/docker 2>&1`); diagOut != "" {
+				t.Logf("Diagnostics inside %s:\n%s", distro, diagOut)
+			}
+		}
+
 		if attempt < maxAttempts {
 			time.Sleep(delay)
 		}
