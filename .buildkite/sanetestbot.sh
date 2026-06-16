@@ -25,31 +25,33 @@ fi
 # failed restart attempt or a machine reboot. On Linux and macOS Docker runs
 # as a daemon and is expected to already be up; this block is Windows-only.
 if [ "$(go env GOOS)" = "windows" ]; then
-    # Retry docker ps a few times before concluding Docker Desktop is stopped.
-    # A transient failure (e.g. Docker Desktop still initializing after a restart
-    # by a previous job's restart-docker-desktop.sh) should not trigger a full
-    # stop/start cycle.
-    docker_ps_ok=false
+    # Check docker desktop status (the frontend) not docker ps (the Engine service).
+    # On Windows the Docker Engine service (SYSTEM) keeps running even when Docker
+    # Desktop.exe (the frontend) is stopped — so docker ps succeeds even when Docker
+    # Desktop is down. WSL2 integration is managed by the frontend, not the Engine,
+    # so we must check 'docker desktop status' to know if integration will be available.
+    dd_frontend_ok=false
     for _retry in 1 2 3; do
-        if docker ps >/dev/null 2>&1; then
-            docker_ps_ok=true
+        dd_status=$(docker desktop status 2>&1 || true)
+        if echo "$dd_status" | grep -qi "Status[[:space:]]*running"; then
+            dd_frontend_ok=true
+            echo "$(date -u +%H:%M:%S) Docker Desktop frontend running (attempt $_retry)"
             break
         fi
-        dd_status=$(docker desktop status 2>&1 || true)
-        echo "$(date -u +%H:%M:%S) docker ps attempt $_retry failed (status: $dd_status), retrying in 10s..."
+        echo "$(date -u +%H:%M:%S) Docker Desktop not running (attempt $_retry, status: $dd_status), retrying in 10s..."
         sleep 10
     done
 
-    if [ "$docker_ps_ok" = "false" ]; then
+    if [ "$dd_frontend_ok" = "false" ]; then
         dd_status=$(docker desktop status 2>&1 || true)
-        echo "$(date -u +%H:%M:%S) Docker Desktop not responding after retries (status: $dd_status) — attempting to start it..."
+        echo "$(date -u +%H:%M:%S) Docker Desktop frontend not running after retries (status: $dd_status) — starting it..."
         # Use Start-Process to detach Docker Desktop.exe from the Buildkite job's
         # Windows Job Object, so it survives after the job ends.
         powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
           'Start-Process -FilePath "$env:PROGRAMFILES\Docker\Docker\Docker Desktop.exe" -PassThru | Out-Null' 2>/dev/null \
           || docker desktop start || true
         elapsed=0
-        while ! docker ps >/dev/null 2>&1; do
+        while ! docker desktop status 2>&1 | grep -qi "Status[[:space:]]*running"; do
             status=$(docker desktop status 2>&1 || true)
             echo "$(date -u +%H:%M:%S) Waiting for Docker Desktop to start (${elapsed}s elapsed, status: $status)..."
             if [ "$elapsed" -ge 180 ]; then
@@ -59,7 +61,7 @@ if [ "$(go env GOOS)" = "windows" ]; then
             sleep 10
             elapsed=$((elapsed + 10))
         done
-        echo "$(date -u +%H:%M:%S) Docker Desktop is running."
+        echo "$(date -u +%H:%M:%S) Docker Desktop frontend is running."
     fi
 fi
 
