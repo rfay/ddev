@@ -46,7 +46,7 @@ if [ "$(go env GOOS)" = "windows" ]; then
         # Use Start-Process to detach Docker Desktop.exe from the Buildkite job's
         # Windows Job Object, so it survives after the job ends.
         powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
-          "Start-Process -FilePath '$env:PROGRAMFILES\Docker\Docker\Docker Desktop.exe' -PassThru | Out-Null" 2>/dev/null \
+          'Start-Process -FilePath "$env:PROGRAMFILES\Docker\Docker\Docker Desktop.exe" -PassThru | Out-Null' 2>/dev/null \
           || docker desktop start || true
         elapsed=0
         while ! docker ps >/dev/null 2>&1; do

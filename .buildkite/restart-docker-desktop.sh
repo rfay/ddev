@@ -73,7 +73,7 @@ echo "restart-docker-desktop: starting Docker Desktop..."
 # Desktop stopped for the next job. Start-Process with -PassThru starts
 # it in a new process group outside the current Job Object.
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
-  "Start-Process -FilePath '$env:PROGRAMFILES\Docker\Docker\Docker Desktop.exe' -PassThru | Out-Null" 2>/dev/null \
+  'Start-Process -FilePath "$env:PROGRAMFILES\Docker\Docker\Docker Desktop.exe" -PassThru | Out-Null' 2>/dev/null \
   || docker desktop start || true
 
 wait_for_docker_desktop_status "Docker Desktop running" "Status[[:space:]]*running" "$TIMEOUT_START" || exit 1
