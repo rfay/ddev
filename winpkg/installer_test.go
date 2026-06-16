@@ -79,14 +79,12 @@ func getInstallerDebugLogs(t *testing.T) string {
 // Returns true when `docker ps` succeeds inside the distro, false on timeout.
 func waitForDockerDesktopWSL2Integration(t *testing.T, distro string) bool {
 	t.Helper()
-	// Poll for up to ~3 minutes before resorting to a Docker Desktop restart.
-	// Docker Desktop's Resource Saver mode pauses the Linux VM when no containers
-	// are running; sanetestbot.sh calls 'docker desktop start' to un-pause it, but
-	// WSL2 integration (the /usr/bin/docker symlink) takes time to be re-injected
-	// after the un-pause. A full stop/start restart should be the last resort —
-	// it is expensive and can reset Resource Saver state, causing the cycle to repeat.
-	const quickAttempts = 12
-	const delay = 15 * time.Second
+	// Poll briefly before resorting to a Docker Desktop restart. Give Docker Desktop
+	// ~40s to inject integration naturally after sanetestbot.sh starts it. If it
+	// hasn't appeared by then, restart-docker-desktop.sh (stop+start) reliably
+	// restores it in another ~30s.
+	const quickAttempts = 4
+	const delay = 10 * time.Second
 
 	for attempt := 1; attempt <= quickAttempts; attempt++ {
 		// When Docker Desktop integration is active it symlinks /usr/bin/docker →
