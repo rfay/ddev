@@ -44,9 +44,22 @@ if [ "$(go env GOOS)" = "windows"  -a "$(git config core.autocrlf)" != "false" ]
  exit 3
 fi
 
-# On Windows/WSL2: ensure binfmt_misc WSLInterop is registered in each test distro.
-# wsl-fix-interop is idempotent — exits 0 and reports "nothing to do" when already registered.
-# Install it once per distro per the buildkite-testmachine-setup.md instructions.
+# On Windows/WSL2: ensure the binfmt_misc WSLInterop entry is registered in each test distro.
+#
+# Background: WSL2 uses a binfmt_misc entry named "WSLInterop" so that Linux shells can
+# transparently invoke Windows .exe binaries. This entry can go missing after a distro
+# restart (e.g. following docker cleanup operations) or when systemd hasn't fully
+# initialised. When it is absent, any .exe called from within the distro fails with
+# "cannot execute binary file: Exec format error".
+#
+# Consequence for these tests: the PS1 install scripts call `wsl -d <distro> mkcert.exe`
+# to add the mkcert CA to the Windows certificate store. If interop is broken, that call
+# silently fails, the CA is never trusted by Windows, and every subsequent PowerShell
+# HTTPS check fails with an SSL/TLS error — a hard-to-diagnose failure miles from the root cause.
+#
+# wsl-fix-interop re-registers the entry by writing the magic string to
+# /proc/sys/fs/binfmt_misc/register. It is idempotent (exits 0 if already present).
+# Requires a one-time installation per distro — see buildkite-testmachine-setup.md.
 # See https://github.com/rfay/wsl-fix-interop
 if [ "$(go env GOOS)" = "windows" ]; then
     for distro in ddev-test-ubuntu-ce ddev-test-ubuntu-desktop ddev-test-ubuntu2404-ce ddev-test-ubuntu2404-desktop ddev-test-debian-ce ddev-test-debian-desktop; do

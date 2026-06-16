@@ -448,9 +448,15 @@ func cleanupTestEnv(t *testing.T, distroName string) {
 	//t.Logf("WSL distros list: %q", cleanOut)
 
 	if strings.Contains(cleanOut, distroName) {
-		// Ensure WSL interop (binfmt_misc) is working before any .exe operations.
-		// wsl-fix-interop re-registers the WSLInterop entry if missing; idempotent.
-		// See https://github.com/rfay/wsl-fix-interop and buildkite-testmachine-setup.md.
+		// Ensure WSL interop is working before any .exe operations in this distro.
+		// The binfmt_misc WSLInterop entry can go missing after a distro restart or if
+		// systemd hasn't fully started. Without it, calling any Windows .exe from within
+		// WSL (e.g. mkcert.exe, reg.exe) fails with "Exec format error". In the PS1
+		// install scripts this causes mkcert.exe -install to fail silently, leaving the
+		// mkcert CA out of the Windows cert store and breaking all PowerShell HTTPS checks.
+		// wsl-fix-interop re-registers the entry idempotently. Requires one-time install
+		// per distro — see docs/content/developers/buildkite-testmachine-setup.md.
+		// See https://github.com/rfay/wsl-fix-interop
 		if fixOut, fixErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "bash", "-c", "sudo wsl-fix-interop"); fixErr != nil {
 			t.Logf("wsl-fix-interop not available or failed in %s (install it per testmachine setup docs): %v\n%s", distroName, fixErr, fixOut)
 		} else {
