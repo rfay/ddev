@@ -116,13 +116,38 @@ func waitForDockerDesktopWSL2Integration(t *testing.T, distro string) bool {
 		}
 	}
 
-	// Integration still absent after quick poll — restart Docker Desktop.
-	// Background: binfmt_misc is shared across all WSL2 distros. When docker-ce is
-	// removed from ubuntu-ce (in cleanupTestEnv), its post-remove scripts clear all
-	// binfmt_misc entries, breaking Docker Desktop's integration with desktop distros.
-	// wsl-fix-interop restores the binfmt_misc WSLInterop entry, but Docker Desktop
-	// does not re-inject its /usr/bin/docker symlink automatically. A restart fixes it.
-	t.Logf("Docker Desktop WSL2 integration absent for %s after %d attempts — restarting Docker Desktop", distro, quickAttempts)
+	// Integration still absent after 3 minutes of polling.
+	// Try a distro restart first: terminate the distro and start it fresh.
+	// Docker Desktop injects the /usr/bin/docker symlink when it observes a distro
+	// starting; if the distro was already running when Docker Desktop started (or
+	// restarted), injection may have been missed. Terminating and restarting the
+	// distro gives Docker Desktop a fresh start event without touching Docker Desktop
+	// itself — much cheaper than a full Docker Desktop stop/start, and avoids leaving
+	// Docker Desktop stopped between jobs.
+	t.Logf("Docker Desktop WSL2 integration absent for %s after %d attempts — terminating distro to trigger re-injection", distro, quickAttempts)
+	if _, termErr := exec.RunHostCommand("wsl.exe", "--terminate", distro); termErr != nil {
+		t.Logf("wsl --terminate %s failed: %v (continuing)", distro, termErr)
+	}
+	// Start distro fresh and give Docker Desktop up to 90s to re-inject integration.
+	_, _ = exec.RunHostCommand("wsl.exe", "-d", distro, "--", "echo", "distro-restarted")
+	const reinjectionAttempts = 9
+	const reinjectionDelay = 10 * time.Second
+	for attempt := 1; attempt <= reinjectionAttempts; attempt++ {
+		out, err := exec.RunHostCommand("wsl.exe", "-d", distro, "--", "docker", "ps")
+		if err == nil {
+			t.Logf("Docker Desktop WSL2 integration confirmed for %s after distro restart (attempt %d/%d)", distro, attempt, reinjectionAttempts)
+			return true
+		}
+		t.Logf("Waiting for integration re-injection in %s (attempt %d/%d): %v\nOutput: %s", distro, attempt, reinjectionAttempts, err, out)
+		if attempt < reinjectionAttempts {
+			time.Sleep(reinjectionDelay)
+		}
+	}
+
+	// Last resort: full Docker Desktop stop+start. This is expensive and stops
+	// Docker Desktop, which means it will be stopped at the start of the next job.
+	// Only reach here if both the 3-minute poll and the distro-restart failed.
+	t.Logf("Docker Desktop WSL2 integration absent for %s after distro restart — performing full Docker Desktop restart", distro)
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Logf("Could not get working directory: %v", err)
