@@ -114,10 +114,29 @@ func waitForDockerDesktopWSL2Integration(t *testing.T, distro string) bool {
 		}
 	}
 
+	// Before resorting to a full Docker Desktop restart, try fixing WSL interop.
+	// The Docker Desktop CLI at /mnt/wsl/docker-desktop/cli-tools/usr/bin/docker
+	// uses WSL interop internally. If WSLInterop was cleared from binfmt_misc
+	// (e.g. by docker-ce post-remove scripts during cleanupTestEnv), the symlink
+	// exists and the mount looks fine but the binary cannot execute. wsl-fix-interop
+	// re-registers the binfmt_misc entry and is much cheaper than a full restart.
+	t.Logf("Docker Desktop WSL2 integration absent for %s after %d attempts — trying wsl-fix-interop first", distro, quickAttempts)
+	if fixOut, fixErr := exec.RunHostCommand("wsl.exe", "-d", distro, "bash", "-c", "sudo wsl-fix-interop"); fixErr != nil {
+		t.Logf("wsl-fix-interop in %s failed: %v\n%s", distro, fixErr, fixOut)
+	} else {
+		t.Logf("wsl-fix-interop in %s: %s", distro, strings.TrimSpace(fixOut))
+	}
+	// Give interop a moment to take effect, then re-check.
+	time.Sleep(5 * time.Second)
+	if out, err := exec.RunHostCommand("wsl.exe", "-d", distro, "--", "docker", "ps"); err == nil {
+		t.Logf("Docker Desktop WSL2 integration confirmed for %s after wsl-fix-interop", distro)
+		_ = out
+		return true
+	}
+
 	// Last resort: full Docker Desktop stop+start. This stops Docker Desktop,
 	// leaving it stopped for the next job's sanetestbot.sh to restart.
-	// Only reach here if the 3-minute poll failed.
-	t.Logf("Docker Desktop WSL2 integration absent for %s after %d attempts — performing full Docker Desktop restart", distro, quickAttempts)
+	t.Logf("Docker Desktop WSL2 integration absent for %s after wsl-fix-interop — performing full Docker Desktop restart", distro)
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Logf("Could not get working directory: %v", err)
