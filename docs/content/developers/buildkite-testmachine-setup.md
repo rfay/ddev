@@ -134,7 +134,7 @@ the start of each test run:
 
 ```powershell
 foreach ($d in @("ddev-test-ubuntu-ce","ddev-test-ubuntu-desktop","ddev-test-ubuntu2404-ce","ddev-test-ubuntu2404-desktop","ddev-test-debian-ce","ddev-test-debian-desktop")) {
-    wsl -d $d -u root bash -c "curl -fsSL https://raw.githubusercontent.com/rfay/wsl-fix-interop/main/install.sh | bash -s testbot"
+    wsl -d $d -u root bash -c "cd /tmp && curl -fsSL https://raw.githubusercontent.com/rfay/wsl-fix-interop/main/wsl-fix-interop -o wsl-fix-interop && curl -fsSL https://raw.githubusercontent.com/rfay/wsl-fix-interop/main/install.sh -o install.sh && bash install.sh testbot"
 }
 ```
 
