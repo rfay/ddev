@@ -76,7 +76,7 @@ echo "buildkite installer test ${BUILDKITE_JOB_ID:-} at $(date) on $(hostname) a
 
 # Our testbot should be sane, run the testbot checker to make sure.
 echo "--- running sanetestbot.sh"
-${TIMEOUT} 60s bash "$(dirname "$0")/sanetestbot.sh"
+${TIMEOUT} 5m bash "$(dirname "$0")/sanetestbot.sh"
 
 echo "~~~ Setup complete, starting test"
 
