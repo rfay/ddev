@@ -44,4 +44,16 @@ if [ "$(go env GOOS)" = "windows"  -a "$(git config core.autocrlf)" != "false" ]
  exit 3
 fi
 
+# On Windows/WSL2: ensure binfmt_misc WSLInterop is registered in each test distro.
+# wsl-fix-interop is idempotent — exits 0 and reports "nothing to do" when already registered.
+# Install it once per distro per the buildkite-testmachine-setup.md instructions.
+# See https://github.com/rfay/wsl-fix-interop
+if [ "$(go env GOOS)" = "windows" ]; then
+    for distro in ddev-test-ubuntu-ce ddev-test-ubuntu-desktop ddev-test-ubuntu2404-ce ddev-test-ubuntu2404-desktop ddev-test-debian-ce ddev-test-debian-desktop; do
+        fix_out=$(wsl.exe -d "$distro" bash -c "sudo wsl-fix-interop" 2>&1) \
+            && echo "wsl-fix-interop in $distro: $fix_out" \
+            || echo "WARNING: wsl-fix-interop failed or not installed in $distro (skipping)"
+    done
+fi
+
 echo "-- testbot $HOSTNAME seems to be set up OK --"
