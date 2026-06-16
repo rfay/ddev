@@ -72,25 +72,27 @@ func getInstallerDebugLogs(t *testing.T) string {
 }
 
 // waitForDockerDesktopWSL2Integration polls until Docker Desktop's WSL2
-// integration is active for the given distro, waiting up to ~2 minutes.
+// integration is active for the given distro. It first polls briefly; if
+// integration is still absent, it restarts Docker Desktop via
+// .buildkite/restart-docker-desktop.sh (which forces Docker Desktop to
+// re-inject its /usr/bin/docker symlink into all configured distros).
 // Returns true when `docker ps` succeeds inside the distro, false on timeout.
-// Uses a login shell (bash -lc) because Docker Desktop injects docker into
-// PATH via /etc/profile.d/, which only runs for login shells.
 func waitForDockerDesktopWSL2Integration(t *testing.T, distro string) bool {
 	t.Helper()
-	const maxAttempts = 12
+	const quickAttempts = 3
 	const delay = 10 * time.Second
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
+
+	for attempt := 1; attempt <= quickAttempts; attempt++ {
 		// When Docker Desktop integration is active it symlinks /usr/bin/docker →
 		// /mnt/wsl/docker-desktop/cli-tools/usr/bin/docker (a real Linux binary).
 		// When inactive, /usr/bin/docker does not exist; PATH falls through to the
 		// /Docker/host/bin/docker stub which outputs the "integration not enabled" error.
 		out, err := exec.RunHostCommand("wsl.exe", "-d", distro, "--", "docker", "ps")
 		if err == nil {
-			t.Logf("Docker Desktop WSL2 integration confirmed for %s (attempt %d/%d)", distro, attempt, maxAttempts)
+			t.Logf("Docker Desktop WSL2 integration confirmed for %s (attempt %d/%d)", distro, attempt, quickAttempts)
 			return true
 		}
-		t.Logf("Docker Desktop WSL2 integration not yet active for %s (attempt %d/%d): %v\nOutput: %s", distro, attempt, maxAttempts, err, out)
+		t.Logf("Docker Desktop WSL2 integration not yet active for %s (attempt %d/%d): %v\nOutput: %s", distro, attempt, quickAttempts, err, out)
 
 		// On first failure, dump diagnostics to help understand the environment.
 		if attempt == 1 {
@@ -103,11 +105,31 @@ func waitForDockerDesktopWSL2Integration(t *testing.T, distro string) bool {
 			}
 		}
 
-		if attempt < maxAttempts {
+		if attempt < quickAttempts {
 			time.Sleep(delay)
 		}
 	}
-	return false
+
+	// Integration still absent after quick poll — restart Docker Desktop.
+	// Background: binfmt_misc is shared across all WSL2 distros. When docker-ce is
+	// removed from ubuntu-ce (in cleanupTestEnv), its post-remove scripts clear all
+	// binfmt_misc entries, breaking Docker Desktop's integration with desktop distros.
+	// wsl-fix-interop restores the binfmt_misc WSLInterop entry, but Docker Desktop
+	// does not re-inject its /usr/bin/docker symlink automatically. A restart fixes it.
+	t.Logf("Docker Desktop WSL2 integration absent for %s after %d attempts — restarting Docker Desktop", distro, quickAttempts)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Logf("Could not get working directory: %v", err)
+		return false
+	}
+	restartScript := filepath.Join(wd, "..", ".buildkite", "restart-docker-desktop.sh")
+	restartOut, restartErr := exec.RunHostCommand("bash", restartScript, distro)
+	if restartErr != nil {
+		t.Logf("Docker Desktop restart failed: %v\nOutput: %s", restartErr, restartOut)
+		return false
+	}
+	t.Logf("Docker Desktop restart output:\n%s", restartOut)
+	return true
 }
 
 // TestWindowsInstallerWSL2 tests WSL2 installation paths using a test matrix
