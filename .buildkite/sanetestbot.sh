@@ -43,7 +43,11 @@ if [ "$(go env GOOS)" = "windows" ]; then
     if [ "$docker_ps_ok" = "false" ]; then
         dd_status=$(docker desktop status 2>&1 || true)
         echo "$(date -u +%H:%M:%S) Docker Desktop not responding after retries (status: $dd_status) — attempting to start it..."
-        docker desktop start || true
+        # Use Start-Process to detach Docker Desktop.exe from the Buildkite job's
+        # Windows Job Object, so it survives after the job ends.
+        powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
+          "Start-Process -FilePath '$env:PROGRAMFILES\Docker\Docker\Docker Desktop.exe' -PassThru | Out-Null" 2>/dev/null \
+          || docker desktop start || true
         elapsed=0
         while ! docker ps >/dev/null 2>&1; do
             status=$(docker desktop status 2>&1 || true)
