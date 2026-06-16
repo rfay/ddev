@@ -2496,10 +2496,14 @@ Function un.CleanupMkcertEnvironment
         ; mkcert -uninstall was already run in un.mkcertUninstall if user approved
         ; No need to run it again here
 
-        ; Remove any remaining CAROOT directory
-        ${If} ${FileExists} "$R0"
-            DetailPrint "Removing remaining CAROOT directory: $R0"
-            RMDir /r "$R0"
+        ; Remove any remaining CAROOT directory (skip in silent mode to preserve for subsequent installs)
+        ${IfNot} ${Silent}
+            ${If} ${FileExists} "$R0"
+                DetailPrint "Removing remaining CAROOT directory: $R0"
+                RMDir /r "$R0"
+            ${EndIf}
+        ${Else}
+            DetailPrint "Preserving CAROOT directory in silent mode"
         ${EndIf}
     ${EndIf}
 
