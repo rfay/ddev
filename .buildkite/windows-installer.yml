@@ -35,13 +35,11 @@
       # DOCKERHUB_PULL_USERNAME
       # DOCKERHUB_PULL_PASSWORD
     matrix:
-      # Manual WSL2 install-script tests (Ubuntu only), gated to ps1 changes:
-      - "ps1-docker-inside"
-      - "ps1-docker-desktop"
-
-      - "ddev-test-ubuntu-ce"
+      # temporarily reduced to single case for Docker Desktop restart debugging
+      # - "ps1-docker-inside"
+      # - "ps1-docker-desktop"
+      # - "ddev-test-ubuntu-ce"
       - "ddev-test-ubuntu-desktop"
-      # temporarily removed for focused testing - restore before merge
       # - "ddev-test-ubuntu2404-ce"
       # - "ddev-test-ubuntu2404-desktop"
       # - "ddev-test-debian-ce"

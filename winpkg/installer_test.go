@@ -158,7 +158,8 @@ func TestWindowsInstallerWSL2(t *testing.T) {
 		provider   string // "docker-ce" or "docker-desktop"
 	}{
 		// "Ubuntu" in the WSL catalog installs the current LTS (Ubuntu 26.04 as of 2026).
-		{instance: "ddev-test-ubuntu-ce", baseDistro: "Ubuntu", provider: "docker-ce"},
+		// temporarily reduced to single case for Docker Desktop restart debugging
+		// {instance: "ddev-test-ubuntu-ce", baseDistro: "Ubuntu", provider: "docker-ce"},
 		{instance: "ddev-test-ubuntu-desktop", baseDistro: "Ubuntu", provider: "docker-desktop"},
 		// temporarily removed for focused testing - restore before merge
 		// {instance: "ddev-test-ubuntu2404-ce", baseDistro: "Ubuntu-24.04", provider: "docker-ce"},
