@@ -20,6 +20,29 @@ else
    echo "Disk usage is ${DISK_AVAIL}% on $(hostname).";
 fi
 
+# On Windows with Docker Desktop, ensure Docker Desktop is running before the
+# docker ps sanity check. Docker Desktop can be left stopped by a previous
+# failed restart attempt or a machine reboot. On Linux and macOS Docker runs
+# as a daemon and is expected to already be up; this block is Windows-only.
+if [ "$(go env GOOS)" = "windows" ]; then
+    if ! docker ps >/dev/null 2>&1; then
+        echo "Docker Desktop not responding — attempting to start it..."
+        docker desktop start || true
+        elapsed=0
+        while ! docker ps >/dev/null 2>&1; do
+            status=$(docker desktop status 2>&1 || true)
+            echo "Waiting for Docker Desktop to start (${elapsed}s elapsed): $status"
+            if [ "$elapsed" -ge 180 ]; then
+                echo "ERROR: Docker Desktop did not start within 180s"
+                exit 1
+            fi
+            sleep 10
+            elapsed=$((elapsed + 10))
+        done
+        echo "Docker Desktop is running."
+    fi
+fi
+
 # Test to make sure docker is installed and working.
 # If it doesn't become ready then we just keep this testbot occupied :)
 docker ps >/dev/null

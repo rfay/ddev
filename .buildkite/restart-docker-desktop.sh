@@ -49,15 +49,21 @@ wait_for_docker_desktop_status() {
     done
 }
 
-echo "restart-docker-desktop: stopping Docker Desktop (WSL2 integration lost in $DISTRO)..."
-docker desktop stop || true
-
 # When stopped, `docker desktop status` prints an error (no table), e.g.:
 #   "Could not retrieve status. Is Docker Desktop running?"
 # When running, it prints a table with "Status  running".
 # When starting/stopping, the table shows "Status  starting" etc.
 # Match carefully to avoid treating "starting" as "running".
-wait_for_docker_desktop_status "Docker Desktop stopped" "Could not retrieve status" "$TIMEOUT_STOP" || exit 1
+
+# If Docker Desktop is already stopped (e.g. left down by a previous failed restart),
+# skip the stop step and go straight to starting it.
+if ! docker ps >/dev/null 2>&1; then
+    echo "restart-docker-desktop: Docker Desktop already stopped — skipping stop step."
+else
+    echo "restart-docker-desktop: stopping Docker Desktop (WSL2 integration lost in $DISTRO)..."
+    docker desktop stop || true
+    wait_for_docker_desktop_status "Docker Desktop stopped" "Could not retrieve status" "$TIMEOUT_STOP" || exit 1
+fi
 
 echo "restart-docker-desktop: starting Docker Desktop..."
 docker desktop start || true
