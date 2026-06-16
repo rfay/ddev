@@ -69,30 +69,6 @@ if [ "$(go env GOOS)" = "windows" ]; then
             || echo "WARNING: wsl-fix-interop failed or not installed in $distro (skipping)"
     done
 
-    # Check Docker Desktop WSL2 integration for desktop distros.
-    # Even after WSLInterop is restored by wsl-fix-interop above, Docker Desktop does
-    # not automatically re-inject its /usr/bin/docker symlink into desktop distros.
-    # If integration is absent in any desktop distro, restart Docker Desktop so it
-    # re-scans and re-injects its integration binaries into all configured distros.
-    # This covers integration lost during the *previous* build's cleanup phase.
-    needs_docker_desktop_restart=false
-    restart_check_distro=""
-    for distro in ddev-test-ubuntu-desktop ddev-test-ubuntu2404-desktop ddev-test-debian-desktop; do
-        if wsl.exe -d "$distro" -- docker ps >/dev/null 2>&1; then
-            echo "Docker Desktop WSL2 integration OK in $distro"
-        else
-            echo "WARNING: Docker Desktop WSL2 integration absent in $distro"
-            needs_docker_desktop_restart=true
-            # Use the first distro that has missing integration to verify the restart
-            if [ -z "$restart_check_distro" ]; then
-                restart_check_distro="$distro"
-            fi
-        fi
-    done
-    if [ "$needs_docker_desktop_restart" = "true" ] && [ -n "$restart_check_distro" ]; then
-        echo "Restarting Docker Desktop to restore WSL2 integration (check distro: $restart_check_distro)..."
-        bash "$(dirname "$0")/restart-docker-desktop.sh" "$restart_check_distro"
-    fi
 fi
 
 echo "-- testbot $HOSTNAME seems to be set up OK --"

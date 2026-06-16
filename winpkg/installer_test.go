@@ -123,12 +123,19 @@ func waitForDockerDesktopWSL2Integration(t *testing.T, distro string) bool {
 		return false
 	}
 	restartScript := filepath.Join(wd, "..", ".buildkite", "restart-docker-desktop.sh")
-	restartOut, restartErr := exec.RunHostCommand("bash", restartScript, distro)
+	// The restart script stops Docker Desktop, waits for it to stop, starts it again,
+	// and waits for WSL2 integration to appear — up to ~7 minutes total.
+	const restartTimeout = 10 * time.Minute
+	ctx, cancel := context.WithTimeout(context.Background(), restartTimeout)
+	defer cancel()
+	cmd := osexec.CommandContext(ctx, "bash", restartScript, distro)
+	restartOutBytes, restartErr := cmd.CombinedOutput()
+	restartOut := string(restartOutBytes)
+	t.Logf("Docker Desktop restart output:\n%s", restartOut)
 	if restartErr != nil {
-		t.Logf("Docker Desktop restart failed: %v\nOutput: %s", restartErr, restartOut)
+		t.Logf("Docker Desktop restart failed: %v", restartErr)
 		return false
 	}
-	t.Logf("Docker Desktop restart output:\n%s", restartOut)
 	return true
 }
 

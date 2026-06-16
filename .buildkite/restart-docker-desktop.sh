@@ -23,7 +23,7 @@ set -o nounset
 
 DISTRO="${1:?Usage: $0 <distro-name>}"
 
-TIMEOUT_STOP=60       # seconds to wait for Docker Desktop to report stopped
+TIMEOUT_STOP=120      # seconds to wait for Docker Desktop to report stopped
 TIMEOUT_START=180     # seconds to wait for Docker Desktop to report running
 TIMEOUT_INTEGRATION=120  # seconds to wait for docker ps to work inside distro
 
