@@ -11,23 +11,30 @@ DISTRO="${1:-ddev-test-ubuntu-desktop}"
 while true; do
     echo "=== $(date '+%H:%M:%S') ==="
 
-    echo -n "docker desktop status: "
+    echo -n "docker desktop status:   "
     docker desktop status 2>&1 | grep -E "Status|Could not" | head -1 || echo "(error)"
 
-    echo -n "docker ps (host):      "
-    if docker ps --format "table {{.Names}}" 2>/dev/null | grep -v NAMES | head -3 | tr '\n' ' '; then
+    echo -n "host docker ps:          "
+    if docker ps --format "{{.Names}}" 2>/dev/null | tr '\n' ' '; then
         echo "(ok)"
     else
         echo "(FAILED)"
     fi
 
-    echo -n "wsl $DISTRO docker ps: "
-    if wsl.exe -d "$DISTRO" -- docker ps --format "table {{.Names}}" 2>/dev/null | grep -v NAMES | head -3 | tr '\n' ' '; then
-        echo "(ok)"
-    else
-        echo "(FAILED)"
-    fi
+    echo -n "distro docker ps:        "
+    wsl.exe -d "$DISTRO" -- docker ps --format "{{.Names}}" 2>/dev/null | tr '\n' ' ' \
+        && echo "(ok)" || echo "(FAILED)"
+
+    echo -n "/usr/bin/docker:         "
+    wsl.exe -d "$DISTRO" -- bash -c \
+        "if [ -L /usr/bin/docker ]; then echo \"symlink -> \$(readlink /usr/bin/docker)\"; \
+         elif [ -f /usr/bin/docker ]; then echo \"regular file\"; \
+         else echo \"MISSING\"; fi" 2>/dev/null || echo "(distro error)"
+
+    echo -n "/var/run/docker.sock:    "
+    wsl.exe -d "$DISTRO" -- bash -c \
+        "[ -S /var/run/docker.sock ] && echo 'exists' || echo 'MISSING'" 2>/dev/null || echo "(distro error)"
 
     echo ""
-    sleep 5
+    sleep 3
 done
