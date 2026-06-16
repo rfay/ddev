@@ -4,15 +4,17 @@
 # Restart Docker Desktop and wait for WSL2 integration to become active in
 # the given distro.
 #
-# Background: Docker Desktop loses WSL2 integration when the binfmt_misc
-# WSLInterop entry is cleared — which happens as a side effect of
-# `apt-get remove docker-ce` in any WSL2 distro (docker-ce post-remove scripts
-# clear all binfmt_misc entries, and because binfmt_misc is a shared kernel
-# resource across all WSL2 distros on the host, this affects every distro
-# simultaneously). wsl-fix-interop restores the binfmt_misc entry, but Docker
-# Desktop does not automatically re-inject its /usr/bin/docker symlink into
-# the desktop distros after recovery. A Docker Desktop restart forces it to
-# re-scan its configured distros and re-inject the integration binaries.
+# Background: Docker Desktop loses WSL2 integration when things like
+# apt-get remove docker-ce-cli remove /usr/bin/docker, or when WSLInterop
+# is cleared from binfmt_misc. A Docker Desktop restart forces it to
+# re-inject its integration binaries into configured distros.
+#
+# IMPORTANT: Avoid 'docker desktop stop' followed by 'docker desktop start'.
+# During the stop window, /mnt/c/ (CAROOT) becomes briefly inaccessible to
+# WSL2 processes. DDEV's readCAROOT() silently returns "" in this window,
+# causing DDEV to generate a new CA not trusted by Windows — TLS failures
+# (see https://github.com/ddev/ddev/issues/8485). Use 'docker desktop restart'
+# instead, which Docker Desktop handles as a single atomic operation.
 #
 # Usage: bash restart-docker-desktop.sh <distro-name>
 # Exit:  0  integration confirmed working in <distro-name>
@@ -23,25 +25,21 @@ set -o nounset
 
 DISTRO="${1:?Usage: $0 <distro-name>}"
 
-TIMEOUT_STOP=120      # seconds to wait for Docker Desktop to report stopped
 TIMEOUT_START=180     # seconds to wait for Docker Desktop to report running
 TIMEOUT_INTEGRATION=120  # seconds to wait for docker ps to work inside distro
 
-wait_for_docker_desktop_status() {
-    local description="$1"
-    local pattern="$2"
-    local timeout_sec="$3"
+wait_for_docker_desktop_running() {
     local elapsed=0
     while true; do
         local status
         status=$(docker desktop status 2>&1 || true)
-        if echo "$status" | grep -qi "$pattern"; then
-            echo "restart-docker-desktop: $description (${elapsed}s elapsed)"
+        if echo "$status" | grep -qi "Status[[:space:]]*running"; then
+            echo "restart-docker-desktop: Docker Desktop running (${elapsed}s elapsed)"
             return 0
         fi
-        if [ "$elapsed" -ge "$timeout_sec" ]; then
-            echo "restart-docker-desktop: ERROR: timed out after ${timeout_sec}s waiting for: $description"
-            echo "restart-docker-desktop: last 'docker desktop status' output: $status"
+        if [ "$elapsed" -ge "$TIMEOUT_START" ]; then
+            echo "restart-docker-desktop: ERROR: timed out after ${TIMEOUT_START}s waiting for running"
+            echo "restart-docker-desktop: last status: $status"
             return 1
         fi
         sleep 5
@@ -49,40 +47,15 @@ wait_for_docker_desktop_status() {
     done
 }
 
-# When stopped, `docker desktop status` prints an error (no table), e.g.:
-#   "Could not retrieve status. Is Docker Desktop running?"
-# When running, it prints a table with "Status  running".
-# When starting/stopping, the table shows "Status  starting" etc.
-# Match carefully to avoid treating "starting" as "running".
+# Use 'docker desktop restart' as a single atomic operation rather than
+# separate stop+start, to minimize the window where CAROOT is inaccessible.
+echo "restart-docker-desktop: restarting Docker Desktop to restore WSL2 integration in $DISTRO..."
+docker desktop restart || true
 
-# Try starting Docker Desktop without stopping first. When Docker Desktop is
-# already running but WSL2 integration is absent, 'docker desktop start' can
-# trigger re-injection without the destructive stop. Stopping Docker Desktop
-# causes it to remove /usr/bin/docker from the distro, and the new instance
-# started by 'docker desktop start' becomes a child of the Buildkite job's
-# Windows Job Object — killed when the job ends, leaving the distro broken.
-echo "restart-docker-desktop: starting Docker Desktop (attempting without stop first)..."
-docker desktop start || true
+wait_for_docker_desktop_running || exit 1
 
-wait_for_docker_desktop_status "Docker Desktop running" "Status[[:space:]]*running" "$TIMEOUT_START"
-if [ $? -ne 0 ]; then
-    # docker desktop start did not bring it up — try full stop/start
-    echo "restart-docker-desktop: start-only failed, attempting full stop/start..."
-    docker desktop stop || true
-    wait_for_docker_desktop_status "Docker Desktop stopped" "Could not retrieve status" "$TIMEOUT_STOP" || exit 1
-    docker desktop start || true
-    wait_for_docker_desktop_status "Docker Desktop running" "Status[[:space:]]*running" "$TIMEOUT_START" || exit 1
-fi
-
-wait_for_docker_desktop_status "Docker Desktop running" "Status[[:space:]]*running" "$TIMEOUT_START" || exit 1
-
-# Wait for both: WSL2 integration in the distro AND Windows-side docker ps.
-# The WSL2 socket (/var/run/docker.sock inside the distro) and the Windows
-# named pipe (dockerDesktopLinuxEngine) become ready at different times.
-# sanetestbot.sh uses the Windows-side docker ps; if we only verify the WSL2
-# side here, the next job's sanetestbot will still see Docker Desktop as
-# unresponsive and trigger an unnecessary start.
-echo "restart-docker-desktop: waiting for WSL2 integration in $DISTRO AND Windows docker ps (up to ${TIMEOUT_INTEGRATION}s)..."
+# Wait for both WSL2 integration in the distro AND Windows-side docker ps.
+echo "restart-docker-desktop: waiting for WSL2 integration in $DISTRO (up to ${TIMEOUT_INTEGRATION}s)..."
 elapsed=0
 while true; do
     wsl_ok=false
