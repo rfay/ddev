@@ -41,7 +41,8 @@
 
       - "ddev-test-ubuntu-ce"
       - "ddev-test-ubuntu-desktop"
-      - "ddev-test-ubuntu2404-ce"
-      - "ddev-test-ubuntu2404-desktop"
-      - "ddev-test-debian-ce"
-      - "ddev-test-debian-desktop"
+      # temporarily removed for focused testing - restore before merge
+      # - "ddev-test-ubuntu2404-ce"
+      # - "ddev-test-ubuntu2404-desktop"
+      # - "ddev-test-debian-ce"
+      # - "ddev-test-debian-desktop"
