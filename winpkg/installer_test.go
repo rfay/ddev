@@ -567,6 +567,22 @@ func testBasicDdevFunctionality(t *testing.T, distroName string) {
 	require.Contains(out, "Hello from DDEV!")
 	t.Logf("HTTPS project responding correctly inside distro")
 
+	// Dump Windows cert store mkcert entries and compare thumbprint with rootCA.pem.
+	// A mismatch (old cert in store, new rootCA.pem on disk) is the most common reason
+	// the PowerShell HTTPS check fails even though mkcert.exe -install reports "already installed".
+	caRootDir, _ := exec.RunHostCommand("cmd.exe", "/c", "echo %CAROOT%")
+	caRootDir = strings.TrimSpace(caRootDir)
+	if storeOut, storeErr := exec.RunHostCommand("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+		"Get-ChildItem Cert:\\CurrentUser\\Root | Where-Object {$_.Subject -like '*mkcert*'} | Select-Object Subject,Thumbprint,NotBefore,NotAfter | Format-List"); storeErr == nil {
+		t.Logf("Windows cert store mkcert entries:\n%s", storeOut)
+	}
+	if caRootDir != "" && caRootDir != "%CAROOT%" {
+		if thumbOut, thumbErr := exec.RunHostCommand("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+			fmt.Sprintf("(New-Object System.Security.Cryptography.X509Certificates.X509Certificate2('%s\\rootCA.pem')).Thumbprint", caRootDir)); thumbErr == nil {
+			t.Logf("rootCA.pem thumbprint (CAROOT=%s): %s", caRootDir, strings.TrimSpace(thumbOut))
+		}
+	}
+
 	// Test using windows PowerShell to check HTTPS
 	psInvoke := fmt.Sprintf("powershell.exe -NoProfile -ExecutionPolicy Bypass -Command Invoke-RestMethod 'https://%s.ddev.site' -ErrorAction Stop", projectName)
 	out, err = exec.RunHostCommand("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", fmt.Sprintf("Invoke-RestMethod 'https://%s.ddev.site' -ErrorAction Stop", projectName))
