@@ -70,8 +70,9 @@ echo
 echo "buildkite installer test ${BUILDKITE_JOB_ID:-} at $(date) on $(hostname) as USER=${USER:-unknown} INSTALLER_CASE=${INSTALLER_CASE:-<all>} in ${PWD} golang=$(go version | awk '{print $3}')"
 
 # Run any testbot maintenance that may need to be done
-echo "--- running testbot_maintenance.sh"
-${TIMEOUT} 5m bash "$(dirname "$0")/testbot_maintenance.sh"
+# Temporarily disabled to diagnose Docker Desktop WSL2 integration loss
+# echo "--- running testbot_maintenance.sh"
+# ${TIMEOUT} 5m bash "$(dirname "$0")/testbot_maintenance.sh"
 
 # Our testbot should be sane, run the testbot checker to make sure.
 echo "--- running sanetestbot.sh"
