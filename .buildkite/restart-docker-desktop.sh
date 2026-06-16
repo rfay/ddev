@@ -25,7 +25,10 @@ DISTRO="${1:?Usage: $0 <distro-name>}"
 
 TIMEOUT_STOP=120      # seconds to wait for Docker Desktop to report stopped
 TIMEOUT_START=180     # seconds to wait for Docker Desktop to report running
-TIMEOUT_INTEGRATION=120  # seconds to wait for docker ps to work inside distro
+TIMEOUT_INTEGRATION=300  # seconds to wait for docker ps to work inside distro
+# Note: after a Docker Desktop restart, running distros don't immediately get
+# the /mnt/wsl/docker-desktop mount re-injected. Docker Desktop propagates it
+# to already-running distros, but this can take several minutes.
 
 wait_for_docker_desktop_status() {
     local description="$1"

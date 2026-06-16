@@ -27,9 +27,16 @@ while true; do
 
     echo -n "/usr/bin/docker:         "
     wsl.exe -d "$DISTRO" -- bash -c \
-        "if [ -L /usr/bin/docker ]; then echo \"symlink -> \$(readlink /usr/bin/docker)\"; \
+        "if [ -L /usr/bin/docker ]; then \
+           target=\$(readlink /usr/bin/docker); \
+           if [ -x /usr/bin/docker ]; then echo \"symlink -> \$target (TARGET OK)\"; \
+           else echo \"symlink -> \$target (TARGET BROKEN - mount missing?)\"; fi; \
          elif [ -f /usr/bin/docker ]; then echo \"regular file\"; \
          else echo \"MISSING\"; fi" 2>/dev/null || echo "(distro error)"
+
+    echo -n "/mnt/wsl/docker-desktop: "
+    wsl.exe -d "$DISTRO" -- bash -c \
+        "[ -d /mnt/wsl/docker-desktop ] && echo 'mounted' || echo 'NOT MOUNTED'" 2>/dev/null || echo "(distro error)"
 
     echo -n "/var/run/docker.sock:    "
     wsl.exe -d "$DISTRO" -- bash -c \
