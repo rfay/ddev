@@ -448,6 +448,15 @@ func cleanupTestEnv(t *testing.T, distroName string) {
 	//t.Logf("WSL distros list: %q", cleanOut)
 
 	if strings.Contains(cleanOut, distroName) {
+		// Ensure WSL interop (binfmt_misc) is working before any .exe operations.
+		// wsl-fix-interop re-registers the WSLInterop entry if missing; idempotent.
+		// See https://github.com/rfay/wsl-fix-interop and buildkite-testmachine-setup.md.
+		if fixOut, fixErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "bash", "-c", "sudo wsl-fix-interop"); fixErr != nil {
+			t.Logf("wsl-fix-interop not available or failed in %s (install it per testmachine setup docs): %v\n%s", distroName, fixErr, fixOut)
+		} else {
+			t.Logf("wsl-fix-interop: %s", strings.TrimSpace(fixOut))
+		}
+
 
 		// Get distro back to a fairly normal pre-ddev state.
 		// Makes test run much faster than completely deleting the distro.

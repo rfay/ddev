@@ -126,6 +126,18 @@ foreach ($d in @("ddev-test-ubuntu-ce","ddev-test-ubuntu-desktop","ddev-test-ubu
 }
 ```
 
+Install [wsl-fix-interop](https://github.com/rfay/wsl-fix-interop) in all test
+instances. WSL interop (binfmt_misc) can silently break — Windows `.exe` files
+called from within WSL fail with "Exec format error". The fix script
+re-registers the `WSLInterop` binfmt_misc entry and is called automatically at
+the start of each test run:
+
+```powershell
+foreach ($d in @("ddev-test-ubuntu-ce","ddev-test-ubuntu-desktop","ddev-test-ubuntu2404-ce","ddev-test-ubuntu2404-desktop","ddev-test-debian-ce","ddev-test-debian-desktop")) {
+    wsl -d $d -u root bash -c "curl -fsSL https://raw.githubusercontent.com/rfay/wsl-fix-interop/main/install.sh | bash -s testbot"
+}
+```
+
 To run a single case manually (e.g. for debugging), select it by instance name,
 which is also the Go subtest name:
 
