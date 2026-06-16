@@ -55,18 +55,24 @@ wait_for_docker_desktop_status() {
 # When starting/stopping, the table shows "Status  starting" etc.
 # Match carefully to avoid treating "starting" as "running".
 
-# If Docker Desktop is already stopped (e.g. left down by a previous failed restart),
-# skip the stop step and go straight to starting it.
-if ! docker ps >/dev/null 2>&1; then
-    echo "restart-docker-desktop: Docker Desktop already stopped — skipping stop step."
-else
-    echo "restart-docker-desktop: stopping Docker Desktop (WSL2 integration lost in $DISTRO)..."
+# Try starting Docker Desktop without stopping first. When Docker Desktop is
+# already running but WSL2 integration is absent, 'docker desktop start' can
+# trigger re-injection without the destructive stop. Stopping Docker Desktop
+# causes it to remove /usr/bin/docker from the distro, and the new instance
+# started by 'docker desktop start' becomes a child of the Buildkite job's
+# Windows Job Object — killed when the job ends, leaving the distro broken.
+echo "restart-docker-desktop: starting Docker Desktop (attempting without stop first)..."
+docker desktop start || true
+
+wait_for_docker_desktop_status "Docker Desktop running" "Status[[:space:]]*running" "$TIMEOUT_START"
+if [ $? -ne 0 ]; then
+    # docker desktop start did not bring it up — try full stop/start
+    echo "restart-docker-desktop: start-only failed, attempting full stop/start..."
     docker desktop stop || true
     wait_for_docker_desktop_status "Docker Desktop stopped" "Could not retrieve status" "$TIMEOUT_STOP" || exit 1
+    docker desktop start || true
+    wait_for_docker_desktop_status "Docker Desktop running" "Status[[:space:]]*running" "$TIMEOUT_START" || exit 1
 fi
-
-echo "restart-docker-desktop: starting Docker Desktop..."
-docker desktop start || true
 
 wait_for_docker_desktop_status "Docker Desktop running" "Status[[:space:]]*running" "$TIMEOUT_START" || exit 1
 
