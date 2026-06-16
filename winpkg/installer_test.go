@@ -483,6 +483,15 @@ func cleanupTestEnv(t *testing.T, distroName string) {
 
 		out, err = exec.RunHostCommand("wsl.exe", "-d", distroName, "-u", "root", "bash", "-c", "(apt-get remove -y ddev ddev-wsl2 docker-ce-cli docker-ce 2>/dev/null)")
 		t.Logf("distro cleanup: err=%v, output: %s", err, out)
+
+		// Re-run wsl-fix-interop after apt-get remove: docker-ce's post-remove scripts
+		// clear binfmt_misc entries (for QEMU multi-arch support), which also removes
+		// the WSLInterop entry. Re-register it so the next test's mkcert.exe calls work.
+		if fixOut, fixErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "bash", "-c", "sudo wsl-fix-interop"); fixErr != nil {
+			t.Logf("wsl-fix-interop post-cleanup not available in %s: %v\n%s", distroName, fixErr, fixOut)
+		} else {
+			t.Logf("wsl-fix-interop post-cleanup: %s", strings.TrimSpace(fixOut))
+		}
 	}
 }
 

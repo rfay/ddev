@@ -47,10 +47,11 @@ fi
 # On Windows/WSL2: ensure the binfmt_misc WSLInterop entry is registered in each test distro.
 #
 # Background: WSL2 uses a binfmt_misc entry named "WSLInterop" so that Linux shells can
-# transparently invoke Windows .exe binaries. This entry can go missing after a distro
-# restart (e.g. following docker cleanup operations) or when systemd hasn't fully
-# initialised. When it is absent, any .exe called from within the distro fails with
-# "cannot execute binary file: Exec format error".
+# transparently invoke Windows .exe binaries. This entry is lost whenever docker-ce is
+# removed from a distro — the package's post-remove scripts clear binfmt_misc entries.
+# It is also lost when systemd remounts binfmt_misc during boot before wsl.conf [boot]
+# command has run. When the entry is absent, any .exe called from within the distro fails
+# with "cannot execute binary file: Exec format error".
 #
 # Consequence for these tests: the PS1 install scripts call `wsl -d <distro> mkcert.exe`
 # to add the mkcert CA to the Windows certificate store. If interop is broken, that call
