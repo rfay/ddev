@@ -25,13 +25,28 @@ fi
 # failed restart attempt or a machine reboot. On Linux and macOS Docker runs
 # as a daemon and is expected to already be up; this block is Windows-only.
 if [ "$(go env GOOS)" = "windows" ]; then
-    if ! docker ps >/dev/null 2>&1; then
-        echo "Docker Desktop not responding — attempting to start it..."
+    # Retry docker ps a few times before concluding Docker Desktop is stopped.
+    # A transient failure (e.g. Docker Desktop still initializing after a restart
+    # by a previous job's restart-docker-desktop.sh) should not trigger a full
+    # stop/start cycle.
+    docker_ps_ok=false
+    for _retry in 1 2 3; do
+        if docker ps >/dev/null 2>&1; then
+            docker_ps_ok=true
+            break
+        fi
+        echo "docker ps attempt $_retry failed, retrying in 10s..."
+        sleep 10
+    done
+
+    if [ "$docker_ps_ok" = "false" ]; then
+        dd_status=$(docker desktop status 2>&1 || true)
+        echo "Docker Desktop not responding after retries (status: $dd_status) — attempting to start it..."
         docker desktop start || true
         elapsed=0
         while ! docker ps >/dev/null 2>&1; do
             status=$(docker desktop status 2>&1 || true)
-            echo "Waiting for Docker Desktop to start (${elapsed}s elapsed): $status"
+            echo "Waiting for Docker Desktop to start (${elapsed}s elapsed, status: $status)..."
             if [ "$elapsed" -ge 180 ]; then
                 echo "ERROR: Docker Desktop did not start within 180s"
                 exit 1

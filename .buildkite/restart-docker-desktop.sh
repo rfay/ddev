@@ -70,17 +70,28 @@ docker desktop start || true
 
 wait_for_docker_desktop_status "Docker Desktop running" "Status[[:space:]]*running" "$TIMEOUT_START" || exit 1
 
-echo "restart-docker-desktop: waiting for WSL2 integration to appear in $DISTRO (up to ${TIMEOUT_INTEGRATION}s)..."
+# Wait for both: WSL2 integration in the distro AND Windows-side docker ps.
+# The WSL2 socket (/var/run/docker.sock inside the distro) and the Windows
+# named pipe (dockerDesktopLinuxEngine) become ready at different times.
+# sanetestbot.sh uses the Windows-side docker ps; if we only verify the WSL2
+# side here, the next job's sanetestbot will still see Docker Desktop as
+# unresponsive and trigger an unnecessary start.
+echo "restart-docker-desktop: waiting for WSL2 integration in $DISTRO AND Windows docker ps (up to ${TIMEOUT_INTEGRATION}s)..."
 elapsed=0
 while true; do
-    if wsl.exe -d "$DISTRO" -- docker ps >/dev/null 2>&1; then
-        echo "restart-docker-desktop: WSL2 integration confirmed in $DISTRO (${elapsed}s elapsed)"
+    wsl_ok=false
+    win_ok=false
+    wsl.exe -d "$DISTRO" -- docker ps >/dev/null 2>&1 && wsl_ok=true
+    docker ps >/dev/null 2>&1 && win_ok=true
+    if [ "$wsl_ok" = "true" ] && [ "$win_ok" = "true" ]; then
+        echo "restart-docker-desktop: WSL2 integration confirmed in $DISTRO and Windows docker ps OK (${elapsed}s elapsed)"
         exit 0
     fi
     if [ "$elapsed" -ge "$TIMEOUT_INTEGRATION" ]; then
-        echo "restart-docker-desktop: ERROR: WSL2 integration did not appear in $DISTRO within ${TIMEOUT_INTEGRATION}s"
+        echo "restart-docker-desktop: ERROR: timed out after ${TIMEOUT_INTEGRATION}s (wsl_ok=$wsl_ok win_ok=$win_ok)"
         exit 1
     fi
+    echo "restart-docker-desktop: waiting... wsl_ok=$wsl_ok win_ok=$win_ok (${elapsed}s)"
     sleep 10
     elapsed=$((elapsed + 10))
 done
