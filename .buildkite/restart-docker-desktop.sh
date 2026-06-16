@@ -25,10 +25,7 @@ DISTRO="${1:?Usage: $0 <distro-name>}"
 
 TIMEOUT_STOP=120      # seconds to wait for Docker Desktop to report stopped
 TIMEOUT_START=180     # seconds to wait for Docker Desktop to report running
-TIMEOUT_INTEGRATION=300  # seconds to wait for docker ps to work inside distro
-# Note: after a Docker Desktop restart, running distros don't immediately get
-# the /mnt/wsl/docker-desktop mount re-injected. Docker Desktop propagates it
-# to already-running distros, but this can take several minutes.
+TIMEOUT_INTEGRATION=120  # seconds to wait for docker ps to work inside distro
 
 wait_for_docker_desktop_status() {
     local description="$1"
@@ -69,15 +66,7 @@ else
 fi
 
 echo "restart-docker-desktop: starting Docker Desktop..."
-# Use Start-Process so Docker Desktop.exe is detached from the current
-# Buildkite job's Windows Job Object. If we use 'docker desktop start'
-# directly, Docker Desktop.exe becomes a child of this process and is
-# killed by the Job Object when the Buildkite job ends — leaving Docker
-# Desktop stopped for the next job. Start-Process with -PassThru starts
-# it in a new process group outside the current Job Object.
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
-  'Start-Process -FilePath "$env:PROGRAMFILES\Docker\Docker\Docker Desktop.exe" -PassThru | Out-Null' 2>/dev/null \
-  || docker desktop start || true
+docker desktop start || true
 
 wait_for_docker_desktop_status "Docker Desktop running" "Status[[:space:]]*running" "$TIMEOUT_START" || exit 1
 

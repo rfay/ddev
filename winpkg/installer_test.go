@@ -534,7 +534,17 @@ func cleanupTestEnv(t *testing.T, distroName string) {
 		out, err = exec.RunHostCommand("wsl.exe", "-d", distroName, "-u", "root", "bash", "-c", "rm -f /etc/sudoers.d/temp-mkcert-install /etc/apt/sources.list.d/ddev.* /etc/apt/sources.list.d/docker.*")
 		require.NoError(t, err)
 
-		out, err = exec.RunHostCommand("wsl.exe", "-d", distroName, "-u", "root", "bash", "-c", "(apt-get remove -y ddev ddev-wsl2 docker-ce-cli docker-ce 2>/dev/null)")
+		// For docker-desktop distros, do NOT remove docker-ce-cli or docker-ce.
+		// docker-ce-cli owns /usr/bin/docker. If it was installed as a ddev dependency
+		// and then removed, apt deletes /usr/bin/docker — which is also where Docker
+		// Desktop places its WSL2 integration symlink. Removing it destroys Docker
+		// Desktop integration for the remainder of the test run.
+		// CE distros need docker-ce-cli removed so the next install starts clean.
+		dockerCERemove := ""
+		if strings.Contains(distroName, "-ce") {
+			dockerCERemove = " docker-ce-cli docker-ce"
+		}
+		out, err = exec.RunHostCommand("wsl.exe", "-d", distroName, "-u", "root", "bash", "-c", fmt.Sprintf("(apt-get remove -y ddev ddev-wsl2%s 2>/dev/null)", dockerCERemove))
 		t.Logf("distro cleanup: err=%v, output: %s", err, out)
 
 		// Re-run wsl-fix-interop after apt-get remove: docker-ce's post-remove scripts
