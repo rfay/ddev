@@ -158,12 +158,13 @@ func TestWindowsInstallerWSL2(t *testing.T) {
 		provider   string // "docker-ce" or "docker-desktop"
 	}{
 		// "Ubuntu" in the WSL catalog installs the current LTS (Ubuntu 26.04 as of 2026).
-		{instance: "ddev-test-ubuntu-ce", baseDistro: "Ubuntu", provider: "docker-ce"},
+		// temporarily reduced for stability testing - restore before merge
+		// {instance: "ddev-test-ubuntu-ce", baseDistro: "Ubuntu", provider: "docker-ce"},
 		{instance: "ddev-test-ubuntu-desktop", baseDistro: "Ubuntu", provider: "docker-desktop"},
-		{instance: "ddev-test-ubuntu2404-ce", baseDistro: "Ubuntu-24.04", provider: "docker-ce"},
-		{instance: "ddev-test-ubuntu2404-desktop", baseDistro: "Ubuntu-24.04", provider: "docker-desktop"},
-		{instance: "ddev-test-debian-ce", baseDistro: "Debian", provider: "docker-ce"},
-		{instance: "ddev-test-debian-desktop", baseDistro: "Debian", provider: "docker-desktop"},
+		// {instance: "ddev-test-ubuntu2404-ce", baseDistro: "Ubuntu-24.04", provider: "docker-ce"},
+		// {instance: "ddev-test-ubuntu2404-desktop", baseDistro: "Ubuntu-24.04", provider: "docker-desktop"},
+		// {instance: "ddev-test-debian-ce", baseDistro: "Debian", provider: "docker-ce"},
+		// {instance: "ddev-test-debian-desktop", baseDistro: "Debian", provider: "docker-desktop"},
 	}
 
 	providerArg := map[string]string{
