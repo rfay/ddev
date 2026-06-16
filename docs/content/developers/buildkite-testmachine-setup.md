@@ -115,6 +115,17 @@ Otherwise the `docker-desktop` cases skip gracefully. The base distro names
 above (`Ubuntu`, `Ubuntu-24.04`, `Debian`) must be available in the WSL catalog;
 verify with `wsl -l -o`.
 
+Remove `unattended-upgrades` from all test instances. Ubuntu 24.04 in particular
+runs it on boot and holds the dpkg lock while the installer is trying to run
+`apt-get`, causing intermittent failures. It serves no purpose in these
+short-lived test distros:
+
+```powershell
+foreach ($d in @("ddev-test-ubuntu-ce","ddev-test-ubuntu-desktop","ddev-test-ubuntu2404-ce","ddev-test-ubuntu2404-desktop","ddev-test-debian-ce","ddev-test-debian-desktop")) {
+    wsl -d $d -u root apt-get remove -y unattended-upgrades 2>$null
+}
+```
+
 To run a single case manually (e.g. for debugging), select it by instance name,
 which is also the Go subtest name:
 
