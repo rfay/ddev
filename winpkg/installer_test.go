@@ -116,31 +116,10 @@ func waitForDockerDesktopWSL2Integration(t *testing.T, distro string) bool {
 		}
 	}
 
-	// Integration still absent after 3 minutes of polling.
-	// Try manually creating the /usr/bin/docker symlink inside the distro.
-	// Docker Desktop mounts /mnt/wsl/docker-desktop into all WSL2 distros when
-	// running. When integration is active, /usr/bin/docker is a symlink to
-	// /mnt/wsl/docker-desktop/cli-tools/usr/bin/docker. Docker Desktop sometimes
-	// fails to inject this symlink when a distro was already running when Docker
-	// Desktop started. We can create it ourselves — this does not touch Docker
-	// Desktop at all, so Docker Desktop stays running for the next job.
-	t.Logf("Docker Desktop WSL2 integration absent for %s after %d attempts — attempting manual symlink creation", distro, quickAttempts)
-	symlinkCmd := `ls /mnt/wsl/docker-desktop/cli-tools/usr/bin/docker >/dev/null 2>&1 && ` +
-		`ln -sf /mnt/wsl/docker-desktop/cli-tools/usr/bin/docker /usr/bin/docker && echo "symlink created"`
-	symlinkOut, symlinkErr := exec.RunHostCommand("wsl.exe", "-d", distro, "-u", "root", "--", "bash", "-c", symlinkCmd)
-	t.Logf("Manual symlink attempt: err=%v output=%s", symlinkErr, strings.TrimSpace(symlinkOut))
-	// Give the symlink a moment to take effect, then check.
-	time.Sleep(3 * time.Second)
-	if out, err := exec.RunHostCommand("wsl.exe", "-d", distro, "--", "docker", "ps"); err == nil {
-		t.Logf("Docker Desktop WSL2 integration confirmed for %s after manual symlink", distro)
-		_ = out
-		return true
-	}
-
-	// Last resort: full Docker Desktop stop+start. This is expensive and stops
-	// Docker Desktop, leaving it stopped for the next job's sanetestbot.sh.
-	// Only reach here if the 3-minute poll and manual symlink both failed.
-	t.Logf("Docker Desktop WSL2 integration absent for %s after manual symlink — performing full Docker Desktop restart", distro)
+	// Last resort: full Docker Desktop stop+start. This stops Docker Desktop,
+	// leaving it stopped for the next job's sanetestbot.sh to restart.
+	// Only reach here if the 3-minute poll failed.
+	t.Logf("Docker Desktop WSL2 integration absent for %s after %d attempts — performing full Docker Desktop restart", distro, quickAttempts)
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Logf("Could not get working directory: %v", err)
