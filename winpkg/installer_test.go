@@ -496,7 +496,11 @@ func cleanupTestEnv(t *testing.T, distroName string) {
 
 		// Get distro back to a fairly normal pre-ddev state.
 		// Makes test run much faster than completely deleting the distro.
-		out, _ := exec.RunHostCommand("wsl.exe", "-d", distroName, "bash", "-c", "(ddev poweroff 2>/dev/null || true) && (ddev stop --unlist -a 2>/dev/null) && rm -rf ~/tp")
+		// Delete the test project fully (including Docker volumes) before unlisting.
+		// Old certs in Docker volumes from a broken-interop run are signed by a CA that
+		// is not in the Windows cert store; without this delete, DDEV reuses them and the
+		// Windows HTTPS check fails even after interop and the CA are restored.
+		out, _ := exec.RunHostCommand("wsl.exe", "-d", distroName, "bash", "-c", "(ddev delete -Oy tp 2>/dev/null || true) && (ddev poweroff 2>/dev/null || true) && (ddev stop --unlist -a 2>/dev/null) && rm -rf ~/tp")
 		t.Logf("ddev poweroff/stop/unlist: err=%v, output: %s", err, out)
 
 		// Temp allow all sudo to let mkcert -uninstall work as normal user
@@ -620,6 +624,15 @@ func testBasicDdevFunctionality(t *testing.T, distroName string) {
 			fmt.Sprintf("(New-Object System.Security.Cryptography.X509Certificates.X509Certificate2('%s\\rootCA.pem')).Thumbprint", caRootDir)); thumbErr == nil {
 			t.Logf("rootCA.pem thumbprint (CAROOT=%s): %s", caRootDir, strings.TrimSpace(thumbOut))
 		}
+	}
+
+	// Dump the actual TLS certificate served by the site so we can see which CA signed it.
+	// This runs regardless of trust (ServerCertificateValidationCallback={$true}) so it
+	// works even when the cert is not trusted, letting us compare the signing CA thumbprint
+	// against the Windows cert store entries logged above.
+	if certChainOut, certChainErr := exec.RunHostCommand("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+		fmt.Sprintf(`$req=[Net.HttpWebRequest]::Create("https://%s.ddev.site"); $req.ServerCertificateValidationCallback={$true}; try{$req.GetResponse().Dispose()}catch{}; $c=$req.ServicePoint.Certificate; if($c){$x=New-Object Security.Cryptography.X509Certificates.X509Certificate2($c); "Site cert thumbprint: "+$x.Thumbprint; "Site cert subject: "+$x.Subject; "Site cert issuer: "+$x.Issuer; "Site cert notbefore: "+$x.NotBefore; "Site cert notafter: "+$x.NotAfter}`, projectName)); certChainErr == nil {
+		t.Logf("Site TLS certificate (served, ignoring trust):\n%s", certChainOut)
 	}
 
 	// Test using windows PowerShell to check HTTPS
