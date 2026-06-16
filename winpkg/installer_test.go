@@ -81,8 +81,11 @@ func waitForDockerDesktopWSL2Integration(t *testing.T, distro string) bool {
 	const maxAttempts = 12
 	const delay = 10 * time.Second
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		// Use login shell so Docker Desktop's PATH injection via /etc/profile.d/ takes effect.
-		out, err := exec.RunHostCommand("wsl.exe", "-d", distro, "--", "bash", "-lc", "docker ps")
+		// When Docker Desktop integration is active it symlinks /usr/bin/docker →
+		// /mnt/wsl/docker-desktop/cli-tools/usr/bin/docker (a real Linux binary).
+		// When inactive, /usr/bin/docker does not exist; PATH falls through to the
+		// /Docker/host/bin/docker stub which outputs the "integration not enabled" error.
+		out, err := exec.RunHostCommand("wsl.exe", "-d", distro, "--", "docker", "ps")
 		if err == nil {
 			t.Logf("Docker Desktop WSL2 integration confirmed for %s (attempt %d/%d)", distro, attempt, maxAttempts)
 			return true
