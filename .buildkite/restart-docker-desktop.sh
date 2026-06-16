@@ -52,12 +52,17 @@ wait_for_docker_desktop_status() {
 echo "restart-docker-desktop: stopping Docker Desktop (WSL2 integration lost in $DISTRO)..."
 docker desktop stop || true
 
-wait_for_docker_desktop_status "Docker Desktop stopped" "stopped\|not running" "$TIMEOUT_STOP" || exit 1
+# When stopped, `docker desktop status` prints an error (no table), e.g.:
+#   "Could not retrieve status. Is Docker Desktop running?"
+# When running, it prints a table with "Status  running".
+# When starting/stopping, the table shows "Status  starting" etc.
+# Match carefully to avoid treating "starting" as "running".
+wait_for_docker_desktop_status "Docker Desktop stopped" "Could not retrieve status" "$TIMEOUT_STOP" || exit 1
 
 echo "restart-docker-desktop: starting Docker Desktop..."
 docker desktop start || true
 
-wait_for_docker_desktop_status "Docker Desktop running" "running" "$TIMEOUT_START" || exit 1
+wait_for_docker_desktop_status "Docker Desktop running" "Status[[:space:]]*running" "$TIMEOUT_START" || exit 1
 
 echo "restart-docker-desktop: waiting for WSL2 integration to appear in $DISTRO (up to ${TIMEOUT_INTEGRATION}s)..."
 elapsed=0
