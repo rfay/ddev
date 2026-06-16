@@ -35,18 +35,19 @@ if [ "$(go env GOOS)" = "windows" ]; then
             docker_ps_ok=true
             break
         fi
-        echo "docker ps attempt $_retry failed, retrying in 10s..."
+        dd_status=$(docker desktop status 2>&1 || true)
+        echo "$(date -u +%H:%M:%S) docker ps attempt $_retry failed (status: $dd_status), retrying in 10s..."
         sleep 10
     done
 
     if [ "$docker_ps_ok" = "false" ]; then
         dd_status=$(docker desktop status 2>&1 || true)
-        echo "Docker Desktop not responding after retries (status: $dd_status) — attempting to start it..."
+        echo "$(date -u +%H:%M:%S) Docker Desktop not responding after retries (status: $dd_status) — attempting to start it..."
         docker desktop start || true
         elapsed=0
         while ! docker ps >/dev/null 2>&1; do
             status=$(docker desktop status 2>&1 || true)
-            echo "Waiting for Docker Desktop to start (${elapsed}s elapsed, status: $status)..."
+            echo "$(date -u +%H:%M:%S) Waiting for Docker Desktop to start (${elapsed}s elapsed, status: $status)..."
             if [ "$elapsed" -ge 180 ]; then
                 echo "ERROR: Docker Desktop did not start within 180s"
                 exit 1
@@ -54,7 +55,7 @@ if [ "$(go env GOOS)" = "windows" ]; then
             sleep 10
             elapsed=$((elapsed + 10))
         done
-        echo "Docker Desktop is running."
+        echo "$(date -u +%H:%M:%S) Docker Desktop is running."
     fi
 fi
 

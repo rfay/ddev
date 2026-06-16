@@ -22,7 +22,7 @@ We are using [Buildkite](https://buildkite.com/ddev) for Windows and macOS testi
     * Check "Start Docker Desktop when you sign in" or the equivalent with Rancher Desktop.
     * Check "Add the *.docker.internal names to the host's /etc/hosts file"
     * Uncheck "SBOM Indexing"
-    * Under "Resources" uncheck "Resource Saver"
+    * Under "Resources" uncheck "Resource Saver" — **important**: Docker Desktop may re-enable this after a full restart. Verify it is unchecked after any Docker Desktop upgrade or manual restart. When Resource Saver is active, Docker Desktop pauses the Linux VM when no containers are running; `docker ps` and WSL2 integration fail until it is un-paused, causing spurious test failures.
 12. After starting Docker Desktop or Rancher Desktop, set the correct Docker context in the Git Bash window with `docker context use desktop-linux` (Docker Desktop) or `docker context use default` (Rancher Desktop).
 13. Log into Chrome with the user `ddevtestbot@gmail.com` and enable Chrome Remote Desktop.
 14. (Traditional Windows test runner only): Enable `gd`, `fileinfo`, and `curl` extensions in `/c/tools/php*/php.ini`.
