@@ -30,13 +30,18 @@ while true; do
         "if [ -L /usr/bin/docker ]; then \
            target=\$(readlink /usr/bin/docker); \
            if [ -x /usr/bin/docker ]; then echo \"symlink -> \$target (TARGET OK)\"; \
-           else echo \"symlink -> \$target (TARGET BROKEN - mount missing?)\"; fi; \
-         elif [ -f /usr/bin/docker ]; then echo \"regular file\"; \
+           else echo \"symlink -> \$target (TARGET BROKEN)\"; fi; \
+         elif [ -f /usr/bin/docker ]; then echo \"regular file (docker-ce-cli)\"; \
          else echo \"MISSING\"; fi" 2>/dev/null || echo "(distro error)"
 
-    echo -n "/mnt/wsl/docker-desktop: "
+    echo -n "cli-tools docker binary: "
     wsl.exe -d "$DISTRO" -- bash -c \
-        "[ -d /mnt/wsl/docker-desktop ] && echo 'mounted' || echo 'NOT MOUNTED'" 2>/dev/null || echo "(distro error)"
+        "f=/mnt/wsl/docker-desktop/cli-tools/usr/bin/docker; \
+         if [ -x \"\$f\" ]; then echo 'EXISTS and executable'; \
+         elif [ -f \"\$f\" ]; then echo 'exists but not executable'; \
+         elif [ -d /mnt/wsl/docker-desktop/cli-tools ]; then echo 'cli-tools dir exists but docker MISSING'; \
+         elif [ -d /mnt/wsl/docker-desktop ]; then echo 'mount exists but cli-tools dir MISSING'; \
+         else echo 'mount NOT PRESENT'; fi" 2>/dev/null || echo "(distro error)"
 
     echo -n "/var/run/docker.sock:    "
     wsl.exe -d "$DISTRO" -- bash -c \
