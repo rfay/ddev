@@ -105,5 +105,19 @@ case "${INSTALLER_CASE:-}" in
     ;;
 esac
 RV=$?
+
+# On Windows: ensure Docker Desktop is running when we exit so the next job
+# finds it already up. Docker Desktop frequently stops during testing (containers
+# stopping, Docker Desktop restart logic, etc.). Starting it here avoids the
+# ~60s overhead of sanetestbot.sh starting it at the beginning of the next job.
+if [ "$(go env GOOS)" = "windows" ]; then
+    if ! docker desktop status 2>&1 | grep -qi "Status[[:space:]]*running"; then
+        echo "Leaving Docker Desktop started for next job..."
+        docker desktop start || true
+    else
+        echo "Docker Desktop already running at job exit."
+    fi
+fi
+
 echo "installer-test.sh completed with status=$RV"
 exit $RV
