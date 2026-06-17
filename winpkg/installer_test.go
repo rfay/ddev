@@ -627,28 +627,30 @@ func testBasicDdevFunctionality(t *testing.T, distroName string) {
 	_, err = exec.RunHostCommand("wsl.exe", "-d", distroName, "bash", "-c", fmt.Sprintf("echo 'Hello from DDEV!' > %s/index.html", projectDir))
 	require.NoError(err, "Failed to create index.html: %v", err)
 
-	// Verify CAROOT is correctly set in DDEV's global config before starting the project.
-	// Issue #8485: if readCAROOT() was called when CAROOT was inaccessible, DDEV stores
-	// empty mkcert_caroot in ~/.ddev/global_config.yaml and generates a new CA at the
-	// Linux default path. That new CA is not in the Windows cert store, causing TLS failures.
-	// Force DDEV to re-read CAROOT by deleting any stale global config entry.
-	// Verify and correct DDEV's mkcert_caroot before starting the project.
-	// Issue #8485: readCAROOT() silently returns "" when inaccessible, causing DDEV to
-	// use a default-path CA not in the Windows cert store → TLS failures.
-	// We use $CAROOT (set via WSLENV from Windows) rather than 'mkcert -CAROOT' because
-	// mkcert may not be in PATH in this shell context (PS1-installed ddev uses ~/.ddev/bin/).
-	if gcOut, gcErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "bash", "-c",
-		`env_caroot="$CAROOT"; `+
-			`echo "CAROOT env in distro: ${env_caroot:-(empty)}"; `+
-			`ddev_caroot=$(grep "mkcert_caroot" ~/.ddev/global_config.yaml 2>/dev/null | awk -F": " "{print \$2}" | tr -d "\""); `+
-			`echo "DDEV global_config mkcert_caroot: ${ddev_caroot:-(empty)}"; `+
-			`if [ -n "$env_caroot" ] && [ "${ddev_caroot:-}" != "$env_caroot" ]; then `+
-			`  echo "MISMATCH or empty — forcing ddev config global --mkcert-caroot=$env_caroot"; `+
-			`  ddev config global --mkcert-caroot="$env_caroot" 2>&1 || true; `+
-			`else `+
-			`  echo "CAROOT OK"; `+
-			`fi`); gcErr == nil {
-		t.Logf("CAROOT verification:\n%s", gcOut)
+	// Ensure DDEV's mkcert_caroot is set to the correct Windows CAROOT before ddev start.
+	// Issue #8485: the NSIS installer calls SetEnvironmentVariable("CAROOT", NULL) to unset
+	// CAROOT in its own process before running mkcert.exe, which means WSL2 processes
+	// spawned from NSIS during installation run with empty CAROOT. readCAROOT() then
+	// returns "" and DDEV writes empty mkcert_caroot to ~/.ddev/global_config.yaml. When
+	// ddev start later runs, it generates a new CA at the Linux default path rather than
+	// using the Windows-side CA at CAROOT — that new CA is not in the Windows cert store.
+	// Fix: get CAROOT from cmd.exe (the test process environment, always reliable), convert
+	// to Linux path via wslpath, and force-set ddev config global. This is idempotent.
+	caRootForConfig, _ := exec.RunHostCommand("cmd.exe", "/c", "echo %CAROOT%")
+	caRootForConfig = strings.TrimSpace(caRootForConfig)
+	if caRootForConfig != "" && caRootForConfig != "%CAROOT%" {
+		wslCARootOut, wslCARootErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "wslpath", "-u", caRootForConfig)
+		wslCARoot := strings.TrimSpace(wslCARootOut)
+		if wslCARootErr == nil && wslCARoot != "" {
+			t.Logf("Setting DDEV mkcert_caroot to %s (CAROOT=%s)", wslCARoot, caRootForConfig)
+			setOut, setErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "ddev", "config", "global",
+				"--mkcert-caroot="+wslCARoot)
+			t.Logf("ddev config global --mkcert-caroot: err=%v out=%s", setErr, strings.TrimSpace(setOut))
+		} else {
+			t.Logf("WARNING: wslpath conversion failed for CAROOT=%s: err=%v out=%s", caRootForConfig, wslCARootErr, wslCARootOut)
+		}
+	} else {
+		t.Logf("WARNING: CAROOT not set in test process environment — DDEV may use wrong CA")
 	}
 
 	// Initialize ddev project
