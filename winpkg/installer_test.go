@@ -627,6 +627,22 @@ func testBasicDdevFunctionality(t *testing.T, distroName string) {
 	_, err = exec.RunHostCommand("wsl.exe", "-d", distroName, "bash", "-c", fmt.Sprintf("echo 'Hello from DDEV!' > %s/index.html", projectDir))
 	require.NoError(err, "Failed to create index.html: %v", err)
 
+	// Verify CAROOT is correctly set in DDEV's global config before starting the project.
+	// Issue #8485: if readCAROOT() was called when CAROOT was inaccessible, DDEV stores
+	// empty mkcert_caroot in ~/.ddev/global_config.yaml and generates a new CA at the
+	// Linux default path. That new CA is not in the Windows cert store, causing TLS failures.
+	// Force DDEV to re-read CAROOT by deleting any stale global config entry.
+	if gcOut, gcErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "bash", "-c",
+		`caroot=$(mkcert -CAROOT 2>/dev/null); echo "CAROOT in distro: $caroot"; `+
+			`ddev_caroot=$(ddev config global 2>/dev/null | grep mkcert_caroot | awk '{print $2}'); `+
+			`echo "DDEV mkcert_caroot: $ddev_caroot"; `+
+			`if [ -n "$caroot" ] && [ "$caroot" != "$ddev_caroot" ]; then `+
+			`  echo "MISMATCH: forcing ddev config global --mkcert-caroot=$caroot"; `+
+			`  ddev config global --mkcert-caroot="$caroot"; `+
+			`fi`); gcErr == nil {
+		t.Logf("CAROOT verification:\n%s", gcOut)
+	}
+
 	// Initialize ddev project
 	out, err = exec.RunHostCommand("wsl.exe", "-d", distroName, "bash", "-c", fmt.Sprintf("cd %s && ddev config --auto && ddev start -y", projectDir))
 	require.NoError(err, "ddev config/start failed: %v, output: %s", err, out)
@@ -662,18 +678,6 @@ func testBasicDdevFunctionality(t *testing.T, distroName string) {
 	if certChainOut, certChainErr := exec.RunHostCommand("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
 		fmt.Sprintf(`$req=[Net.HttpWebRequest]::Create("https://%s.ddev.site"); $req.ServerCertificateValidationCallback={$true}; try{$req.GetResponse().Dispose()}catch{}; $c=$req.ServicePoint.Certificate; if($c){$x=New-Object Security.Cryptography.X509Certificates.X509Certificate2($c); "Site cert thumbprint: "+$x.Thumbprint; "Site cert subject: "+$x.Subject; "Site cert issuer: "+$x.Issuer; "Site cert notbefore: "+$x.NotBefore; "Site cert notafter: "+$x.NotAfter}`, projectName)); certChainErr == nil {
 		t.Logf("Site TLS certificate (served, ignoring trust):\n%s", certChainOut)
-	}
-
-	// Ensure the mkcert CA is trusted by Windows before the HTTPS check.
-	// cleanupTestEnv runs 'mkcert -uninstall' inside WSL2; when CAROOT points to a
-	// Windows path, the Linux mkcert binary also removes the CA from the Windows cert
-	// store via certutil.exe interop. The silent installer never re-adds it (mkcert.exe
-	// -install is skipped in silent mode). Running mkcert.exe -install here is idempotent
-	// and ensures the current rootCA.pem is always trusted by Windows regardless.
-	if mkcertInstallOut, mkcertInstallErr := exec.RunHostCommand("mkcert.exe", "-install"); mkcertInstallErr != nil {
-		t.Logf("mkcert.exe -install failed (non-fatal): %v\n%s", mkcertInstallErr, mkcertInstallOut)
-	} else {
-		t.Logf("mkcert.exe -install: %s", strings.TrimSpace(mkcertInstallOut))
 	}
 
 	// Test using windows PowerShell to check HTTPS
