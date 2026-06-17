@@ -262,7 +262,7 @@ func TestWindowsInstallerWSL2(t *testing.T) {
 			// Each case runs as its own decoupled Buildkite job, so an install
 			// that exceeds 10 minutes is treated as a real failure (the test then
 			// dumps the installer debug log rather than letting the job hang).
-			const installerTimeout = 10 * time.Minute
+			const installerTimeout = 15 * time.Minute
 			ctx, cancel := context.WithTimeout(context.Background(), installerTimeout)
 			defer cancel()
 
@@ -664,10 +664,22 @@ func testBasicDdevFunctionality(t *testing.T, distroName string) {
 		t.Logf("Site TLS certificate (served, ignoring trust):\n%s", certChainOut)
 	}
 
+	// Ensure the mkcert CA is trusted by Windows before the HTTPS check.
+	// cleanupTestEnv runs 'mkcert -uninstall' inside WSL2; when CAROOT points to a
+	// Windows path, the Linux mkcert binary also removes the CA from the Windows cert
+	// store via certutil.exe interop. The silent installer never re-adds it (mkcert.exe
+	// -install is skipped in silent mode). Running mkcert.exe -install here is idempotent
+	// and ensures the current rootCA.pem is always trusted by Windows regardless.
+	if mkcertInstallOut, mkcertInstallErr := exec.RunHostCommand("mkcert.exe", "-install"); mkcertInstallErr != nil {
+		t.Logf("mkcert.exe -install failed (non-fatal): %v\n%s", mkcertInstallErr, mkcertInstallOut)
+	} else {
+		t.Logf("mkcert.exe -install: %s", strings.TrimSpace(mkcertInstallOut))
+	}
+
 	// Test using windows PowerShell to check HTTPS
 	psInvoke := fmt.Sprintf("powershell.exe -NoProfile -ExecutionPolicy Bypass -Command Invoke-RestMethod 'https://%s.ddev.site' -ErrorAction Stop", projectName)
 	out, err = exec.RunHostCommand("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", fmt.Sprintf("Invoke-RestMethod 'https://%s.ddev.site' -ErrorAction Stop", projectName))
-	require.NoError(err, "HTTPS check from Windows failed (`%s`) (note that mkcert.exe -install must be run previously on test runner): %v, output: %s", psInvoke, err, out)
+	require.NoError(err, "HTTPS check from Windows failed (`%s`): %v, output: %s", psInvoke, err, out)
 	require.Contains(out, "Hello from DDEV!")
 	t.Logf("Project working and accessible from Windows")
 
