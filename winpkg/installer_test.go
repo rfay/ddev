@@ -633,12 +633,17 @@ func testBasicDdevFunctionality(t *testing.T, distroName string) {
 	// Linux default path. That new CA is not in the Windows cert store, causing TLS failures.
 	// Force DDEV to re-read CAROOT by deleting any stale global config entry.
 	if gcOut, gcErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "bash", "-c",
-		`caroot=$(mkcert -CAROOT 2>/dev/null); echo "CAROOT in distro: $caroot"; `+
-			`ddev_caroot=$(ddev config global 2>/dev/null | grep mkcert_caroot | awk '{print $2}'); `+
-			`echo "DDEV mkcert_caroot: $ddev_caroot"; `+
+		// Use mkcert -CAROOT to get the actual CAROOT path; use grep on global_config.yaml
+		// directly (more reliable than parsing 'ddev config global' output format).
+		`caroot=$(mkcert -CAROOT 2>/dev/null || echo ""); `+
+			`echo "CAROOT in distro: ${caroot:-(empty)}"; `+
+			`ddev_caroot=$(grep mkcert_caroot ~/.ddev/global_config.yaml 2>/dev/null | awk -F': ' '{print $2}' | tr -d '"'); `+
+			`echo "DDEV global_config mkcert_caroot: ${ddev_caroot:-(empty)}"; `+
 			`if [ -n "$caroot" ] && [ "$caroot" != "$ddev_caroot" ]; then `+
-			`  echo "MISMATCH: forcing ddev config global --mkcert-caroot=$caroot"; `+
-			`  ddev config global --mkcert-caroot="$caroot"; `+
+			`  echo "MISMATCH detected — forcing ddev config global --mkcert-caroot=$caroot"; `+
+			`  ddev config global --mkcert-caroot="$caroot" 2>&1; `+
+			`else `+
+			`  echo "CAROOT OK (match or caroot empty)"; `+
 			`fi`); gcErr == nil {
 		t.Logf("CAROOT verification:\n%s", gcOut)
 	}
