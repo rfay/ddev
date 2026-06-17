@@ -93,8 +93,17 @@ func waitForDockerDesktopWSL2Integration(t *testing.T, distro string) bool {
 		// /Docker/host/bin/docker stub which outputs the "integration not enabled" error.
 		out, err := exec.RunHostCommand("wsl.exe", "-d", distro, "--", "docker", "ps")
 		if err == nil {
-			t.Logf("Docker Desktop WSL2 integration confirmed for %s (attempt %d/%d)", distro, attempt, quickAttempts)
-			return true
+			// docker ps works — also verify Docker API is fully ready via docker info.
+			// docker ps can succeed while Docker Desktop is still initializing; the
+			// installer's 'ddev version' calls docker info/version and hangs with HTTP 500
+			// if the Docker daemon isn't fully ready yet.
+			infoOut, infoErr := exec.RunHostCommand("wsl.exe", "-d", distro, "--", "docker", "info", "--format", "{{.ServerVersion}}")
+			if infoErr == nil && strings.TrimSpace(infoOut) != "" {
+				t.Logf("Docker Desktop fully ready in %s (attempt %d/%d), server version: %s", distro, attempt, quickAttempts, strings.TrimSpace(infoOut))
+				return true
+			}
+			t.Logf("Docker Desktop integration present but API not fully ready in %s (attempt %d/%d): %v", distro, attempt, quickAttempts, infoErr)
+			// Fall through — retry after delay
 		}
 		t.Logf("Docker Desktop WSL2 integration not yet active for %s (attempt %d/%d): %v\nOutput: %s", distro, attempt, quickAttempts, err, out)
 
