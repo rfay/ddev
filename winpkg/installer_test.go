@@ -672,8 +672,10 @@ func testBasicDdevFunctionality(t *testing.T, distroName string) {
 		// Direct conversion: C:\Users\foo -> /mnt/c/Users/foo
 		wslCARoot := windowsPathToWSL(caRootForConfig)
 		t.Logf("Setting DDEV mkcert_caroot to %s (CAROOT=%s)", wslCARoot, caRootForConfig)
-		setOut, setErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "ddev", "config", "global",
-			"--mkcert-caroot="+wslCARoot)
+		// Use bash -c to ensure ddev is found in PATH (non-login wsl.exe calls
+		// may not have /usr/local/bin or /usr/bin/ddev in PATH).
+		setOut, setErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "bash", "-c",
+			"ddev config global --mkcert-caroot="+wslCARoot)
 		t.Logf("ddev config global --mkcert-caroot: err=%v out=%s", setErr, strings.TrimSpace(setOut))
 	} else {
 		t.Logf("WARNING: CAROOT not set in test process environment — DDEV may use wrong CA")
