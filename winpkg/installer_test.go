@@ -638,16 +638,15 @@ func testBasicDdevFunctionality(t *testing.T, distroName string) {
 	caRootForConfig, _ := exec.RunHostCommand("cmd.exe", "/c", "echo %CAROOT%")
 	caRootForConfig = strings.TrimSpace(caRootForConfig)
 	if caRootForConfig != "" && caRootForConfig != "%CAROOT%" {
-		wslCARootOut, wslCARootErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "wslpath", "-u", caRootForConfig)
-		wslCARoot := strings.TrimSpace(wslCARootOut)
-		if wslCARootErr == nil && wslCARoot != "" {
-			t.Logf("Setting DDEV mkcert_caroot to %s (CAROOT=%s)", wslCARoot, caRootForConfig)
-			setOut, setErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "ddev", "config", "global",
-				"--mkcert-caroot="+wslCARoot)
-			t.Logf("ddev config global --mkcert-caroot: err=%v out=%s", setErr, strings.TrimSpace(setOut))
-		} else {
-			t.Logf("WARNING: wslpath conversion failed for CAROOT=%s: err=%v out=%s", caRootForConfig, wslCARootErr, wslCARootOut)
-		}
+		// Convert Windows path to WSL path in Go rather than via wslpath.
+		// Passing a Windows path with backslashes to 'wsl.exe wslpath' causes bash
+		// to interpret \U, \t, \A, \L etc. as escape sequences, stripping the backslashes.
+		// Direct conversion: C:\Users\foo -> /mnt/c/Users/foo
+		wslCARoot := windowsPathToWSL(caRootForConfig)
+		t.Logf("Setting DDEV mkcert_caroot to %s (CAROOT=%s)", wslCARoot, caRootForConfig)
+		setOut, setErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "ddev", "config", "global",
+			"--mkcert-caroot="+wslCARoot)
+		t.Logf("ddev config global --mkcert-caroot: err=%v out=%s", setErr, strings.TrimSpace(setOut))
 	} else {
 		t.Logf("WARNING: CAROOT not set in test process environment — DDEV may use wrong CA")
 	}
@@ -706,6 +705,19 @@ func isDockerProviderAvailable(distroName string) bool {
 	// Check if docker ps works in the distro
 	_, err := exec.RunHostCommand("wsl.exe", "-d", distroName, "docker", "ps")
 	return err == nil
+}
+
+// windowsPathToWSL converts a Windows path to its WSL2 mount path in Go,
+// avoiding the need to call wslpath (which receives args through bash and
+// has backslashes stripped as escape sequences).
+// Example: C:\Users\testbot\AppData\Local\mkcert → /mnt/c/Users/testbot/AppData/Local/mkcert
+func windowsPathToWSL(winPath string) string {
+	if len(winPath) >= 2 && winPath[1] == ':' {
+		drive := strings.ToLower(string(winPath[0]))
+		rest := strings.ReplaceAll(winPath[2:], "\\", "/")
+		return "/mnt/" + drive + rest
+	}
+	return strings.ReplaceAll(winPath, "\\", "/")
 }
 
 // isDockerDesktopWorkingOnWindows checks if Docker Desktop is working on Windows
