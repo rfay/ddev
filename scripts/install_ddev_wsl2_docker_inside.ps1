@@ -90,7 +90,7 @@ wsl -d $Distro -u root usermod -aG docker $wslUser
 
 wsl -d $Distro mkcert.exe -install
 $env:CAROOT = & wsl -d $Distro mkcert.exe -CAROOT
-setx CAROOT $env:CAROOT; If ($Env:WSLENV -notlike "*CAROOT/up:*") { $env:WSLENV="CAROOT/up:$env:WSLENV"; setx WSLENV $Env:WSLENV }
+setx CAROOT $env:CAROOT; If ($Env:WSLENV -notlike "*CAROOT/up*") { $env:WSLENV="CAROOT/up:$env:WSLENV"; setx WSLENV $Env:WSLENV }
 
 # Convert the Windows CAROOT path to a Linux path and pass it directly to mkcert,
 # avoiding a wsl --terminate which breaks Docker Desktop integration.

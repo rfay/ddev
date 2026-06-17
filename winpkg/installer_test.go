@@ -632,18 +632,21 @@ func testBasicDdevFunctionality(t *testing.T, distroName string) {
 	// empty mkcert_caroot in ~/.ddev/global_config.yaml and generates a new CA at the
 	// Linux default path. That new CA is not in the Windows cert store, causing TLS failures.
 	// Force DDEV to re-read CAROOT by deleting any stale global config entry.
+	// Verify and correct DDEV's mkcert_caroot before starting the project.
+	// Issue #8485: readCAROOT() silently returns "" when inaccessible, causing DDEV to
+	// use a default-path CA not in the Windows cert store → TLS failures.
+	// We use $CAROOT (set via WSLENV from Windows) rather than 'mkcert -CAROOT' because
+	// mkcert may not be in PATH in this shell context (PS1-installed ddev uses ~/.ddev/bin/).
 	if gcOut, gcErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "bash", "-c",
-		// Use mkcert -CAROOT to get the actual CAROOT path; use grep on global_config.yaml
-		// directly (more reliable than parsing 'ddev config global' output format).
-		`caroot=$(mkcert -CAROOT 2>/dev/null || echo ""); `+
-			`echo "CAROOT in distro: ${caroot:-(empty)}"; `+
-			`ddev_caroot=$(grep mkcert_caroot ~/.ddev/global_config.yaml 2>/dev/null | awk -F': ' '{print $2}' | tr -d '"'); `+
+		`env_caroot="$CAROOT"; `+
+			`echo "CAROOT env in distro: ${env_caroot:-(empty)}"; `+
+			`ddev_caroot=$(grep "mkcert_caroot" ~/.ddev/global_config.yaml 2>/dev/null | awk -F": " "{print \$2}" | tr -d "\""); `+
 			`echo "DDEV global_config mkcert_caroot: ${ddev_caroot:-(empty)}"; `+
-			`if [ -n "$caroot" ] && [ "$caroot" != "$ddev_caroot" ]; then `+
-			`  echo "MISMATCH detected — forcing ddev config global --mkcert-caroot=$caroot"; `+
-			`  ddev config global --mkcert-caroot="$caroot" 2>&1; `+
+			`if [ -n "$env_caroot" ] && [ "${ddev_caroot:-}" != "$env_caroot" ]; then `+
+			`  echo "MISMATCH or empty — forcing ddev config global --mkcert-caroot=$env_caroot"; `+
+			`  ddev config global --mkcert-caroot="$env_caroot" 2>&1 || true; `+
 			`else `+
-			`  echo "CAROOT OK (match or caroot empty)"; `+
+			`  echo "CAROOT OK"; `+
 			`fi`); gcErr == nil {
 		t.Logf("CAROOT verification:\n%s", gcOut)
 	}
