@@ -16,12 +16,21 @@ export GIT_PAGER=""
 # On Windows: ensure Docker Desktop is running when this job exits so the next
 # job finds it already up. trap EXIT fires regardless of success, failure, or
 # set -e early exit — unlike code at the end of the script which set -e skips.
+#
+# If Docker Desktop must be (re)started, launch it DETACHED via Start-Process,
+# never 'docker desktop start'/'restart'. The latter launch Docker Desktop.exe
+# as a child of the Buildkite Windows Job Object, which is killed at job
+# teardown — leaving the next job to find it stopped. sanetestbot.sh and
+# restart-docker-desktop.sh already start it detached, so an already-running
+# instance here is detached and we leave it alone.
 if command -v wsl.exe >/dev/null 2>&1; then
-    trap 'if docker desktop status 2>&1 | grep -qi "Status.*running"; then
+    trap 'if docker desktop status 2>&1 | grep -qi "Status[[:space:]]*running"; then
         echo "Docker Desktop already running at job exit.";
     else
-        echo "Starting Docker Desktop for next job...";
-        docker desktop start || true;
+        echo "Starting Docker Desktop (detached) for next job...";
+        powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
+          "Start-Process -FilePath \"\$env:PROGRAMFILES\\Docker\\Docker\\Docker Desktop.exe\" -PassThru | Out-Null" 2>/dev/null \
+          || docker desktop start || true;
     fi' EXIT
 fi
 

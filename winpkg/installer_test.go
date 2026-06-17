@@ -143,8 +143,9 @@ func waitForDockerDesktopWSL2Integration(t *testing.T, distro string) bool {
 		return true
 	}
 
-	// Last resort: full Docker Desktop stop+start. This stops Docker Desktop,
-	// leaving it stopped for the next job's sanetestbot.sh to restart.
+	// Last resort: full Docker Desktop restart. restart-docker-desktop.sh stops
+	// Docker Desktop and relaunches the frontend DETACHED (via Start-Process) so
+	// it survives Buildkite job teardown, leaving it running for the next job.
 	t.Logf("Docker Desktop WSL2 integration absent for %s after wsl-fix-interop — performing full Docker Desktop restart", distro)
 	wd, err := os.Getwd()
 	if err != nil {
@@ -268,7 +269,17 @@ func TestWindowsInstallerWSL2(t *testing.T) {
 				t.Logf("Cleaning up %s test - powering off ddev", tc.name)
 				_, _ = exec.RunHostCommand("wsl.exe", "-d", tc.distro, "bash", "-c", "ddev poweroff")
 				_, _ = exec.RunHostCommand("wsl.exe", "-d", tc.distro, "bash", "-c", "ddev delete -Oy tp")
-				_, _ = exec.RunHostCommand("wsl.exe", "-d", tc.distro, "-u", "root", "bash", "-c", "apt-get remove -y ddev ddev-wsl2 docker-ce-cli docker-ce")
+				// For docker-desktop distros, do NOT remove docker-ce-cli or docker-ce.
+				// docker-ce-cli owns /usr/bin/docker, which is also where Docker Desktop
+				// places its WSL2 integration symlink. Removing it destroys Docker Desktop
+				// integration, forcing the next desktop run into a full 'docker desktop
+				// restart' (which leaves Docker Desktop bound to the Buildkite job object
+				// and killed at job teardown). Mirrors the guard in cleanupTestEnv.
+				dockerCERemove := ""
+				if strings.Contains(tc.distro, "-ce") {
+					dockerCERemove = " docker-ce-cli docker-ce"
+				}
+				_, _ = exec.RunHostCommand("wsl.exe", "-d", tc.distro, "-u", "root", "bash", "-c", fmt.Sprintf("apt-get remove -y ddev ddev-wsl2%s", dockerCERemove))
 			})
 
 			// Get absolute path to installer
@@ -538,7 +549,6 @@ func cleanupTestEnv(t *testing.T, distroName string) {
 		} else {
 			t.Logf("wsl-fix-interop: %s", strings.TrimSpace(fixOut))
 		}
-
 
 		// Get distro back to a fairly normal pre-ddev state.
 		// Makes test run much faster than completely deleting the distro.
