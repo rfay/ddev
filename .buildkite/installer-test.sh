@@ -111,15 +111,14 @@ esac
 RV=$?
 
 # On Windows: ensure Docker Desktop is running when we exit so the next job
-# finds it already up. Docker Desktop frequently stops during testing (containers
-# stopping, Docker Desktop restart logic, etc.). Starting it here avoids the
-# ~60s overhead of sanetestbot.sh starting it at the beginning of the next job.
-if [ "$(go env GOOS)" = "windows" ]; then
-    if ! docker desktop status 2>&1 | grep -qi "Status[[:space:]]*running"; then
-        echo "Leaving Docker Desktop started for next job..."
-        docker desktop start || true
-    else
+# finds it already up. Use wsl.exe existence as the Windows check — avoids
+# 'go env GOOS' carriage-return issues on Windows.
+if command -v wsl.exe >/dev/null 2>&1; then
+    if docker desktop status 2>&1 | grep -qi "Status.*running"; then
         echo "Docker Desktop already running at job exit."
+    else
+        echo "Starting Docker Desktop for next job..."
+        docker desktop start || true
     fi
 fi
 
