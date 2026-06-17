@@ -35,6 +35,9 @@
       # DOCKERHUB_PULL_USERNAME
       # DOCKERHUB_PULL_PASSWORD
     matrix:
+      # Traditional Windows (non-WSL2) installer test:
+      - "traditional"
+
       # Manual WSL2 install-script tests (Ubuntu only), gated to ps1 changes:
       # - "ps1-docker-inside"
       - "ps1-docker-desktop"

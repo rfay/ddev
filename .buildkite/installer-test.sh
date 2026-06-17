@@ -91,6 +91,10 @@ case "${INSTALLER_CASE:-}" in
     echo "--- Running WSL2 install-script test: ${INSTALLER_CASE#ps1-}"
     make testwsl2scripts TESTARGS="-run TestWSL2InstallScripts/${INSTALLER_CASE#ps1-} ${TESTARGS:-}" | sed -u 's/^--- FAIL:/+++ FAIL:/; /\//!s/^=== RUN /--- RUN /'
     ;;
+  traditional)
+    echo "--- Running Traditional Windows installer test"
+    make testwininstaller TESTARGS="-run TestWindowsInstallerTraditional ${TESTARGS:-}" | sed -u 's/^--- FAIL:/+++ FAIL:/; /\//!s/^=== RUN /--- RUN /'
+    ;;
   ddev-test-*)
     echo "--- Running Windows installer test: ${INSTALLER_CASE}"
     make testwininstaller TESTARGS="-run TestWindowsInstallerWSL2/${INSTALLER_CASE} ${TESTARGS:-}" | sed -u 's/^--- FAIL:/+++ FAIL:/; /\//!s/^=== RUN /--- RUN /'
