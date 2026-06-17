@@ -13,6 +13,18 @@ set -eu -o pipefail
 # Disable git pager
 export GIT_PAGER=""
 
+# On Windows: ensure Docker Desktop is running when this job exits so the next
+# job finds it already up. trap EXIT fires regardless of success, failure, or
+# set -e early exit — unlike code at the end of the script which set -e skips.
+if command -v wsl.exe >/dev/null 2>&1; then
+    trap 'if docker desktop status 2>&1 | grep -qi "Status.*running"; then
+        echo "Docker Desktop already running at job exit.";
+    else
+        echo "Starting Docker Desktop for next job...";
+        docker desktop start || true;
+    fi' EXIT
+fi
+
 # Note: [skip ci]/[skip buildkite] gating is handled by the step `if` in
 # .buildkite/windows-installer.yml, which still lets manual (UI) builds run.
 # Don't re-check the commit message here, or manual triggers of a [skip ci]
@@ -109,18 +121,6 @@ case "${INSTALLER_CASE:-}" in
     ;;
 esac
 RV=$?
-
-# On Windows: ensure Docker Desktop is running when we exit so the next job
-# finds it already up. Use wsl.exe existence as the Windows check — avoids
-# 'go env GOOS' carriage-return issues on Windows.
-if command -v wsl.exe >/dev/null 2>&1; then
-    if docker desktop status 2>&1 | grep -qi "Status.*running"; then
-        echo "Docker Desktop already running at job exit."
-    else
-        echo "Starting Docker Desktop for next job..."
-        docker desktop start || true
-    fi
-fi
 
 echo "installer-test.sh completed with status=$RV"
 exit $RV
