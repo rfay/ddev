@@ -156,6 +156,25 @@ func waitForDockerDesktopWSL2Integration(t *testing.T, distro string) bool {
 		t.Logf("Docker Desktop restart failed: %v", restartErr)
 		return false
 	}
+	// After restart, docker ps works but Docker Desktop may still be initializing
+	// its internal components. The NSIS installer exercises docker more thoroughly
+	// (docker info, image operations) and hangs if Docker isn't fully ready.
+	// Wait for docker info to succeed inside the distro as a stronger readiness check.
+	t.Logf("Waiting for docker info to confirm Docker is fully initialized in %s...", distro)
+	const dockerInfoAttempts = 12
+	const dockerInfoDelay = 10 * time.Second
+	for i := 1; i <= dockerInfoAttempts; i++ {
+		out, err := exec.RunHostCommand("wsl.exe", "-d", distro, "--", "docker", "info", "--format", "{{.ServerVersion}}")
+		if err == nil && strings.TrimSpace(out) != "" {
+			t.Logf("Docker fully initialized in %s (attempt %d/%d), server version: %s", distro, i, dockerInfoAttempts, strings.TrimSpace(out))
+			return true
+		}
+		t.Logf("Docker not yet fully initialized in %s (attempt %d/%d): %v", distro, i, dockerInfoAttempts, err)
+		if i < dockerInfoAttempts {
+			time.Sleep(dockerInfoDelay)
+		}
+	}
+	t.Logf("WARNING: docker info did not succeed in %s after restart — proceeding anyway", distro)
 	return true
 }
 
