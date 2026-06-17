@@ -671,12 +671,20 @@ func testBasicDdevFunctionality(t *testing.T, distroName string) {
 		// to interpret \U, \t, \A, \L etc. as escape sequences, stripping the backslashes.
 		// Direct conversion: C:\Users\foo -> /mnt/c/Users/foo
 		wslCARoot := windowsPathToWSL(caRootForConfig)
-		t.Logf("Setting DDEV mkcert_caroot to %s (CAROOT=%s)", wslCARoot, caRootForConfig)
-		// Use bash -c to ensure ddev is found in PATH (non-login wsl.exe calls
-		// may not have /usr/local/bin or /usr/bin/ddev in PATH).
-		setOut, setErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "bash", "-c",
-			"ddev config global --mkcert-caroot="+wslCARoot)
-		t.Logf("ddev config global --mkcert-caroot: err=%v out=%s", setErr, strings.TrimSpace(setOut))
+		// ddev config global has no --mkcert-caroot flag; set it directly in the YAML.
+		// This bypasses readCAROOT() which may return "" if rootCA-key.pem permissions
+		// prevent reading from WSL2 (issue #8485).
+		t.Logf("Setting DDEV mkcert_caroot to %s in global_config.yaml (CAROOT=%s)", wslCARoot, caRootForConfig)
+		setCmd := fmt.Sprintf(
+			`mkdir -p ~/.ddev; `+
+				`if grep -q "^mkcert_caroot:" ~/.ddev/global_config.yaml 2>/dev/null; then `+
+				`  sed -i "s|^mkcert_caroot:.*|mkcert_caroot: %s|" ~/.ddev/global_config.yaml; `+
+				`else `+
+				`  printf "mkcert_caroot: %s\n" >> ~/.ddev/global_config.yaml; `+
+				`fi; `+
+				`grep mkcert_caroot ~/.ddev/global_config.yaml`, wslCARoot, wslCARoot)
+		setOut, setErr := exec.RunHostCommand("wsl.exe", "-d", distroName, "bash", "-c", setCmd)
+		t.Logf("Set mkcert_caroot in global_config.yaml: err=%v out=%s", setErr, strings.TrimSpace(setOut))
 	} else {
 		t.Logf("WARNING: CAROOT not set in test process environment — DDEV may use wrong CA")
 	}
