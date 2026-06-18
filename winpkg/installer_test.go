@@ -283,22 +283,32 @@ func TestWindowsInstallerWSL2(t *testing.T) {
 			cleanupTestEnv(t, tc.distro)
 			configureTestWSL2Distro(t, tc.distro)
 
+			// cleanupTestEnv just removed docker-ce-cli. Desktop distros must use
+			// Docker Desktop's own /usr/bin/docker integration symlink, not the
+			// docker-ce-cli binary (which masks broken integration and then breaks
+			// mid-install). Re-verify integration here so Docker Desktop re-injects
+			// its symlink — which removing docker-ce-cli may have just deleted —
+			// before the installer needs docker.
+			if strings.HasSuffix(tc.name, "-desktop") {
+				if !waitForDockerDesktopWSL2Integration(t, tc.distro) {
+					t.Skipf("SKIPPED: Docker Desktop WSL2 integration not active for %s after cleanup/retries.\n"+
+						"Verify with: wsl -d %s docker ps", tc.distro, tc.distro)
+				}
+			}
+
 			// Ensure ddev is powered off after this test case, even if it fails
 			t.Cleanup(func() {
 				t.Logf("Cleaning up %s test - powering off ddev", tc.name)
 				_, _ = exec.RunHostCommand("wsl.exe", "-d", tc.distro, "bash", "-c", "ddev poweroff")
 				_, _ = exec.RunHostCommand("wsl.exe", "-d", tc.distro, "bash", "-c", "ddev delete -Oy tp")
-				// For docker-desktop distros, do NOT remove docker-ce-cli or docker-ce.
-				// docker-ce-cli owns /usr/bin/docker, which is also where Docker Desktop
-				// places its WSL2 integration symlink. Removing it destroys Docker Desktop
-				// integration, forcing the next desktop run into a full 'docker desktop
-				// restart' (which leaves Docker Desktop bound to the Buildkite job object
-				// and killed at job teardown). Mirrors the guard in cleanupTestEnv.
-				dockerCERemove := ""
-				if strings.Contains(tc.distro, "-ce") {
-					dockerCERemove = " docker-ce-cli docker-ce"
-				}
-				_, _ = exec.RunHostCommand("wsl.exe", "-d", tc.distro, "-u", "root", "bash", "-c", fmt.Sprintf("apt-get remove -y ddev ddev-wsl2%s", dockerCERemove))
+				// Remove docker-ce-cli/docker-ce on ALL distros, including docker-desktop.
+				// On desktop distros docker-ce-cli must NOT be present: it owns
+				// /usr/bin/docker (Docker Desktop's integration symlink path) and, while
+				// installed, masks broken integration (docker ps succeeds via its binary
+				// + DD's socket) so the precondition falsely passes and docker breaks
+				// mid-install. With it gone, /usr/bin/docker is Docker Desktop's own
+				// symlink, which the precondition can reliably detect and restart-repair.
+				_, _ = exec.RunHostCommand("wsl.exe", "-d", tc.distro, "-u", "root", "bash", "-c", "apt-get remove -y ddev ddev-wsl2 docker-ce-cli docker-ce")
 			})
 
 			// Get absolute path to installer
@@ -590,17 +600,14 @@ func cleanupTestEnv(t *testing.T, distroName string) {
 		out, err = exec.RunHostCommand("wsl.exe", "-d", distroName, "-u", "root", "bash", "-c", "rm -f /etc/sudoers.d/temp-mkcert-install /etc/apt/sources.list.d/ddev.* /etc/apt/sources.list.d/docker.*")
 		require.NoError(t, err)
 
-		// For docker-desktop distros, do NOT remove docker-ce-cli or docker-ce.
-		// docker-ce-cli owns /usr/bin/docker. If it was installed as a ddev dependency
-		// and then removed, apt deletes /usr/bin/docker — which is also where Docker
-		// Desktop places its WSL2 integration symlink. Removing it destroys Docker
-		// Desktop integration for the remainder of the test run.
-		// CE distros need docker-ce-cli removed so the next install starts clean.
-		dockerCERemove := ""
-		if strings.Contains(distroName, "-ce") {
-			dockerCERemove = " docker-ce-cli docker-ce"
-		}
-		out, err = exec.RunHostCommand("wsl.exe", "-d", distroName, "-u", "root", "bash", "-c", fmt.Sprintf("(apt-get remove -y ddev ddev-wsl2%s 2>/dev/null)", dockerCERemove))
+		// Remove docker-ce-cli/docker-ce on ALL distros, including docker-desktop.
+		// docker-desktop distros must use Docker Desktop's own /usr/bin/docker
+		// integration symlink, not the docker-ce-cli binary: while docker-ce-cli is
+		// installed it owns /usr/bin/docker and masks broken DD integration (docker ps
+		// works via its binary + DD's socket), so the integration check falsely passes
+		// and docker breaks mid-install. The post-cleanup integration re-verify (in the
+		// test) restarts Docker Desktop to re-inject the symlink that this removal deletes.
+		out, err = exec.RunHostCommand("wsl.exe", "-d", distroName, "-u", "root", "bash", "-c", "(apt-get remove -y ddev ddev-wsl2 docker-ce-cli docker-ce 2>/dev/null)")
 		t.Logf("distro cleanup: err=%v, output: %s", err, out)
 
 		// Re-run wsl-fix-interop after apt-get remove: docker-ce's post-remove scripts
