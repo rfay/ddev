@@ -20,7 +20,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-
 // TestWSL2InstallScripts exercises the manual WSL2 install PowerShell scripts
 // (scripts/install_ddev_wsl2_docker_inside.ps1 and
 // scripts/install_ddev_wsl2_docker_desktop.ps1) against current Ubuntu. These
@@ -79,6 +78,20 @@ func TestWSL2InstallScripts(t *testing.T) {
 
 			// Reset the distro to a pre-ddev state for a meaningful install.
 			cleanupTestEnv(t, tc.distro)
+
+			// Re-verify integration AFTER cleanupTestEnv (mirrors TestWindowsInstallerWSL2).
+			// cleanup's apt operations / wsl-fix-interop can drop Docker Desktop's WSL2
+			// integration, and cleanupTestEnv removes docker-ce-cli so /usr/bin/docker
+			// reverts to Docker Desktop's own (possibly broken) symlink. Re-verify so
+			// Docker Desktop re-injects it (via the restart escalation) before the install
+			// script runs `docker` — otherwise the script fails with
+			// "execvpe(docker) failed: No such file or directory".
+			if tc.requireDockerDesktop {
+				if !waitForDockerDesktopWSL2Integration(t, tc.distro) {
+					t.Skipf("SKIPPED: Docker Desktop WSL2 integration not active for %s after cleanup/retries.\n"+
+						"Verify with: wsl -d %s docker ps", tc.distro, tc.distro)
+				}
+			}
 
 			// Ensure ddev is powered off after this case, even on failure.
 			t.Cleanup(func() {
