@@ -20,11 +20,25 @@ else
    echo "Disk usage is ${DISK_AVAIL}% on $(hostname).";
 fi
 
+# Determine whether this job uses the Windows host's Docker Desktop. The WSL2
+# docker-ce (and docker-inside) installer cases run Docker CE *inside* the WSL2
+# distro and never touch the host's Docker Desktop — so they must not wait for
+# or start it, and the host docker sanity checks below would only test (and
+# block on) an unrelated, possibly-stopped Docker Desktop. Worse, starting
+# Docker Desktop for a docker-ce job makes its WSL2 integration fight the
+# in-distro docker-ce daemon over /var/run/docker.sock. Detected from the
+# installer pipeline's INSTALLER_CASE; when unset (other pipelines) prior
+# behavior is preserved.
+USES_HOST_DOCKER=true
+case "${INSTALLER_CASE:-}" in
+    *-ce|*-inside|ps1-docker-inside) USES_HOST_DOCKER=false ;;
+esac
+
 # On Windows with Docker Desktop, ensure Docker Desktop is running before the
 # docker ps sanity check. Docker Desktop can be left stopped by a previous
 # failed restart attempt or a machine reboot. On Linux and macOS Docker runs
 # as a daemon and is expected to already be up; this block is Windows-only.
-if [ "$(go env GOOS)" = "windows" ]; then
+if [ "$(go env GOOS)" = "windows" ] && [ "$USES_HOST_DOCKER" = "true" ]; then
     # Check docker desktop status (the frontend) not docker ps (the Engine service).
     # On Windows the Docker Engine service (SYSTEM) keeps running even when Docker
     # Desktop.exe (the frontend) is stopped — so docker ps succeeds even when Docker
@@ -65,19 +79,28 @@ if [ "$(go env GOOS)" = "windows" ]; then
     fi
 fi
 
-# Test to make sure docker is installed and working.
-# If it doesn't become ready then we just keep this testbot occupied :)
-docker ps >/dev/null
-while ! docker ps >/dev/null 2>&1 ; do
-    echo "Waiting for docker to be ready $(date)"
-    sleep 60
-done
+# Host docker sanity checks. These exercise the host's docker daemon (Docker
+# Desktop on Windows, the local daemon on macOS/Linux). Skip them for WSL2
+# docker-ce/-inside installer cases, which use Docker CE inside the distro and
+# do not use the host's Docker Desktop — running them would only block on an
+# unrelated, possibly-stopped Docker Desktop.
+if [ "$USES_HOST_DOCKER" = "true" ]; then
+    # Test to make sure docker is installed and working.
+    # If it doesn't become ready then we just keep this testbot occupied :)
+    docker ps >/dev/null
+    while ! docker ps >/dev/null 2>&1 ; do
+        echo "Waiting for docker to be ready $(date)"
+        sleep 60
+    done
 
-# Test that docker can allocate 80 and 443, get ddev/ddev-utilities
-docker pull ddev/ddev-utilities >/dev/null
-# Try the docker run command twice because of the really annoying mkdir /c: file exists bug
-# Apparently https://github.com/docker/for-win/issues/1560
-(sleep 1 && (docker run --rm -t -p 80:80 -p 443:443 -p 1081:1081 -p 1082:1082 -v /$HOME:/tmp/junker99 ddev/ddev-utilities ls //tmp/junker99 >/dev/null) || (sleep 1 && docker run --rm -t -p 80:80 -p 443:443 -p 1081:1081 -p 1082:1082 -v /$HOME:/tmp/junker99 ddev/ddev-utilities ls //tmp/junker99 >/dev/null ))
+    # Test that docker can allocate 80 and 443, get ddev/ddev-utilities
+    docker pull ddev/ddev-utilities >/dev/null
+    # Try the docker run command twice because of the really annoying mkdir /c: file exists bug
+    # Apparently https://github.com/docker/for-win/issues/1560
+    (sleep 1 && (docker run --rm -t -p 80:80 -p 443:443 -p 1081:1081 -p 1082:1082 -v /$HOME:/tmp/junker99 ddev/ddev-utilities ls //tmp/junker99 >/dev/null) || (sleep 1 && docker run --rm -t -p 80:80 -p 443:443 -p 1081:1081 -p 1082:1082 -v /$HOME:/tmp/junker99 ddev/ddev-utilities ls //tmp/junker99 >/dev/null ))
+else
+    echo "Skipping host Docker Desktop checks for INSTALLER_CASE=${INSTALLER_CASE:-} (uses Docker CE inside WSL2, not the host Docker Desktop)"
+fi
 
 # Check that required commands are available.
 for command in git go make mysql ngrok; do
