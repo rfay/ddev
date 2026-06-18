@@ -256,6 +256,12 @@ else
   exit 1
 fi
 
+# On Windows, start Docker Desktop if this job uses it, before waiting on docker.
+# This is the Windows analogue of the lima/colima/orbstack provider startup above;
+# it is provider setup, separate from the sanetestbot.sh sanity check. No-op on
+# non-Windows and on docker-ce-inside cases.
+bash "$(dirname "$0")/start-docker-desktop.sh" || true
+
 # Make sure docker is working
 echo "Waiting for docker provider to come up: $(date)"
 date && ${TIMEOUT} 3m bash -c 'while ! docker ps >/dev/null 2>&1 ; do

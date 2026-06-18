@@ -98,6 +98,12 @@ echo "buildkite installer test ${BUILDKITE_JOB_ID:-} at $(date) on $(hostname) a
 # the heavy-handed Docker/volume pruning in testbot_maintenance.sh is both
 # unnecessary and harmful here.
 
+# Start Docker Desktop if this case uses it (provider setup), before sanetestbot.sh
+# checks it. sanetestbot.sh only checks; it does not start Docker Desktop. No-op
+# for docker-ce-inside cases.
+echo "--- ensuring Docker Desktop is started (if this case uses it)"
+${TIMEOUT} 4m bash "$(dirname "$0")/start-docker-desktop.sh" || true
+
 # Our testbot should be sane, run the testbot checker to make sure.
 echo "--- running sanetestbot.sh"
 ${TIMEOUT} 5m bash "$(dirname "$0")/sanetestbot.sh"
