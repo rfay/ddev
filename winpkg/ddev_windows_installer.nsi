@@ -1309,6 +1309,12 @@ Function InstallWSL2CommonSetup
         Call ShowErrorAndAbort
     ${EndIf}
 
+    ; The Docker apt repository + Docker package install are ONLY for docker-ce
+    ; mode. In docker-desktop mode, Docker (and the docker CLI) come from Docker
+    ; Desktop's WSL2 integration, so adding the Docker apt repo is unnecessary
+    ; (and installing docker-ce-cli from it would clobber Docker Desktop's
+    ; /usr/bin/docker integration symlink).
+    ${If} $INSTALL_OPTION == "wsl2-docker-ce"
     ; Detect distro family for Docker repository selection (ubuntu vs debian)
     Push "WSL($SELECTED_DISTRO): Detecting distro family for Docker repository..."
     Call LogPrint
@@ -1374,6 +1380,10 @@ Function InstallWSL2CommonSetup
         Push "Failed to add Docker repository. Exit code: $1, Output: $0"
         Call ShowErrorAndAbort
     ${EndIf}
+    ${Else}
+        Push "WSL($SELECTED_DISTRO): Skipping Docker apt repository setup — Docker provided by Docker Desktop"
+        Call LogPrint
+    ${EndIf}
 
     ; Clean up old DDEV repository files if present
     Push "WSL($SELECTED_DISTRO): Removing old DDEV repository files if present..."
@@ -1436,8 +1446,8 @@ Function InstallWSL2Common
     Call InstallWSL2CommonSetup
 
     ${If} $INSTALL_OPTION == "wsl2-docker-desktop"
-        ; Install packages needed for Docker Desktop (including ddev)
-        StrCpy $0 "docker-ce-cli ddev"
+        ; docker-desktop: Docker comes from Docker Desktop integration; only ddev.
+        StrCpy $0 "ddev"
     ${Else}
         ; Install full Docker CE packages (including ddev)
         StrCpy $0 "docker-ce docker-ce-cli containerd.io ddev"
@@ -1476,22 +1486,30 @@ Function InstallWSL2Common
     Pop $1
     Pop $2
 
-    Push "WSL($SELECTED_DISTRO): Installing Docker components (2/3)..."
-    Call LogPrint
-    Push "Please be patient - installing Docker components..."
-    Call LogPrint
     ${If} $INSTALL_OPTION == "wsl2-docker-ce"
-        nsExec::ExecToStack 'wsl -d $SELECTED_DISTRO -u root bash /tmp/apt_install_with_log.sh docker docker-ce docker-ce-cli containerd.io'
-    ${Else}
-        nsExec::ExecToStack 'wsl -d $SELECTED_DISTRO -u root bash /tmp/apt_install_with_log.sh docker-cli docker-ce-cli'
-    ${EndIf}
-    Pop $1
-    Pop $2
-    ${If} $1 != 0
-        Push "ERROR: Failed to install Docker components - exit code: $1, output: $2"
+        Push "WSL($SELECTED_DISTRO): Installing Docker components (2/3)..."
         Call LogPrint
-        Push "Failed to install Docker components. Error: $2"
-        Call ShowErrorAndAbort
+        Push "Please be patient - installing Docker components..."
+        Call LogPrint
+        nsExec::ExecToStack 'wsl -d $SELECTED_DISTRO -u root bash /tmp/apt_install_with_log.sh docker docker-ce docker-ce-cli containerd.io'
+        Pop $1
+        Pop $2
+        ${If} $1 != 0
+            Push "ERROR: Failed to install Docker components - exit code: $1, output: $2"
+            Call LogPrint
+            Push "Failed to install Docker components. Error: $2"
+            Call ShowErrorAndAbort
+        ${EndIf}
+    ${Else}
+        ; docker-desktop mode: Docker and the docker CLI are provided by Docker
+        ; Desktop's WSL2 integration. Do NOT install docker-ce-cli here — it owns
+        ; /usr/bin/docker, exactly where Docker Desktop injects its integration
+        ; symlink. Installing it clobbers the integration and breaks `docker`
+        ; mid-install until Docker Desktop re-injects, so the `ddev version` check
+        ; fails with a docker 500. Mirrors the ps1 docker-desktop path, which
+        ; installs only ddev.
+        Push "WSL($SELECTED_DISTRO): Skipping Docker package install — provided by Docker Desktop (2/3)..."
+        Call LogPrint
     ${EndIf}
 
     ; Update status
