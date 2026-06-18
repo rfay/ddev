@@ -13,15 +13,18 @@ set -eu -o pipefail
 # Disable git pager
 export GIT_PAGER=""
 
-# On Windows: ensure Docker Desktop is running when this job exits AND that it
-# survives Buildkite Windows Job Object teardown so the next job finds it up.
-# trap EXIT fires regardless of success, failure, or set -e early exit.
-#
-# Anything launched inside the job (docker desktop start/restart, Start-Process)
-# is killed at job teardown — confirmed on the tb-win11 runners. So at exit we
-# relaunch Docker Desktop via a scheduled task, which Task Scheduler runs OUTSIDE
-# the job object (see start-docker-desktop-detached.sh). Diagnostics are dumped
-# before and after so we can see exactly what happened to Docker Desktop.
+# On Windows: at job exit, DO NOT touch Docker Desktop's run state — only dump
+# diagnostics. We previously stopped + relaunched Docker Desktop here (via a
+# scheduled task) to make it survive Buildkite Job Object teardown, but that
+# churn destabilized Docker Desktop: stopping it truncated the shared
+# /mnt/wsl/docker-desktop/docker-desktop-user-distro proxy binary to 0 bytes,
+# and the headless relaunch failed to re-copy it — leaving an unrecoverable
+# 0-byte stub that breaks WSL2 integration for ALL distros (DD's own "Restart
+# the WSL integration" cannot rebuild it; in one case Docker Desktop became
+# unstoppable and the runner had to be rebooted). Leaving Docker Desktop
+# completely alone is the fix: if it dies with the job object, the next job's
+# sanetestbot.sh does a clean full start, which re-copies the proxy binary
+# correctly. trap EXIT fires on success, failure, or set -e early exit.
 if command -v wsl.exe >/dev/null 2>&1; then
     # Best-effort distro for diagnostics, derived from the matrix case.
     case "${INSTALLER_CASE:-}" in
@@ -29,10 +32,8 @@ if command -v wsl.exe >/dev/null 2>&1; then
         ps1-docker-desktop) DIAG_DISTRO="ddev-test-ubuntu-desktop" ;;
         *)                  DIAG_DISTRO="" ;;
     esac
-    trap 'echo "=== installer-test EXIT trap: making Docker Desktop survive for the next job ===";
-        bash "$(dirname "$0")/dump-docker-desktop-state.sh" "'"${DIAG_DISTRO}"'" "trap-entry" || true;
-        bash "$(dirname "$0")/start-docker-desktop-detached.sh" || true;
-        bash "$(dirname "$0")/dump-docker-desktop-state.sh" "'"${DIAG_DISTRO}"'" "trap-after-relaunch" || true' EXIT
+    trap 'echo "=== installer-test EXIT trap: Docker Desktop state at job exit (read-only diagnostics) ===";
+        bash "$(dirname "$0")/dump-docker-desktop-state.sh" "'"${DIAG_DISTRO}"'" "job-exit" || true' EXIT
 fi
 
 # Note: [skip ci]/[skip buildkite] gating is handled by the step `if` in
