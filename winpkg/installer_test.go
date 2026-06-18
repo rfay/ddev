@@ -143,28 +143,13 @@ func waitForDockerDesktopWSL2Integration(t *testing.T, distro string) bool {
 		return true
 	}
 
-	// Before the heavy full restart, try the lightweight re-inject: run Docker
-	// Desktop's own per-distro proxy (the command behind the GUI "Restart the
-	// WSL integration" button) to recreate /usr/bin/docker and the per-distro
-	// agent WITHOUT restarting Docker Desktop — avoiding both the ~30-120s
-	// restart and the Buildkite Job-Object rebind. See, with sources,
-	// .buildkite/restore-wsl-integration.sh.
-	t.Logf("Docker Desktop WSL2 integration absent for %s — trying lightweight proxy re-inject before full restart", distro)
-	if reWd, reErr := os.Getwd(); reErr == nil {
-		restoreScript := filepath.Join(reWd, "..", ".buildkite", "restore-wsl-integration.sh")
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		restoreOut, restoreErr := osexec.CommandContext(ctx, "bash", restoreScript, distro).CombinedOutput()
-		cancel()
-		t.Logf("restore-wsl-integration output:\n%s", string(restoreOut))
-		if restoreErr == nil {
-			t.Logf("Docker Desktop WSL2 integration restored for %s via proxy re-inject (no restart)", distro)
-			return true
-		}
-		t.Logf("Proxy re-inject did not restore integration for %s (%v); falling back to full Docker Desktop restart", distro, restoreErr)
-	}
-
 	// Last resort: full Docker Desktop restart via 'docker desktop restart',
 	// which re-injects the /usr/bin/docker integration symlink into the distro.
+	// (We dropped the "lightweight proxy re-inject" attempt: it ran Docker
+	// Desktop's own docker-desktop-user-distro proxy binary, but that is exactly
+	// the binary DD itself cannot run in the failure modes we hit — the 0-byte
+	// post-update stub and the noexec/permission cases — so it never succeeded
+	// and only added ~40s before this restart, which does work.)
 	t.Logf("Docker Desktop WSL2 integration absent for %s after wsl-fix-interop — performing full Docker Desktop restart", distro)
 	wd, err := os.Getwd()
 	if err != nil {
