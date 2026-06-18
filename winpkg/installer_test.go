@@ -143,9 +143,8 @@ func waitForDockerDesktopWSL2Integration(t *testing.T, distro string) bool {
 		return true
 	}
 
-	// Last resort: full Docker Desktop restart. restart-docker-desktop.sh stops
-	// Docker Desktop and relaunches the frontend DETACHED (via Start-Process) so
-	// it survives Buildkite job teardown, leaving it running for the next job.
+	// Last resort: full Docker Desktop restart via 'docker desktop restart',
+	// which re-injects the /usr/bin/docker integration symlink into the distro.
 	t.Logf("Docker Desktop WSL2 integration absent for %s after wsl-fix-interop — performing full Docker Desktop restart", distro)
 	wd, err := os.Getwd()
 	if err != nil {

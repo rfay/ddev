@@ -13,25 +13,26 @@ set -eu -o pipefail
 # Disable git pager
 export GIT_PAGER=""
 
-# On Windows: ensure Docker Desktop is running when this job exits so the next
-# job finds it already up. trap EXIT fires regardless of success, failure, or
-# set -e early exit — unlike code at the end of the script which set -e skips.
+# On Windows: ensure Docker Desktop is running when this job exits AND that it
+# survives Buildkite Windows Job Object teardown so the next job finds it up.
+# trap EXIT fires regardless of success, failure, or set -e early exit.
 #
-# If Docker Desktop must be (re)started, launch it DETACHED via Start-Process,
-# never 'docker desktop start'/'restart'. The latter launch Docker Desktop.exe
-# as a child of the Buildkite Windows Job Object, which is killed at job
-# teardown — leaving the next job to find it stopped. sanetestbot.sh and
-# restart-docker-desktop.sh already start it detached, so an already-running
-# instance here is detached and we leave it alone.
+# Anything launched inside the job (docker desktop start/restart, Start-Process)
+# is killed at job teardown — confirmed on the tb-win11 runners. So at exit we
+# relaunch Docker Desktop via a scheduled task, which Task Scheduler runs OUTSIDE
+# the job object (see start-docker-desktop-detached.sh). Diagnostics are dumped
+# before and after so we can see exactly what happened to Docker Desktop.
 if command -v wsl.exe >/dev/null 2>&1; then
-    trap 'if docker desktop status 2>&1 | grep -qi "Status[[:space:]]*running"; then
-        echo "Docker Desktop already running at job exit.";
-    else
-        echo "Starting Docker Desktop (detached) for next job...";
-        powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
-          "Start-Process -FilePath \"\$env:PROGRAMFILES\\Docker\\Docker\\Docker Desktop.exe\" -PassThru | Out-Null" 2>/dev/null \
-          || docker desktop start || true;
-    fi' EXIT
+    # Best-effort distro for diagnostics, derived from the matrix case.
+    case "${INSTALLER_CASE:-}" in
+        ddev-test-*)        DIAG_DISTRO="${INSTALLER_CASE}" ;;
+        ps1-docker-desktop) DIAG_DISTRO="ddev-test-ubuntu-desktop" ;;
+        *)                  DIAG_DISTRO="" ;;
+    esac
+    trap 'echo "=== installer-test EXIT trap: making Docker Desktop survive for the next job ===";
+        bash "$(dirname "$0")/dump-docker-desktop-state.sh" "'"${DIAG_DISTRO}"'" "trap-entry" || true;
+        bash "$(dirname "$0")/start-docker-desktop-detached.sh" || true;
+        bash "$(dirname "$0")/dump-docker-desktop-state.sh" "'"${DIAG_DISTRO}"'" "trap-after-relaunch" || true' EXIT
 fi
 
 # Note: [skip ci]/[skip buildkite] gating is handled by the step `if` in

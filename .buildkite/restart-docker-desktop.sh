@@ -13,15 +13,8 @@
 # During the stop window, /mnt/c/ (CAROOT) becomes briefly inaccessible to
 # WSL2 processes. DDEV's readCAROOT() silently returns "" in this window,
 # causing DDEV to generate a new CA not trusted by Windows — TLS failures
-# (see https://github.com/ddev/ddev/issues/8485).
-#
-# We also must NOT use 'docker desktop restart' or 'docker desktop start'
-# directly: those launch Docker Desktop.exe as a child of the Buildkite
-# Windows Job Object, so Docker Desktop is killed when the job ends — leaving
-# the next job to find it stopped. Instead we stop via the CLI (atomic, no
-# stale frontend) and relaunch the frontend with PowerShell Start-Process so it
-# detaches from the job object and survives job teardown (same approach as
-# sanetestbot.sh).
+# (see https://github.com/ddev/ddev/issues/8485). Use 'docker desktop restart'
+# instead, which Docker Desktop handles as a single atomic operation.
 #
 # Usage: bash restart-docker-desktop.sh <distro-name>
 # Exit:  0  integration confirmed working in <distro-name>
@@ -54,33 +47,13 @@ wait_for_docker_desktop_running() {
     done
 }
 
-# Stop Docker Desktop, then relaunch the frontend DETACHED from the Buildkite
-# Windows Job Object. 'docker desktop restart'/'start' launch Docker Desktop.exe
-# as a child of the job object, so it is killed when the job ends — leaving the
-# next job to find Docker Desktop stopped. Start-Process detaches it so it
-# survives job teardown (same approach as sanetestbot.sh).
-#
-# The CAROOT-inaccessible window (issue https://github.com/ddev/ddev/issues/8485)
-# is not a concern here: this function returns only after full WSL2 integration
-# is confirmed below, and the installer runs only after that — so no DDEV
-# process reads CAROOT during the stop/start window.
-echo "restart-docker-desktop: stopping Docker Desktop..."
-docker desktop stop >/dev/null 2>&1 || true
+echo "restart-docker-desktop: state BEFORE restart:"
+bash "$(dirname "$0")/dump-docker-desktop-state.sh" "$DISTRO" "before-restart" || true
 
-stop_elapsed=0
-while docker desktop status 2>&1 | grep -qi "Status[[:space:]]*running"; do
-    if [ "$stop_elapsed" -ge 60 ]; then
-        echo "restart-docker-desktop: WARNING: still reports running after ${stop_elapsed}s; relaunching anyway"
-        break
-    fi
-    sleep 5
-    stop_elapsed=$((stop_elapsed + 5))
-done
-
-echo "restart-docker-desktop: starting Docker Desktop (detached) to restore WSL2 integration in $DISTRO..."
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
-  'Start-Process -FilePath "$env:PROGRAMFILES\Docker\Docker\Docker Desktop.exe" -PassThru | Out-Null' 2>/dev/null \
-  || docker desktop start || true
+# Use 'docker desktop restart' as a single atomic operation rather than
+# separate stop+start, to minimize the window where CAROOT is inaccessible.
+echo "restart-docker-desktop: restarting Docker Desktop to restore WSL2 integration in $DISTRO..."
+docker desktop restart || true
 
 wait_for_docker_desktop_running || exit 1
 
@@ -94,10 +67,13 @@ while true; do
     docker ps >/dev/null 2>&1 && win_ok=true
     if [ "$wsl_ok" = "true" ] && [ "$win_ok" = "true" ]; then
         echo "restart-docker-desktop: WSL2 integration confirmed in $DISTRO and Windows docker ps OK (${elapsed}s elapsed)"
+        bash "$(dirname "$0")/dump-docker-desktop-state.sh" "$DISTRO" "integration-restored" || true
         exit 0
     fi
     if [ "$elapsed" -ge "$TIMEOUT_INTEGRATION" ]; then
         echo "restart-docker-desktop: ERROR: timed out after ${TIMEOUT_INTEGRATION}s (wsl_ok=$wsl_ok win_ok=$win_ok)"
+        echo "restart-docker-desktop: state at integration timeout (shows whether the symlink, cli-tools mount, or socket is the problem):"
+        bash "$(dirname "$0")/dump-docker-desktop-state.sh" "$DISTRO" "integration-timeout" || true
         exit 1
     fi
     echo "restart-docker-desktop: waiting... wsl_ok=$wsl_ok win_ok=$win_ok (${elapsed}s)"
