@@ -39,7 +39,7 @@
       - "traditional"
 
       # Manual WSL2 install-script tests (Ubuntu only), gated to ps1 changes:
-      # - "ps1-docker-inside"
+      - "ps1-docker-inside"
       - "ps1-docker-desktop"
 
       - "ddev-test-ubuntu-ce"
