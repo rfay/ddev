@@ -1,0 +1,101 @@
+# Appveyor CI experiment for DDEV - WSL2 capability probe
+# Goal: determine if Appveyor Windows images support WSL2 mirrored networking
+# (which is blocked on GitHub Actions because Windows Server 2025 doesn't support it)
+#
+# Run manually: https://ci.appveyor.com/project/rfay/ddev
+
+version: '{build}'
+
+# Try Visual Studio 2022 first (Windows Server 2022).
+# If mirrored fails there (expected - same problem as GitHub Actions),
+# try changing to a Windows 11 image from:
+# https://www.appveyor.com/docs/build-environment/#operating-systems
+image: Visual Studio 2022
+
+platform: x64
+
+# Only build main and PRs on the rfay fork; don't trigger on every push
+branches:
+  only:
+    - main
+
+environment:
+  DDEV_NO_INSTRUMENTATION: 'true'
+
+# Don't clone - we run our own clone inside WSL2
+clone_script:
+  - ps: Write-Host "Skipping default clone (will clone inside WSL2)"
+
+build: off
+
+init:
+  - ps: |
+      Write-Host "=== Windows Host Info ==="
+      (Get-CimInstance Win32_OperatingSystem).Caption
+      (Get-CimInstance Win32_OperatingSystem).Version
+      Write-Host "Architecture: $env:PROCESSOR_ARCHITECTURE"
+
+  - ps: |
+      Write-Host "=== WSL availability ==="
+      try {
+        wsl --version
+        wsl --status
+      } catch {
+        Write-Host "WSL not available: $_"
+      }
+
+test_script:
+  - ps: |
+      Write-Host "=== Setting WSL2 as default ==="
+      wsl --set-default-version 2
+
+  - ps: |
+      Write-Host "=== Installing Ubuntu WSL2 distro ==="
+      wsl --install --name DDEV --no-launch
+      wsl -d DDEV --user root bash -c "useradd -m -s /bin/bash testuser && echo 'testuser:password' | chpasswd && usermod -aG sudo testuser && printf '[boot]\nsystemd=true\n\n[user]\ndefault=testuser\n' > /etc/wsl.conf"
+      wsl --set-default DDEV
+      Write-Host "Shutting down to enable systemd + default user"
+      wsl --shutdown
+      Start-Sleep -Seconds 5
+      wsl -- bash -c "uname -a && whoami && systemctl is-system-running --wait || true"
+
+  - ps: |
+      Write-Host "=== Probing NAT networking (baseline) ==="
+      wsl -- bash -c "ip addr show eth0 2>/dev/null || ip addr"
+
+  - ps: |
+      Write-Host "=== Attempting mirrored networking ==="
+      $wslconfig = "[wsl2]`nnetworkingMode=mirrored`n`n[experimental]`nhostAddressLoopback=true`n"
+      Set-Content -Path "$env:USERPROFILE\.wslconfig" -Value $wslconfig
+      Write-Host "Created .wslconfig:"
+      Get-Content "$env:USERPROFILE\.wslconfig"
+      wsl --shutdown
+      Start-Sleep -Seconds 5
+      try {
+        wsl -- bash -c "ip addr"
+        Write-Host "MIRRORED MODE: SUCCESS - mirrored networking appears to work"
+      } catch {
+        Write-Host "MIRRORED MODE: FAILED - $_"
+      }
+
+  - ps: |
+      Write-Host "=== Docker CE install probe ==="
+      wsl -u root -- bash -c "
+        apt-get update -qq >/dev/null &&
+        apt-get install -qq -y curl ca-certificates >/dev/null &&
+        install -m 0755 -d /etc/apt/keyrings &&
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc &&
+        chmod a+r /etc/apt/keyrings/docker.asc &&
+        printf 'Types: deb\nURIs: https://download.docker.com/linux/ubuntu\nSuites: %s\nComponents: stable\nSigned-By: /etc/apt/keyrings/docker.asc\n' \$(. /etc/os-release && echo \${UBUNTU_CODENAME:-\$VERSION_CODENAME}) | tee /etc/apt/sources.list.d/docker.sources &&
+        apt-get update -qq >/dev/null &&
+        apt-get install -qq -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin >/dev/null &&
+        systemctl enable --now docker &&
+        docker version
+      "
+
+  - ps: |
+      Write-Host "=== Summary ==="
+      $os = (Get-CimInstance Win32_OperatingSystem).Caption
+      Write-Host "OS: $os"
+      wsl -- bash -c "echo 'WSL distro:' && . /etc/os-release && echo \$PRETTY_NAME && echo 'Kernel:' && uname -r"
+      wsl -- bash -c "docker info --format 'Docker version: {{.ServerVersion}}' 2>/dev/null || echo 'Docker not running'"
