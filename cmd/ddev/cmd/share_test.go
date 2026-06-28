@@ -7,14 +7,17 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/ddev/ddev/pkg/ddevapp"
 	exec2 "github.com/ddev/ddev/pkg/exec"
 	"github.com/ddev/ddev/pkg/nodeps"
+	"github.com/ddev/ddev/pkg/testcommon"
 	"github.com/stretchr/testify/require"
 )
 
@@ -360,6 +363,71 @@ sleep 30
 		time.Sleep(3 * time.Second)
 
 		require.True(t, hookSuccess.Load(), "Pre-share hook should have access to DDEV_SHARE_URL")
+	})
+
+	// Test 2b: Verify the share URL reaches code running inside the web container,
+	// both as a file and as a native PHP getenv("DDEV_SHARE_URL") under php-fpm.
+	t.Run("ShareURLInWebContainer", func(t *testing.T) {
+		const shareURL = "https://web-container-tunnel.example.com"
+
+		app, err := ddevapp.GetActiveApp("")
+		require.NoError(t, err)
+
+		// Drop a probe page into the docroot that echoes getenv("DDEV_SHARE_URL").
+		// The markers let us distinguish "set" from "empty" unambiguously.
+		probe := []byte("<?php echo \"SHAREENV[\" . getenv(\"DDEV_SHARE_URL\") . \"]\";\n")
+		probePath := filepath.Join(app.GetAbsDocroot(false), "share-getenv.php")
+		err = os.WriteFile(probePath, probe, 0644)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			_ = os.Remove(probePath)
+		})
+		probeURL := app.GetPrimaryURL() + "/share-getenv.php"
+
+		mockScript := fmt.Sprintf(`#!/usr/bin/env bash
+echo "%s"
+sleep 30
+`, shareURL)
+		mockPath := site.Dir + "/.ddev/share-providers/web-container-test.sh"
+		err = os.WriteFile(mockPath, []byte(mockScript), 0755)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			_ = os.Remove(mockPath)
+		})
+
+		cmd := exec.Command(DdevBin, "share", "--provider=web-container-test")
+		err = cmd.Start()
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			_ = pKill(cmd)
+			_ = cmd.Wait()
+		})
+
+		// Wait for ddev share to capture the URL and inject it into the container.
+		time.Sleep(5 * time.Second)
+
+		// The file should exist in the web container with the share URL.
+		out, err := exec.Command(DdevBin, "exec", "cat", ShareURLContainerFile).CombinedOutput()
+		require.NoError(t, err, "output: %s", string(out))
+		require.Equal(t, shareURL, strings.TrimSpace(string(out)))
+
+		// PHP under php-fpm should see it via getenv(). Retry to absorb file sync
+		// and the php-fpm graceful reload.
+		testcommon.RequireLocalHTTPContent(t, probeURL, "SHAREENV["+shareURL+"]",
+			testcommon.WithMaxAttempts(30), testcommon.WithBackoff(time.Second))
+
+		// End the share session gracefully (as Ctrl-C would) so that post-share
+		// cleanup runs. A SIGKILL (pKill) would bypass cleanup, so signal
+		// os.Interrupt and wait for exit instead.
+		err = cmd.Process.Signal(os.Interrupt)
+		require.NoError(t, err)
+		_ = cmd.Wait()
+
+		// The file should be removed and getenv() should be empty again.
+		out, err = exec.Command(DdevBin, "exec", "test", "-f", ShareURLContainerFile).CombinedOutput()
+		require.Error(t, err, "share URL file should be removed after share ends; output: %s", string(out))
+		testcommon.RequireLocalHTTPContent(t, probeURL, "SHAREENV[]",
+			testcommon.WithMaxAttempts(30), testcommon.WithBackoff(time.Second))
 	})
 
 	// Test 3: Provider priority (flag > config > default)

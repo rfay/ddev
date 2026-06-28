@@ -108,6 +108,55 @@ hooks:
         wp search-replace ${DDEV_PRIMARY_URL} ${DDEV_SHARE_URL}
 ```
 
+## Reading the Share URL Inside the Web Container
+
+The `DDEV_SHARE_URL` environment variable is only set on the host (where the tunnel provider runs), so it is not visible by default to code running inside the web container. While a `ddev share` session is active, DDEV bridges the value into the web container in two ways.
+
+### PHP: `getenv("DDEV_SHARE_URL")`
+
+For PHP, the value is available natively via `getenv()` with no extra configuration. DDEV adds it to the active php-fpm pool and gracefully reloads php-fpm when the share starts, so your application code can simply do:
+
+```php
+<?php
+$shareURL = getenv("DDEV_SHARE_URL");
+if ($shareURL) {
+    // A `ddev share` session is active; $shareURL is the public tunnel URL.
+}
+```
+
+This works for both `nginx-fpm` and `apache-fpm` projects, because both run PHP through php-fpm. When the share session ends, the value is removed and php-fpm is reloaded again, so `getenv("DDEV_SHARE_URL")` returns `false` outside of a share.
+
+!!!note "The value is per-request, not baked into cached configuration"
+    `getenv("DDEV_SHARE_URL")` is resolved at request time. Frameworks that read environment variables once and store the result in a compiled or cached configuration (for example a cached site/base URL) will not pick up the share URL until that cache is rebuilt, and the share URL is not known when the cache is built before sharing. For those frameworks, drive behavior from the value at request time instead of injecting it into cached config. For example, in TYPO3 a relative site base variant gated on the share works without touching the cached configuration:
+
+    ```yaml
+    # config/sites/<site>/config.yaml
+    base: 'https://example.ddev.site'
+    baseVariants:
+      - base: '/'
+        condition: 'getenv("DDEV_SHARE_URL")'
+    ```
+
+### Shell hooks and non-PHP code: the file
+
+DDEV also writes the active tunnel URL to a file inside the web container:
+
+```text
+/tmp/ddev-share-url
+```
+
+The file contains only the URL and is removed when the share session ends. This is the source to read from shell hooks (`exec`) or non-PHP runtimes such as Node.js, where the host's `DDEV_SHARE_URL` environment variable is not set:
+
+```yaml
+hooks:
+  pre-share:
+    # exec runs INSIDE the web container, where the host's DDEV_SHARE_URL is
+    # not set; read the file DDEV writes instead.
+    - exec: 'echo "share URL: $(cat /tmp/ddev-share-url)"'
+    # exec-host runs on the HOST, where the env var IS set.
+    - exec-host: 'echo "share URL: ${DDEV_SHARE_URL}"'
+```
+
 ## Troubleshooting Custom Providers
 
 **Provider not found:**

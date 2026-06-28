@@ -174,6 +174,15 @@ ddev share myproject`,
 		// Set DDEV_SHARE_URL environment variable for hooks
 		_ = os.Setenv("DDEV_SHARE_URL", shareURL)
 
+		// Make the share URL available inside the web container. The host's
+		// DDEV_SHARE_URL is not visible inside the container, so it is bridged
+		// here: written to ShareURLContainerFile (for shell hooks and non-PHP
+		// code) and injected into the php-fpm pool so PHP getenv("DDEV_SHARE_URL")
+		// returns it. Done before pre-share hooks so hooks can rely on it.
+		if err = writeShareURLToWeb(app, shareURL); err != nil {
+			util.Warning("Failed to make share URL available in web container: %v", err)
+		}
+
 		// Process pre-share hooks NOW (after URL is captured)
 		// This fixes issue #7784 - hooks can now access DDEV_SHARE_URL
 		err = app.ProcessHooks("pre-share")
@@ -202,6 +211,12 @@ ddev share myproject`,
 			util.Warning("Failed to process post-share hooks: %v", hookErr)
 		}
 
+		// Remove the share URL file from the web container now that the
+		// share session has ended.
+		if rmErr := removeShareURLFromWeb(app); rmErr != nil {
+			util.Warning("Failed to remove share URL from web container: %v", rmErr)
+		}
+
 		// Report provider exit status if non-zero and not killed by signal
 		if err != nil {
 			if exitErr, ok := err.(*exec.ExitError); ok {
@@ -215,6 +230,66 @@ ddev share myproject`,
 
 		os.Exit(0)
 	},
+}
+
+// ShareURLContainerFile is the path inside the web container where `ddev share`
+// writes the active tunnel URL. Code running inside the container that is not
+// PHP-under-php-fpm (for example shell hooks or Node.js) can read this file at
+// request time to obtain the share URL, which is otherwise only available on the
+// host. The file is removed when the share session ends.
+const ShareURLContainerFile = "/tmp/ddev-share-url"
+
+// fpmInjectShareURLScript writes the share URL file and, when php-fpm is present,
+// adds env[DDEV_SHARE_URL] to the active pool and gracefully reloads php-fpm so
+// that PHP getenv("DDEV_SHARE_URL") returns the value natively (no auto_prepend
+// shim required). This works for both nginx-fpm and apache-fpm because both run
+// PHP through php-fpm. The URL arrives via the DDEV_SHARE_URL environment
+// variable to avoid shell injection.
+const fpmInjectShareURLScript = `set -eu
+printf '%s' "$DDEV_SHARE_URL" > ` + ShareURLContainerFile + `
+ver="${DDEV_PHP_VERSION:-}"
+conf="/etc/php/${ver}/fpm/pool.d/www.conf"
+pid="/run/php/php${ver}-fpm.pid"
+if [ -n "$ver" ] && [ -f "$conf" ] && [ -f "$pid" ]; then
+  sed -i '/; ddev-share-url-begin/,/; ddev-share-url-end/d' "$conf"
+  printf '; ddev-share-url-begin\nenv[DDEV_SHARE_URL] = "%s"\n; ddev-share-url-end\n' "$DDEV_SHARE_URL" >> "$conf"
+  kill -USR2 "$(cat "$pid")" || true
+fi`
+
+// fpmRemoveShareURLScript reverses fpmInjectShareURLScript: it removes the share
+// URL file and the env[DDEV_SHARE_URL] pool entry, then reloads php-fpm.
+const fpmRemoveShareURLScript = `set -eu
+rm -f ` + ShareURLContainerFile + `
+ver="${DDEV_PHP_VERSION:-}"
+conf="/etc/php/${ver}/fpm/pool.d/www.conf"
+pid="/run/php/php${ver}-fpm.pid"
+if [ -n "$ver" ] && [ -f "$conf" ]; then
+  sed -i '/; ddev-share-url-begin/,/; ddev-share-url-end/d' "$conf"
+  [ -f "$pid" ] && kill -USR2 "$(cat "$pid")" || true
+fi`
+
+// writeShareURLToWeb makes the share URL available inside the web container: it
+// writes ShareURLContainerFile and injects the URL into the active php-fpm pool,
+// then reloads php-fpm so PHP getenv("DDEV_SHARE_URL") returns it.
+func writeShareURLToWeb(app *ddevapp.DdevApp, shareURL string) error {
+	_, _, err := app.Exec(&ddevapp.ExecOpts{
+		Service:   "web",
+		Cmd:       fpmInjectShareURLScript,
+		Env:       []string{"DDEV_SHARE_URL=" + shareURL},
+		SkipHooks: true,
+	})
+	return err
+}
+
+// removeShareURLFromWeb removes the share URL file and php-fpm pool entry, then
+// reloads php-fpm.
+func removeShareURLFromWeb(app *ddevapp.DdevApp) error {
+	_, _, err := app.Exec(&ddevapp.ExecOpts{
+		Service:   "web",
+		Cmd:       fpmRemoveShareURLScript,
+		SkipHooks: true,
+	})
+	return err
 }
 
 func init() {
