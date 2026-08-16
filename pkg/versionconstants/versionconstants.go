@@ -28,10 +28,10 @@ var AmplitudeAPIKey = ""
 var WebImg = "ddev/ddev-webserver"
 
 // WebTag defines the default web image tag
-var WebTag = "c202e92108" // 20260814_rfay_docker_update_phase_2-c202e92108
+var WebTag = "370f47913b" // 20260816_rfay_test4_fork_multi_image-370f47913b
 
 // WebTagBranch is the branch WebTag's content was built from.
-var WebTagBranch = "20260814_rfay_docker_update_phase_2"
+var WebTagBranch = "20260816_rfay_test4_fork_multi_image"
 
 // DBImg defines the default db image used for applications.
 var DBImg = "ddev/ddev-dbserver"
@@ -46,19 +46,19 @@ var BaseDBTagBranch = "20260814_rfay_docker_update_phase_2"
 var TraefikRouterImage = "ddev/ddev-traefik-router"
 
 // TraefikRouterTag is traefik router tag
-var TraefikRouterTag = "bffcda31c5" // 20260814_rfay_docker_update_phase_2-bffcda31c5
+var TraefikRouterTag = "1e79e9017f" // 20260816_rfay_test4_fork_multi_image-1e79e9017f
 
 // TraefikRouterTagBranch is the branch TraefikRouterTag's content was built from.
-var TraefikRouterTagBranch = "20260814_rfay_docker_update_phase_2"
+var TraefikRouterTagBranch = "20260816_rfay_test4_fork_multi_image"
 
 // SSHAuthImage is image for agent
 var SSHAuthImage = "ddev/ddev-ssh-agent"
 
 // SSHAuthTag is ssh-agent auth tag
-var SSHAuthTag = "bb5e9f0003" // 20260814_rfay_docker_update_phase_2-bb5e9f0003
+var SSHAuthTag = "5b9c29ad26" // 20260816_rfay_test4_fork_multi_image-5b9c29ad26
 
 // SSHAuthTagBranch is the branch SSHAuthTag's content was built from.
-var SSHAuthTagBranch = "20260814_rfay_docker_update_phase_2"
+var SSHAuthTagBranch = "20260816_rfay_test4_fork_multi_image"
 
 // XhguiImage is image for xhgui
 var XhguiImage = "ddev/ddev-xhgui"

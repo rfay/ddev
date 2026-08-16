@@ -10,5 +10,6 @@ RUN chmod ugo+rx /usr/local/bin/monitor-traefik-stderr.sh /usr/local/bin/docker-
 # Make Traefik commands work without --configFile by using default location
 # https://doc.traefik.io/traefik/getting-started/configuration-overview/#configuration-file
 RUN mkdir -p /etc/traefik && ln -s /mnt/ddev-global-cache/traefik/.static_config.yaml /etc/traefik/traefik.yaml
+# test: trivial fork PR change for #8609 phase 2 manual test 4
 HEALTHCHECK --interval=1s --timeout=120s --retries=1 --start-period=120s CMD /healthcheck.sh
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh", "/usr/local/bin/traefik"]

@@ -539,6 +539,7 @@ RUN chmod -f ugo+rx /usr/local/bin /usr/local/bin/* && \
 
 RUN chmod ugo+w /etc/ssl/certs /usr/local/share/ca-certificates
 
+# test: trivial fork PR change for #8609 phase 2 manual test 4
 HEALTHCHECK --interval=1s --retries=120 --timeout=120s --start-period=120s CMD ["/healthcheck.sh"]
 CMD ["/start.sh"]
 RUN apt-get -qq clean -y && rm -rf /var/lib/apt/lists/* /tmp/*
