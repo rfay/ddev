@@ -55,10 +55,10 @@ var TraefikRouterTagBranch = "20260814_rfay_docker_update_phase_2"
 var SSHAuthImage = "ddev/ddev-ssh-agent"
 
 // SSHAuthTag is ssh-agent auth tag
-var SSHAuthTag = "bb5e9f0003" // 20260814_rfay_docker_update_phase_2-bb5e9f0003
+var SSHAuthTag = "c98b5f7c0e" // 20260817_rfay_test13_dockerorg_realvalue-c98b5f7c0e
 
 // SSHAuthTagBranch is the branch SSHAuthTag's content was built from.
-var SSHAuthTagBranch = "20260814_rfay_docker_update_phase_2"
+var SSHAuthTagBranch = "20260817_rfay_test13_dockerorg_realvalue"
 
 // XhguiImage is image for xhgui
 var XhguiImage = "ddev/ddev-xhgui"

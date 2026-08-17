@@ -27,6 +27,7 @@ getent passwd "$(id -u)" >/dev/null 2>&1 || PS1='${debian_chroot:+($debian_chroo
 BASHRC
 EOF
 
+# test: trivial fork PR change for #8609 phase 2 manual test 13 (real DOCKER_ORG value verification)
 HEALTHCHECK --interval=1s --retries=5 --timeout=120s CMD ["/healthcheck.sh"]
 
 VOLUME ${SOCKET_DIR}
