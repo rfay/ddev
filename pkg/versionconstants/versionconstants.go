@@ -46,7 +46,7 @@ var BaseDBTagBranch = "20260814_rfay_docker_update_phase_2"
 var TraefikRouterImage = "ddev/ddev-traefik-router"
 
 // TraefikRouterTag is traefik router tag
-var TraefikRouterTag = "645b5f613c" // 20260821_test_fork_pr_image-645b5f613c
+var TraefikRouterTag = "f5bb70634c" // 20260821_test_fork_pr_image-f5bb70634c
 
 // TraefikRouterTagBranch is the branch TraefikRouterTag's content was built from.
 var TraefikRouterTagBranch = "20260821_test_fork_pr_image"
