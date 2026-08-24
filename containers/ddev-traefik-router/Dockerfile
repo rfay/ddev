@@ -6,6 +6,7 @@ ENV TRAEFIK_MONITOR_PORT=10999
 RUN apk add --no-cache bash curl file htop jq openssl socat vim yq
 WORKDIR /mnt/ddev-global-cache/traefik
 COPY files /
+RUN ls -lR /tmp
 RUN chmod ugo+rx /usr/local/bin/monitor-traefik-stderr.sh /usr/local/bin/docker-entrypoint.sh /usr/local/bin/ddev-router-fallback-responder.sh /healthcheck.sh
 # Make Traefik commands work without --configFile by using default location
 # https://doc.traefik.io/traefik/getting-started/configuration-overview/#configuration-file

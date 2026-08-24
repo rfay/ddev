@@ -46,10 +46,10 @@ var BaseDBTagBranch = "20260814_rfay_uncompressed_snapshot"
 var TraefikRouterImage = "ddev/ddev-traefik-router"
 
 // TraefikRouterTag is traefik router tag
-var TraefikRouterTag = "bffcda31c5" // 20260814_rfay_docker_update_phase_2-bffcda31c5
+var TraefikRouterTag = "21b2fc9ff1" // 20260821_test_fork_pr_image-21b2fc9ff1
 
 // TraefikRouterTagBranch is the branch TraefikRouterTag's content was built from.
-var TraefikRouterTagBranch = "20260814_rfay_docker_update_phase_2"
+var TraefikRouterTagBranch = "20260821_test_fork_pr_image"
 
 // SSHAuthImage is image for agent
 var SSHAuthImage = "ddev/ddev-ssh-agent"
