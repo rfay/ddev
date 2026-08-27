@@ -49,46 +49,46 @@ func IsUnreleasedDdevVersion(version string) bool {
 var WebImg = "ddev/ddev-webserver"
 
 // WebTag defines the default web image tag
-var WebTag = "c202e92108" // 20260814_rfay_docker_update_phase_2-c202e92108
+var WebTag = "80e88ee9ed" // 20260827_dummy_release-80e88ee9ed
 
 // WebTagBranch is the branch WebTag's content was built from.
-var WebTagBranch = "20260814_rfay_docker_update_phase_2"
+var WebTagBranch = "v1.106.5"
 
 // DBImg defines the default db image used for applications.
 var DBImg = "ddev/ddev-dbserver"
 
 // BaseDBTag is the main tag, DBTag is constructed from it
-var BaseDBTag = "f57cd53429" // 20260814_rfay_seed_snapshot_reset_database-f57cd53429
+var BaseDBTag = "3f62866d44" // 20260827_dummy_release-3f62866d44
 
 // BaseDBTagBranch is the branch BaseDBTag's content was built from.
-var BaseDBTagBranch = "20260814_rfay_seed_snapshot_reset_database"
+var BaseDBTagBranch = "v1.106.5"
 
 // TraefikRouterImage is image for router
 var TraefikRouterImage = "ddev/ddev-traefik-router"
 
 // TraefikRouterTag is traefik router tag
-var TraefikRouterTag = "bffcda31c5" // 20260814_rfay_docker_update_phase_2-bffcda31c5
+var TraefikRouterTag = "b78325298c" // 20260827_dummy_release-b78325298c
 
 // TraefikRouterTagBranch is the branch TraefikRouterTag's content was built from.
-var TraefikRouterTagBranch = "20260814_rfay_docker_update_phase_2"
+var TraefikRouterTagBranch = "v1.106.5"
 
 // SSHAuthImage is image for agent
 var SSHAuthImage = "ddev/ddev-ssh-agent"
 
 // SSHAuthTag is ssh-agent auth tag
-var SSHAuthTag = "bb5e9f0003" // 20260814_rfay_docker_update_phase_2-bb5e9f0003
+var SSHAuthTag = "33b85f06e9" // 20260827_dummy_release-33b85f06e9
 
 // SSHAuthTagBranch is the branch SSHAuthTag's content was built from.
-var SSHAuthTagBranch = "20260814_rfay_docker_update_phase_2"
+var SSHAuthTagBranch = "v1.106.5"
 
 // XhguiImage is image for xhgui
 var XhguiImage = "ddev/ddev-xhgui"
 
 // XhguiTag is xhgui tag
-var XhguiTag = "8757c1e92a" // 20260814_rfay_docker_update_phase_2-8757c1e92a
+var XhguiTag = "ac1054b679" // 20260827_dummy_release-ac1054b679
 
 // XhguiTagBranch is the branch XhguiTag's content was built from.
-var XhguiTagBranch = "20260814_rfay_docker_update_phase_2"
+var XhguiTagBranch = "v1.106.5"
 
 // UtilitiesImage is used in bash scripts
 var UtilitiesImage = "ddev/ddev-utilities:latest"
