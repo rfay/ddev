@@ -11,4 +11,10 @@ func TestResolveImageTag(t *testing.T) {
 	require.Equal(t, "c202e92108", resolveImageTag("c202e92108", "20260814_rfay_docker_update_phase_2"))
 	require.Equal(t, "c202e92108", resolveImageTag("c202e92108", ""))
 	require.Equal(t, "abc123", resolveImageTag("abc123", "v1.25.4-15-gabcdef1"))
+
+	require.Equal(t, "v1.25.4-rc1", resolveImageTag("c202e92108", "v1.25.4-rc1"))
+	require.Equal(t, "v1.25.4-alpha1", resolveImageTag("c202e92108", "v1.25.4-alpha1"))
+	require.Equal(t, "v1.26.0-beta2", resolveImageTag("c202e92108", "v1.26.0-beta2"))
+	require.Equal(t, "c202e92108", resolveImageTag("c202e92108", "v1.25.4-dirty"))
+	require.Equal(t, "c202e92108", resolveImageTag("c202e92108", "v1.25.4-preview1"))
 }

@@ -14,14 +14,16 @@ import (
 // which of its image generations a pinned webimage/dbimage came from.
 const DdevImageTagLabel = "com.ddev.image-tag"
 
-// releaseTagPattern matches a vX.Y.Z release tag.
-var releaseTagPattern = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
+// releaseTagPattern matches vX.Y.Z, or a prerelease like v1.25.4-rc1. Naming
+// the kinds keeps `git describe`'s v1.25.4-15-gabcdef1 out. Also in
+// release-prep.sh and release-marker.sh.
+var releaseTagPattern = regexp.MustCompile(`^v\d+\.\d+\.\d+(-(alpha|beta|rc)[\d.]*)?$`)
 
-// resolveImageTag prefers branch over tag when branch is a vX.Y.Z release
+// resolveImageTag prefers branch over tag when branch is a release
 // tag. release-prep.sh stamps <TagVar>Branch with the release tag while
 // leaving <TagVar> as the content hash autotag.sh relies on, but both
-// resolve to the identical manifest, so a released binary can pull by the
-// readable tag.
+// resolve to the identical manifest, so a release names its own tag in
+// `ddev version` and `docker images` rather than a hash nobody recognizes.
 func resolveImageTag(tag, branch string) string {
 	if releaseTagPattern.MatchString(branch) {
 		return branch
