@@ -3,6 +3,7 @@ package docker
 import (
 	"testing"
 
+	"github.com/ddev/ddev/pkg/nodeps"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,4 +18,22 @@ func TestResolveImageTag(t *testing.T) {
 	require.Equal(t, "v1.26.0-beta2", resolveImageTag("c202e92108", "v1.26.0-beta2"))
 	require.Equal(t, "c202e92108", resolveImageTag("c202e92108", "v1.25.4-dirty"))
 	require.Equal(t, "c202e92108", resolveImageTag("c202e92108", "v1.25.4-preview1"))
+}
+
+func TestImageRepoDockerOrg(t *testing.T) {
+	require.Equal(t, "ddev/ddev-webserver", imageRepo("ddev/ddev-webserver"))
+
+	t.Setenv(dockerOrgEnvVar, "ddevhq")
+	require.Equal(t, "ddevhq/ddev-webserver", imageRepo("ddev/ddev-webserver"))
+	require.Equal(t, "postgres", imageRepo("postgres"))
+
+	require.Regexp(t, `^ddevhq/ddev-webserver:`, GetWebImage())
+	require.Regexp(t, `^ddevhq/ddev-dbserver-mariadb-11\.8:`, GetDBImage(nodeps.MariaDB, nodeps.MariaDB118))
+	require.Regexp(t, `^ddevhq/ddev-ssh-agent:`, GetSSHAuthImage())
+	require.Regexp(t, `^ddevhq/ddev-traefik-router:`, GetRouterImage())
+	require.Regexp(t, `^ddevhq/ddev-xhgui:`, GetXhguiImage())
+	require.Equal(t, "postgres:17", GetDBImage(nodeps.Postgres, nodeps.Postgres17))
+
+	t.Setenv(dockerOrgEnvVar, "")
+	require.Equal(t, "ddev/ddev-webserver", imageRepo("ddev/ddev-webserver"))
 }
