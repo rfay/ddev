@@ -1,131 +1,112 @@
 package ddevapp
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 
 	composeTypes "github.com/compose-spec/compose-go/v2/types"
-	"github.com/moby/buildkit/frontend/dockerfile/instructions"
-	"github.com/moby/buildkit/frontend/dockerfile/parser"
-	"github.com/moby/buildkit/frontend/dockerfile/shell"
+	"github.com/containerd/platforms"
+	"github.com/distribution/reference"
+	"github.com/moby/buildkit/client/llb/sourceresolver"
+	"github.com/moby/buildkit/frontend/dockerfile/dockerfile2llb"
+	digest "github.com/opencontainers/go-digest"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// describeImageForService returns the image name to show in `ddev describe`
-// for a service, preferring its Dockerfile-derived base image(s) over the
-// legacy "-<project>-built" tag-suffix guess.
-func describeImageForService(service composeTypes.ServiceConfig, fallbackImage, appName string) string {
-	return describeImageForServiceWithEnvironment(service, fallbackImage, appName, nil)
-}
-
-func describeImageForServiceWithEnvironment(service composeTypes.ServiceConfig, fallbackImage, appName string, environment composeTypes.Mapping) string {
-	if baseImages := resolveBuildBaseImagesWithEnvironment(service, environment); len(baseImages) > 0 {
-		return strings.Join(baseImages, ", ")
+// describeServiceImage names a service's image for `ddev describe`: its build
+// base images when it has any, otherwise its image without the "-built" suffix.
+func (app *DdevApp) describeServiceImage(serviceName, image string) string {
+	if app.ComposeYaml != nil {
+		if baseImages := resolveBuildBaseImages(app.ComposeYaml.Services[serviceName]); len(baseImages) > 0 {
+			return strings.Join(baseImages, ", ")
+		}
 	}
-	return strings.TrimSuffix(fallbackImage, fmt.Sprintf("-%s-built", appName))
+	return strings.TrimSuffix(image, fmt.Sprintf("-%s-built", app.Name))
 }
 
-// resolveBuildBaseImages returns the external, pullable base images a compose
-// service's `build:` section resolves to, by reading the Dockerfile itself
-// (or `dockerfile_inline`) instead of trying to derive it from the service's
-// `image:` tag. That tag is only ever a local name chosen by the project or
-// add-on author and isn't a reliable source for the upstream image DDEV needs
-// to pre-pull.
-//
-// It returns nil when the service has no build section, or when the
-// Dockerfile can't be read or parsed, so callers can fall back to their
-// existing image-name-derived behavior.
+// resolveBuildBaseImages returns the images a compose service's `build:`
+// section pulls, read from its Dockerfile instead of guessed from its `image:`
+// tag. BuildKit's own Dockerfile frontend does the resolution, so the result
+// matches a real build. It returns nil when there is no build section or the
+// Dockerfile can't be read or parsed, and an empty slice for `FROM scratch`.
 func resolveBuildBaseImages(service composeTypes.ServiceConfig) []string {
-	return resolveBuildBaseImagesWithEnvironment(service, nil)
-}
-
-func resolveBuildBaseImagesWithEnvironment(service composeTypes.ServiceConfig, environment composeTypes.Mapping) []string {
 	if service.Build == nil {
 		return nil
 	}
+	content, err := readDockerfile(service.Build)
+	if err != nil {
+		return nil
+	}
+	targets, err := platforms.ParseAll(service.Build.Platforms)
+	if err != nil {
+		return nil
+	}
+	// Compose builds for the host unless `build.platforms` is set. The host is
+	// passed as the build platform too, or BuildKit would use the target there.
+	host := []ocispecs.Platform{platforms.DefaultSpec()}
+	if len(targets) == 0 {
+		targets = host
+	}
 
-	var content []byte
-	if service.Build.DockerfileInline != "" {
-		content = []byte(service.Build.DockerfileInline)
-	} else {
-		dockerfile := service.Build.Dockerfile
-		if dockerfile == "" {
-			dockerfile = "Dockerfile"
-		}
-		// service.Build.Context is resolved to an absolute path by the
-		// compose loader by the time app.ComposeYaml is populated.
-		b, err := os.ReadFile(filepath.Join(service.Build.Context, dockerfile))
+	recorder := &baseImageRecorder{images: []string{}, contexts: service.Build.AdditionalContexts}
+	for _, target := range targets {
+		_, err := dockerfile2llb.Dockerfile2LLB(context.Background(), content, dockerfile2llb.ConvertOpt{
+			BuildArgs:      service.Build.Args.ToMapping(),
+			Target:         service.Build.Target,
+			BuildPlatforms: host,
+			TargetPlatform: &target,
+			MetaResolver:   recorder,
+		})
 		if err != nil {
 			return nil
 		}
-		content = b
 	}
+	slices.Sort(recorder.images)
+	return slices.Compact(recorder.images)
+}
 
-	result, err := parser.Parse(strings.NewReader(string(content)))
+// readDockerfile returns a build's inline Dockerfile, or reads the one it
+// names, which compose resolves against the build context.
+func readDockerfile(build *composeTypes.BuildConfig) ([]byte, error) {
+	if build.DockerfileInline != "" {
+		return []byte(build.DockerfileInline), nil
+	}
+	dockerfile := build.Dockerfile
+	if !filepath.IsAbs(dockerfile) {
+		dockerfile = filepath.Join(build.Context, dockerfile)
+	}
+	return os.ReadFile(dockerfile)
+}
+
+// baseImageRecorder stands in for BuildKit's registry lookup: it records each
+// image the Dockerfile needs and answers with an empty config, so nothing is
+// fetched. BuildKit calls it from several goroutines at once.
+type baseImageRecorder struct {
+	mu       sync.Mutex
+	images   []string
+	contexts composeTypes.Mapping
+}
+
+func (r *baseImageRecorder) ResolveImageConfig(_ context.Context, ref string, _ sourceresolver.Opt) (string, digest.Digest, []byte, error) {
+	named, err := reference.ParseNormalizedNamed(ref)
 	if err != nil {
-		return nil
+		return "", "", nil, err
 	}
-	stages, metaArgs, err := instructions.Parse(result.AST, nil)
-	if err != nil {
-		return nil
-	}
-
-	// ARGs usable in a FROM line are only those declared at the top of the
-	// Dockerfile (before the first stage); a compose `build.args` value
-	// overrides the Dockerfile's own default, same as `docker build --build-arg`.
-	// Each raw value is itself run through the shell lexer as it's added, so
-	// quoting (`ARG X="scratch"`) and any reference to an earlier ARG resolve
-	// the same way BuildKit resolves them.
-	lex := shell.NewLex('\\')
-	env := map[string]string{}
-	setArg := func(key, rawValue string) {
-		var envSlice []string
-		for k, v := range env {
-			envSlice = append(envSlice, k+"="+v)
-		}
-		expanded, _, err := lex.ProcessWord(rawValue, shell.EnvsFromSlice(envSlice))
-		if err != nil {
-			expanded = rawValue
-		}
-		env[key] = expanded
-	}
-	for _, a := range metaArgs {
-		for _, kv := range a.Args {
-			if kv.Value != nil {
-				setArg(kv.Key, *kv.Value)
-			}
+	image := reference.FamiliarString(named)
+	// A compose `additional_contexts` entry replaces the image of that name,
+	// matched without the ":latest" BuildKit adds to an untagged name.
+	if source, ok := r.contexts[strings.TrimSuffix(image, ":latest")]; ok {
+		if image, ok = strings.CutPrefix(source, "docker-image://"); !ok {
+			return ref, "", []byte("{}"), nil
 		}
 	}
-	for k, v := range service.Build.Args {
-		if v != nil {
-			setArg(k, *v)
-		} else if value, ok := environment[k]; ok {
-			setArg(k, value)
-		}
-	}
-	var envSlice []string
-	for k, v := range env {
-		envSlice = append(envSlice, k+"="+v)
-	}
-
-	stageNames := map[string]bool{}
-	seen := map[string]bool{}
-	var images []string
-	for _, s := range stages {
-		base, _, err := lex.ProcessWord(s.BaseName, shell.EnvsFromSlice(envSlice))
-		if err != nil || base == "" {
-			continue
-		}
-		// A stage can be based on an earlier named stage instead of an
-		// upstream image; that's not something to pull.
-		if !stageNames[base] && !seen[base] {
-			seen[base] = true
-			images = append(images, base)
-		}
-		if s.Name != "" {
-			stageNames[s.Name] = true
-		}
-	}
-	return images
+	r.mu.Lock()
+	r.images = append(r.images, image)
+	r.mu.Unlock()
+	return ref, "", []byte("{}"), nil
 }
