@@ -2356,19 +2356,30 @@ func (app *DdevApp) FindServiceImages(serviceNames []string) ([]string, error) {
 	if app.ComposeYaml == nil || app.ComposeYaml.Services == nil {
 		return images, nil
 	}
+	localImages := builtImages(app.ComposeYaml)
 	for name, service := range app.ComposeYaml.Services {
 		if len(serviceNames) > 0 && !slices.Contains(serviceNames, name) {
 			continue
 		}
-		if baseImages := resolveBuildBaseImages(service); baseImages != nil {
-			images = append(images, baseImages...)
+		if baseImages := app.buildBaseImages(name); baseImages != nil {
+			for _, image := range baseImages {
+				if !localImages[image] {
+					images = append(images, image)
+				}
+			}
 			continue
 		}
 		image := service.Image
 		if image == "" {
 			continue
 		}
-		if before, ok := strings.CutSuffix(image, "-built"); ok {
+		before, built := strings.CutSuffix(image, "-built")
+		// An unresolvable build, such as one with a remote context, has a
+		// local tag no registry has unless it follows the "-built" convention.
+		if service.Build != nil && !built {
+			continue
+		}
+		if built {
 			image = before
 			if before, ok := strings.CutSuffix(image, "-"+app.Name); ok {
 				image = before
