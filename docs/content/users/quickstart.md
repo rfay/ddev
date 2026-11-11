@@ -3166,6 +3166,117 @@ DDEV automatically updates or creates the `.env.local` file with the database in
         ./setup-tempest.sh
         ```
 
+## Topcoat (Rust, Generic)
+
+[Topcoat](https://github.com/tokio-rs/topcoat) is a full-stack Rust web framework. This quickstart installs Rust and the `topcoat` CLI into the web image and runs `topcoat dev`, which rebuilds and restarts the app when you change its source. The recommended setup stores its data in SQLite, so DDEV's database container is not needed.
+
+Create the project directory and configure DDEV. Cargo's build output goes into the `ddev-global-cache` volume rather than the project, so it survives restarts and is not synced back to the host:
+
+```bash
+export TOPCOAT_SITENAME=my-topcoat-site
+mkdir -p ${TOPCOAT_SITENAME} && cd ${TOPCOAT_SITENAME}
+ddev config --project-type=generic --webserver-type=generic \
+    --webimage-extra-packages=build-essential \
+    --web-environment-add=CARGO_TARGET_DIR=/mnt/ddev-global-cache/topcoat/${TOPCOAT_SITENAME}/target \
+    --omit-containers=db
+```
+
+Add Rust, the `topcoat` CLI and the `topcoat dev` server to the DDEV configuration:
+
+```bash
+cat <<'EOF' > .ddev/web-build/Dockerfile.topcoat
+ENV RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo
+RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --no-modify-path \
+    && /usr/local/cargo/bin/cargo install --locked topcoat-cli \
+    && chmod -R a+rwX /usr/local/rustup /usr/local/cargo \
+    && echo 'export PATH="/usr/local/cargo/bin:$PATH"' > /etc/bashrc/topcoat.bashrc
+EOF
+cat <<'EOF' > .ddev/config.topcoat.yaml
+web_extra_daemons:
+    - name: "topcoat"
+      command: "HOST=0.0.0.0 PORT=3000 /usr/local/cargo/bin/topcoat dev"
+      directory: /var/www/html
+web_extra_exposed_ports:
+    - name: "topcoat"
+      container_port: 3000
+      http_port: 80
+      https_port: 443
+EOF
+```
+
+Start DDEV (building the image with Rust takes a few minutes):
+
+```bash
+ddev start
+```
+
+Create the Topcoat app. `topcoat new` only creates new directories, so create it in a temporary directory and copy it into the project:
+
+```bash
+ddev exec 'topcoat new /tmp/app --name "${DDEV_SITENAME}" --recommended --no-interactive && cp -a /tmp/app/. . && rm -rf /tmp/app'
+```
+
+Build the app and create its database:
+
+```bash
+ddev exec cargo run -- toasty migration generate
+ddev exec cargo run -- toasty migration apply
+```
+
+Restart DDEV to start the `topcoat dev` server, then launch the site:
+
+```bash
+ddev restart
+ddev launch
+```
+
+Edit `src/app.rs` and reload the page to see your changes. The `topcoat dev` server rebuilds the app after each change and logs to `ddev logs`.
+
+!!!note "Automatic page updates"
+    `topcoat dev` updates open pages through a separate server that listens only on `127.0.0.1` inside the web container, so the browser cannot reach it. Reload the page yourself after a change.
+
+??? tip "Prefer to run as a script?"
+    To run the whole setup as a script, examine and run this script:
+
+    ```bash
+    cat > setup-topcoat.sh << 'EOF'
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export TOPCOAT_SITENAME=my-topcoat-site
+    mkdir -p ${TOPCOAT_SITENAME} && cd ${TOPCOAT_SITENAME}
+    ddev config --project-type=generic --webserver-type=generic \
+        --webimage-extra-packages=build-essential \
+        --web-environment-add=CARGO_TARGET_DIR=/mnt/ddev-global-cache/topcoat/${TOPCOAT_SITENAME}/target \
+        --omit-containers=db
+    cat <<'INNEREOF' > .ddev/web-build/Dockerfile.topcoat
+    ENV RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo
+    RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --no-modify-path \
+        && /usr/local/cargo/bin/cargo install --locked topcoat-cli \
+        && chmod -R a+rwX /usr/local/rustup /usr/local/cargo \
+        && echo 'export PATH="/usr/local/cargo/bin:$PATH"' > /etc/bashrc/topcoat.bashrc
+    INNEREOF
+    cat <<'INNEREOF' > .ddev/config.topcoat.yaml
+    web_extra_daemons:
+        - name: "topcoat"
+          command: "HOST=0.0.0.0 PORT=3000 /usr/local/cargo/bin/topcoat dev"
+          directory: /var/www/html
+    web_extra_exposed_ports:
+        - name: "topcoat"
+          container_port: 3000
+          http_port: 80
+          https_port: 443
+    INNEREOF
+    ddev start -y
+    ddev exec 'topcoat new /tmp/app --name "${DDEV_SITENAME}" --recommended --no-interactive && cp -a /tmp/app/. . && rm -rf /tmp/app'
+    ddev exec cargo run -- toasty migration generate
+    ddev exec cargo run -- toasty migration apply
+    ddev restart
+    ddev launch
+    EOF
+    chmod +x setup-topcoat.sh
+    ./setup-topcoat.sh
+    ```
+
 ## TYPO3
 
 === "Composer"
