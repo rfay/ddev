@@ -191,12 +191,6 @@ run `docker push`.** When there is no fork to push to, finish at the commit,
 report which commits are unpushed, and say the next step needs the maintainer
 to push.
 
-**After a rebase onto `main`, run `make desktop-mod-tidy`.** The `desktop/`
-module requires the root module through a `replace` directive, so when `main`
-has bumped a dependency in the root `go.mod`, `desktop/go.mod` and
-`desktop/go.sum` go stale and Static Validation fails. Commit the result
-before you push the rebased branch.
-
 When creating a branch, use `YYYYMMDD_<username>_<short_description>`, for
 example `20250108_rfay_fix_networking`. Create one from upstream rather than
 from a possibly-stale local `main`, and compare against the same base:
