@@ -96,7 +96,8 @@ Other skip conditions remain, so check the selected test's prerequisites.
 
 **`make staticrequired` must pass before every commit command, including an
 amend, squash, or reword.** It runs golangci-lint, markdownlint, zensical, and
-an image-tag check.
+an image-tag check. It also runs `make desktop-mod-tidy`, which
+tidies `desktop/go.mod` and fails until that change is staged.
 
 - Read its full output. Never pipe it through `tail`, `head`, or `grep`.
 - Fix every failure without asking first, even in changes you didn't write,
@@ -189,6 +190,12 @@ in the approval request that the push rewrites the branch. **Never
 run `docker push`.** When there is no fork to push to, finish at the commit,
 report which commits are unpushed, and say the next step needs the maintainer
 to push.
+
+**After a rebase onto `main`, run `make desktop-mod-tidy`.** The `desktop/`
+module requires the root module through a `replace` directive, so when `main`
+has bumped a dependency in the root `go.mod`, `desktop/go.mod` and
+`desktop/go.sum` go stale and Static Validation fails. Commit the result
+before you push the rebased branch.
 
 When creating a branch, use `YYYYMMDD_<username>_<short_description>`, for
 example `20250108_rfay_fix_networking`. Create one from upstream rather than
